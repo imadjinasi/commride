@@ -141,9 +141,9 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
         Navigator.of(sheetContext).pop();
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${kind.label} terkirim.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${kind.label} terkirim.')));
     } catch (_) {
       if (!mounted) {
         return;
@@ -166,10 +166,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
 }
 
 typedef _QuickActionSender =
-    Future<void> Function(
-      LiveQuickActionKind kind, {
-      String? reason,
-    });
+    Future<void> Function(LiveQuickActionKind kind, {String? reason});
 
 class _QuickActionsSheet extends StatelessWidget {
   const _QuickActionsSheet({required this.onSend});
@@ -184,10 +181,7 @@ class _QuickActionsSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            'Quick Actions',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Quick Actions', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
           const Text(
             'Kirim kondisi penting ke semua Rider tanpa membuka chat.',
@@ -263,9 +257,8 @@ class _QuickActionSendTile extends StatelessWidget {
               child: const Text('Batal'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(
-                dialogContext,
-              ).pop(reasonController.text.trim()),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(reasonController.text.trim()),
               child: const Text('Kirim'),
             ),
           ],
