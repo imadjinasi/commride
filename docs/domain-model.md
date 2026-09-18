@@ -232,6 +232,13 @@ Represents the period when Ride location sharing is active.
 
 It begins when the Ride starts and normally ends when the Ride ends.
 
+Initial lifecycle semantics:
+- only an Active Ride may accept realtime room connections;
+- joining the room does not itself start device location tracking;
+- Ride completion terminates the live room;
+- reconnect after completion is rejected;
+- live-room authorization is derived from authenticated RideMembership, never social follow state.
+
 It owns/controls:
 - who may publish location;
 - who may view location;
@@ -255,9 +262,18 @@ Potential states:
 
 Contains latest-known:
 - coordinates;
-- timestamp;
+- observation timestamp;
+- server receipt timestamp;
 - movement state;
+- connection/freshness state;
 - battery/network metadata only if explicitly justified and permission-safe.
+
+Initial semantics:
+- one latest RiderPresence is operationally retained per Rider in the Active Ride room;
+- an older observation cannot replace a newer observation;
+- disconnect changes connection state to Offline without pretending the last coordinate disappeared;
+- Stale/Offline positions retain timestamps;
+- RiderPresence is overwritten operational state, not an append-only GPS log.
 
 RiderPresence should be treated differently from long-term route history.
 
