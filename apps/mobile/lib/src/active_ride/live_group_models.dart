@@ -132,6 +132,14 @@ enum LiveQuickActionKind {
     };
   }
 
+  String get wireValue {
+    return switch (this) {
+      LiveQuickActionKind.stopping => 'stopping',
+      LiveQuickActionKind.leftBehind => 'left_behind',
+      LiveQuickActionKind.needHelp => 'need_help',
+    };
+  }
+
   static LiveQuickActionKind fromWireValue(String value) {
     return switch (value) {
       'stopping' => LiveQuickActionKind.stopping,
@@ -151,6 +159,7 @@ class LiveQuickAction {
     required this.kind,
     required this.reason,
     required this.raisedAt,
+    this.presence,
   });
 
   final String eventId;
@@ -160,11 +169,17 @@ class LiveQuickAction {
   final LiveQuickActionKind kind;
   final String? reason;
   final DateTime raisedAt;
+  final LiveRiderPresence? presence;
 
   factory LiveQuickAction.fromJson(Map<String, Object?> json) {
     final Object? rawRider = json['rider'];
     if (rawRider is! Map<String, Object?>) {
       throw const FormatException('Quick action Rider is required.');
+    }
+
+    final Object? rawPresence = json['presence'];
+    if (rawPresence != null && rawPresence is! Map<String, Object?>) {
+      throw const FormatException('Quick action presence is invalid.');
     }
 
     return LiveQuickAction(
@@ -177,6 +192,9 @@ class LiveQuickAction {
       ),
       reason: _optionalString(json['reason']),
       raisedAt: _requiredDate(json['raisedAt'], 'raisedAt'),
+      presence: rawPresence is Map<String, Object?>
+          ? LiveRiderPresence.fromJson(rawPresence)
+          : null,
     );
   }
 }
