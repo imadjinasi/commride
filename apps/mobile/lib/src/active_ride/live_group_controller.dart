@@ -68,11 +68,7 @@ class ActiveRideGroupState {
       }
     }
 
-    return ActiveRideGroupCounts(
-      live: live,
-      stale: stale,
-      offline: offline,
-    );
+    return ActiveRideGroupCounts(live: live, stale: stale, offline: offline);
   }
 
   ActiveRideGroupState copyWith({
@@ -89,9 +85,7 @@ class ActiveRideGroupState {
       presences: presences ?? this.presences,
       quickActions: quickActions ?? this.quickActions,
       endedAt: clearEndedAt ? null : (endedAt ?? this.endedAt),
-      latestError: clearLatestError
-          ? null
-          : (latestError ?? this.latestError),
+      latestError: clearLatestError ? null : (latestError ?? this.latestError),
     );
   }
 }
@@ -170,8 +164,7 @@ class ActiveRideGroupController extends ChangeNotifier {
             for (final LiveRiderPresence presence in _state.presences)
               presence.riderId: presence,
           };
-      final LiveRiderPresence? current =
-          byRider[event.presence.riderId];
+      final LiveRiderPresence? current = byRider[event.presence.riderId];
 
       if (current != null &&
           event.presence.observedAt.isBefore(current.observedAt)) {
@@ -190,25 +183,20 @@ class ActiveRideGroupController extends ChangeNotifier {
 
     if (event is ActiveRideQuickActionRaised) {
       if (_state.quickActions.any(
-        (LiveQuickAction action) =>
-            action.eventId == event.action.eventId,
+        (LiveQuickAction action) => action.eventId == event.action.eventId,
       )) {
         return;
       }
 
-      final List<LiveQuickAction> actions = <LiveQuickAction>[
-        event.action,
-        ..._state.quickActions,
-      ]..sort(
-          (LiveQuickAction a, LiveQuickAction b) =>
-              b.raisedAt.compareTo(a.raisedAt),
-        );
+      final List<LiveQuickAction> actions =
+          <LiveQuickAction>[event.action, ..._state.quickActions]..sort(
+            (LiveQuickAction a, LiveQuickAction b) =>
+                b.raisedAt.compareTo(a.raisedAt),
+          );
 
       _setState(
         _state.copyWith(
-          quickActions: actions
-              .take(_quickActionLimit)
-              .toList(growable: false),
+          quickActions: actions.take(_quickActionLimit).toList(growable: false),
           clearLatestError: true,
         ),
       );
@@ -219,8 +207,7 @@ class ActiveRideGroupController extends ChangeNotifier {
       _setState(
         _state.copyWith(
           endedAt: event.endedAt,
-          connectionState:
-              ActiveRideRealtimeConnectionState.disconnected,
+          connectionState: ActiveRideRealtimeConnectionState.disconnected,
         ),
       );
       return;
@@ -231,13 +218,10 @@ class ActiveRideGroupController extends ChangeNotifier {
     }
   }
 
-  List<LiveRiderPresence> _sortedPresences(
-    Iterable<LiveRiderPresence> values,
-  ) {
+  List<LiveRiderPresence> _sortedPresences(Iterable<LiveRiderPresence> values) {
     final List<LiveRiderPresence> sorted = values.toList(growable: false)
       ..sort((LiveRiderPresence a, LiveRiderPresence b) {
-        final int roleCompare =
-            _roleRank(a.role).compareTo(_roleRank(b.role));
+        final int roleCompare = _roleRank(a.role).compareTo(_roleRank(b.role));
         if (roleCompare != 0) {
           return roleCompare;
         }
