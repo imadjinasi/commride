@@ -341,7 +341,19 @@ Includes:
 - timing;
 - notes.
 
-Each RideMembership can track briefing acknowledgement/readiness.
+RideBriefing revision semantics:
+- each publish creates a new immutable briefing revision;
+- exactly one briefing revision is current for a Ride;
+- the briefing references the exact immutable RoutePlan revision that was reviewed;
+- if the current RoutePlan later changes, the latest briefing remains readable but is stale until the Leader publishes a new briefing revision;
+- only Draft or Published Rides may publish or replace the current briefing in the initial MVP.
+
+Briefing acknowledgement/readiness is scoped to one Rider and one exact
+RideBriefing revision. Acknowledgement of an older briefing remains historical
+but does not count toward readiness for a newer revision.
+
+Readiness is advisory in the MVP. It is visible to the Leader before Start Ride
+but does not automatically block the Leader from starting the Ride.
 
 ## 23. RideRecap
 
