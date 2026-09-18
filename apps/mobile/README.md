@@ -12,12 +12,14 @@ Implemented foundation:
 - email/password sign in and account creation;
 - authenticated CommRide API client;
 - Rider profile onboarding through `GET/PUT /v1/me`;
+- Rider Vehicle profile management;
+- Club/Ride lifecycle;
+- Route Planner flow with place search, route alternatives, Add Stop, Search Along Route, reorder/remove, Checkpoint metadata, and RoutePlan revision save;
 - explicit setup screen when Firebase or API configuration is absent.
 
 Not implemented yet:
 
-- vehicle profile UI;
-- Google Maps;
+- native Google Maps canvas / map rendering;
 - background location;
 - realtime Ride state;
 - final high-fidelity design.
@@ -138,5 +140,43 @@ Rider-ID invitation is an internal baseline, not the intended final discovery
 experience. Invite links, user-friendly Rider lookup, and public discovery are
 future product work.
 
-This lifecycle does not yet include Route planning, checkpoints, live location,
+This lifecycle does not yet include live location, checkpoint arrival/release,
 chat, or the social feed.
+
+## Route Planner
+
+A joined Ride participant can open the saved RoutePlan. A Leader can edit and
+save RoutePlan revisions while the Ride is Draft or Published.
+
+Implemented planning flow:
+
+- search origin and destination;
+- compute and choose route alternatives before Stops are added;
+- Add Stop with place search;
+- on-demand Search Along Route categories;
+- preview added distance/time when provider routing summary is available;
+- reorder or remove Stops;
+- recompute before committing a changed Stop order;
+- convert a Stop into a typed Checkpoint;
+- set planned Checkpoint duration;
+- save the current route as a new RoutePlan revision.
+
+If recomputation fails, the UI preserves the previous valid route and Stop
+list. It does not replace them with a partial failed state.
+
+Backend runtime behavior depends on the server-side route/place adapter in PR
+#22 and RoutePlan persistence in PR #23. The Google Maps Platform web-service
+key remains on the server; it is never passed through mobile
+`--dart-define`.
+
+Current provider limitation: Search Along Route does not use DRIVE results as a
+motorcycle substitute. If the provider rejects `two_wheeler`, the UI explains
+the limitation and directs the Leader to ordinary Add Stop search.
+
+The native Google Maps canvas is intentionally not added in repository-only
+work yet. Platform Android/iOS directories and platform-restricted map SDK
+configuration are generated and verified locally before committing them.
+The planner remains functional as a list/summary flow against the CommRide API.
+
+Route planning does **not** request foreground or background location
+permission. Live Ride tracking remains a separate contextual permission flow.
