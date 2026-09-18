@@ -1,5 +1,6 @@
 import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/rider_profile_api.dart';
+import 'package:commride_mobile/src/api/ride_briefing_api.dart';
 import 'package:commride_mobile/src/api/route_planner_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/app.dart';
@@ -7,6 +8,7 @@ import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/config/app_config.dart';
 import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/rider_profile.dart';
+import 'package:commride_mobile/src/models/ride_briefing.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -202,6 +204,24 @@ class FakeRoutePlannerApi implements RoutePlannerApi {
   }
 }
 
+class FakeRideBriefingApi implements RideBriefingApi {
+  @override
+  Future<RideBriefingView> acknowledgeBriefing(String rideId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RideBriefingView?> fetchBriefing(String rideId) async => null;
+
+  @override
+  Future<RideBriefingView> publishBriefing({
+    required String rideId,
+    required String? notes,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   testWidgets('signed-out user sees authentication screen', (
     WidgetTester tester,
@@ -214,6 +234,7 @@ void main() {
         vehicleApi: FakeVehicleApi(),
         clubRideApi: FakeClubRideApi(),
         routePlannerApi: FakeRoutePlannerApi(),
+        rideBriefingApi: FakeRideBriefingApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -236,6 +257,7 @@ void main() {
         vehicleApi: FakeVehicleApi(),
         clubRideApi: FakeClubRideApi(),
         routePlannerApi: FakeRoutePlannerApi(),
+        rideBriefingApi: FakeRideBriefingApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -265,6 +287,7 @@ void main() {
         vehicleApi: FakeVehicleApi(),
         clubRideApi: FakeClubRideApi(),
         routePlannerApi: FakeRoutePlannerApi(),
+        rideBriefingApi: FakeRideBriefingApi(),
       ),
     );
     await tester.pumpAndSettle();
