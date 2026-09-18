@@ -208,6 +208,8 @@ void main() {
       find.textContaining('Posisi terakhir tidak dianggap live'),
       findsOneWidget,
     );
+    expect(find.text('Offline'), findsWidgets);
+    expect(find.text('Live'), findsOneWidget);
 
     await cleanup(tester, controller, realtime);
   });
