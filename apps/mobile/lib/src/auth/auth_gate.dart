@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/club_ride_api.dart';
 import '../api/rider_profile_api.dart';
+import '../api/ride_briefing_api.dart';
 import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
 import '../config/app_config.dart';
@@ -19,6 +20,7 @@ class AuthGate extends StatelessWidget {
     required this.vehicleApi,
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     super.key,
   });
 
@@ -28,6 +30,7 @@ class AuthGate extends StatelessWidget {
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +61,7 @@ class AuthGate extends StatelessWidget {
           vehicleApi: vehicleApi,
           clubRideApi: clubRideApi,
           routePlannerApi: routePlannerApi,
+          rideBriefingApi: rideBriefingApi,
         );
       },
     );
@@ -72,6 +76,7 @@ class _RiderProfileGate extends StatefulWidget {
     required this.vehicleApi,
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     super.key,
   });
 
@@ -81,6 +86,7 @@ class _RiderProfileGate extends StatefulWidget {
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
 
   @override
   State<_RiderProfileGate> createState() => _RiderProfileGateState();
@@ -133,6 +139,7 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           vehicleApi: widget.vehicleApi,
           clubRideApi: widget.clubRideApi,
           routePlannerApi: widget.routePlannerApi,
+          rideBriefingApi: widget.rideBriefingApi,
           authGateway: widget.authGateway,
         );
       },
