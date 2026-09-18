@@ -43,6 +43,10 @@ interface RideInvitationInput {
   readonly role: Exclude<RideRole, 'leader'>;
 }
 
+export function isClubRideRequestPath(pathname: string): boolean {
+  return matchRoute(pathname) != null;
+}
+
 export async function handleClubRideRequest(
   request: Request,
   url: URL,
