@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../auth/auth_gateway.dart';
+import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'location_provider.dart';
 import 'realtime_client.dart';
@@ -227,8 +228,20 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
               return LiveRiderPresence.fromJson(value);
             })
             .toList(growable: false);
+        final Object? rawSeparation = rawPayload['separation'];
+        final LiveConvoySeparation? separation = rawSeparation == null
+            ? null
+            : rawSeparation is Map<String, Object?>
+            ? LiveConvoySeparation.fromJson(rawSeparation)
+            : throw const FormatException(
+                'Invalid convoy separation snapshot.',
+              );
         _events.add(
-          ActiveRideSnapshotReceived(rideId: rawRideId, presences: presences),
+          ActiveRideSnapshotReceived(
+            rideId: rawRideId,
+            presences: presences,
+            separation: separation,
+          ),
         );
       } on FormatException {
         return;
@@ -246,6 +259,24 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
         _events.add(
           ActiveRidePresenceUpdated(
             presence: LiveRiderPresence.fromJson(rawPresence),
+          ),
+        );
+      } on FormatException {
+        return;
+      }
+      return;
+    }
+
+    if (type == 'convoy.separation_updated') {
+      final Object? rawSeparation = rawPayload['separation'];
+      if (rawSeparation is! Map<String, Object?>) {
+        return;
+      }
+
+      try {
+        _events.add(
+          ActiveRideSeparationUpdated(
+            separation: LiveConvoySeparation.fromJson(rawSeparation),
           ),
         );
       } on FormatException {
