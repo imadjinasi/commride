@@ -18,8 +18,7 @@ class ActiveRideTrackingScreen extends StatefulWidget {
       _ActiveRideTrackingScreenState();
 }
 
-class _ActiveRideTrackingScreenState
-    extends State<ActiveRideTrackingScreen> {
+class _ActiveRideTrackingScreenState extends State<ActiveRideTrackingScreen> {
   @override
   void initState() {
     super.initState();
@@ -91,9 +90,7 @@ class _ActiveRideTrackingScreenState
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 6),
-              Text(
-                _formatObservation(state.lastSample!.observedAt.toLocal()),
-              ),
+              Text(_formatObservation(state.lastSample!.observedAt.toLocal())),
             ],
           ],
         ),
@@ -149,8 +146,9 @@ class _TrackingStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (_TrackingTone tone, String title, String detail) =
-        _statusContent(state);
+    final (_TrackingTone tone, String title, String detail) = _statusContent(
+      state,
+    );
 
     return Card(
       child: Padding(
@@ -164,10 +162,7 @@ class _TrackingStatusCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 4),
                   Text(detail),
                   if (state.message != null) ...<Widget>[
@@ -183,58 +178,56 @@ class _TrackingStatusCard extends StatelessWidget {
     );
   }
 
-  (
-    _TrackingTone,
-    String,
-    String,
-  ) _statusContent(RideLocationSessionState state) {
+  (_TrackingTone, String, String) _statusContent(
+    RideLocationSessionState state,
+  ) {
     return switch (state.phase) {
       RideLocationSessionPhase.inactive => (
-          _TrackingTone.inactive,
-          'Tracking belum aktif',
-          'Aktifkan saat Anda siap berbagi posisi untuk Ride ini.',
-        ),
+        _TrackingTone.inactive,
+        'Tracking belum aktif',
+        'Aktifkan saat Anda siap berbagi posisi untuk Ride ini.',
+      ),
       RideLocationSessionPhase.permissionRequired => (
-          _TrackingTone.waiting,
-          'Menunggu izin lokasi',
-          'CommRide hanya meminta izin untuk sesi Active Ride.',
-        ),
+        _TrackingTone.waiting,
+        'Menunggu izin lokasi',
+        'CommRide hanya meminta izin untuk sesi Active Ride.',
+      ),
       RideLocationSessionPhase.starting => (
-          _TrackingTone.waiting,
-          'Memulai tracking',
-          'Menghubungkan lokasi perangkat ke ruang Ride.',
-        ),
+        _TrackingTone.waiting,
+        'Memulai tracking',
+        'Menghubungkan lokasi perangkat ke ruang Ride.',
+      ),
       RideLocationSessionPhase.active => (
-          _TrackingTone.active,
-          'Tracking aktif',
-          'Posisi terbaru dikirim ke ruang Ride yang terautentikasi.',
-        ),
+        _TrackingTone.active,
+        'Tracking aktif',
+        'Posisi terbaru dikirim ke ruang Ride yang terautentikasi.',
+      ),
       RideLocationSessionPhase.degraded => (
-          _TrackingTone.warning,
-          'Tracking terganggu',
-          'Posisi terakhir tetap diberi timestamp dan tidak dianggap live.',
-        ),
+        _TrackingTone.warning,
+        'Tracking terganggu',
+        'Posisi terakhir tetap diberi timestamp dan tidak dianggap live.',
+      ),
       RideLocationSessionPhase.stopping => (
-          _TrackingTone.waiting,
-          'Menghentikan tracking',
-          'Menutup lokasi perangkat dan koneksi realtime.',
-        ),
+        _TrackingTone.waiting,
+        'Menghentikan tracking',
+        'Menutup lokasi perangkat dan koneksi realtime.',
+      ),
       RideLocationSessionPhase.stoppedByRideEnd => (
-          _TrackingTone.inactive,
-          'Tracking berhenti',
-          'Ride telah selesai dan sesi lokasi ditutup.',
-        ),
+        _TrackingTone.inactive,
+        'Tracking berhenti',
+        'Ride telah selesai dan sesi lokasi ditutup.',
+      ),
       RideLocationSessionPhase.denied => (
-          _TrackingTone.warning,
-          'Izin lokasi belum diberikan',
-          'Anda tetap dapat memakai bagian CommRide yang tidak membutuhkan '
-              'lokasi.',
-        ),
+        _TrackingTone.warning,
+        'Izin lokasi belum diberikan',
+        'Anda tetap dapat memakai bagian CommRide yang tidak membutuhkan '
+            'lokasi.',
+      ),
       RideLocationSessionPhase.error => (
-          _TrackingTone.warning,
-          'Tracking belum tersedia',
-          'Periksa status Ride, izin lokasi, dan koneksi.',
-        ),
+        _TrackingTone.warning,
+        'Tracking belum tersedia',
+        'Periksa status Ride, izin lokasi, dan koneksi.',
+      ),
     };
   }
 }
