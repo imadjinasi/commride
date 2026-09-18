@@ -202,12 +202,22 @@ Types:
 - Finish
 - Custom
 
-Possible attributes:
-- expected arrival;
+Operational attributes:
+- stable RouteStop identity from one immutable RoutePlan revision;
+- sequence;
 - planned duration;
-- mandatory flag;
-- check-in policy;
-- release state.
+- manual arrival/check-in state;
+- explicit Leader release state.
+
+Initial MVP semantics:
+- only Stops with a non-null Checkpoint type participate;
+- the Active Ride uses the immutable current RoutePlan revision, which can no
+  longer be replaced after Ride start;
+- the first unreleased Checkpoint is Current/Waiting;
+- later Checkpoints are Upcoming;
+- released Checkpoints never regress to Waiting;
+- Leader release is explicit and may occur while Riders are still missing;
+- automatic/geofence arrival is a separate later capability.
 
 ## 13. Segment
 
@@ -323,12 +333,23 @@ SOS is not equivalent to contacting public emergency services unless such an int
 
 Connects Rider and Checkpoint with arrival data.
 
-Candidate fields:
-- arrived_at;
-- method;
-- optional location confirmation.
+Initial fields/semantics:
+- Ride;
+- stable Checkpoint RouteStop ID;
+- Rider;
+- server-recorded checked-in timestamp;
+- method = manual for the first implementation.
 
-The Leader can see arrival counts without needing to infer solely from GPS.
+Manual CheckIn is idempotent for Rider + Checkpoint. Rider identity is derived
+from authentication; a Rider cannot check in another Rider.
+
+The Leader can see arrival counts without needing to infer from GPS. A manual
+check-in is an explicit Rider claim of arrival and is **not** labeled
+GPS-verified.
+
+Checkpoint release is a separate Leader-only, idempotent command with a
+server-recorded timestamp. A release may proceed with missing Riders, but the
+missing count must remain explicit in the read model.
 
 ## 22. RideBriefing
 
