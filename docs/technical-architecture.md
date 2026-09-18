@@ -223,6 +223,23 @@ latest-known state.
 The room may periodically confirm the Ride is still Active from authoritative
 D1 state, but must not perform a D1 write for each location update.
 
+### Active membership changes
+
+The initial lifecycle does not expose a leave/remove-membership command while a
+Ride is Active.
+
+If that capability is added later, the authoritative membership command must
+also signal the Active Ride room to revoke that Rider. The room must then:
+
+- close every socket attached to that Rider;
+- stop accepting operational events from those sockets;
+- remove or mark the Rider's operational presence appropriately;
+- broadcast a presence-removal/update event to remaining participants.
+
+Do **not** solve this by reading D1 membership state for every GPS update.
+Authorization is checked at connection time, and future membership mutation
+commands must push revocation into the room.
+
 ### Room end
 
 When Ride state becomes Completed, the lifecycle command signals the room.
