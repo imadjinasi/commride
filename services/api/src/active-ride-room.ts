@@ -40,7 +40,10 @@ export class ActiveRideRoom {
     const requestId = resolveRequestId(request);
     const url = new URL(request.url);
 
-    if (url.pathname === '/connect') {
+    if (
+      url.pathname === '/connect' ||
+      request.headers.get('x-commride-internal-action') === 'connect'
+    ) {
       return this.connect(request, requestId);
     }
 
