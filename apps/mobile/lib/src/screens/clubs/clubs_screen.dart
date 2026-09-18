@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../api/club_ride_api.dart';
+import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
 import 'club_detail_screen.dart';
 import 'create_club_screen.dart';
 
 class ClubsScreen extends StatefulWidget {
-  const ClubsScreen({required this.clubRideApi, super.key});
+  const ClubsScreen({
+    required this.clubRideApi,
+    required this.routePlannerApi,
+    super.key,
+  });
 
   final ClubRideApi clubRideApi;
+  final RoutePlannerApi routePlannerApi;
 
   @override
   State<ClubsScreen> createState() => _ClubsScreenState();
@@ -134,6 +140,7 @@ class _ClubsScreenState extends State<ClubsScreen> {
         builder: (BuildContext context) => ClubDetailScreen(
           item: item,
           clubRideApi: widget.clubRideApi,
+          routePlannerApi: widget.routePlannerApi,
           onChanged: _refresh,
         ),
       ),
