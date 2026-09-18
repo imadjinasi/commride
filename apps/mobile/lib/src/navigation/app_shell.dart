@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/club_ride_api.dart';
+import '../api/ride_briefing_api.dart';
 import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
 import '../auth/auth_gateway.dart';
@@ -19,6 +20,7 @@ class AppShell extends StatefulWidget {
     required this.vehicleApi,
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     required this.authGateway,
     super.key,
   });
@@ -28,6 +30,7 @@ class AppShell extends StatefulWidget {
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
   final AuthGateway authGateway;
 
   @override
@@ -44,11 +47,13 @@ class _AppShellState extends State<AppShell> {
       RideScreen(
         clubRideApi: widget.clubRideApi,
         routePlannerApi: widget.routePlannerApi,
+        rideBriefingApi: widget.rideBriefingApi,
       ),
       const ExploreScreen(),
       ClubsScreen(
         clubRideApi: widget.clubRideApi,
         routePlannerApi: widget.routePlannerApi,
+        rideBriefingApi: widget.rideBriefingApi,
       ),
       ProfileScreen(
         riderProfile: widget.riderProfile,
