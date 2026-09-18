@@ -111,7 +111,6 @@ Future<void> closeFakes(
   RideLocationSessionController controller,
 ) async {
   await tester.pumpWidget(const SizedBox.shrink());
-  await controller.stopForSignOut();
   controller.dispose();
 }
 
