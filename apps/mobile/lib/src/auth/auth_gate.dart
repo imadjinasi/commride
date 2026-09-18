@@ -81,10 +81,7 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
   Widget build(BuildContext context) {
     return FutureBuilder<RiderProfile?>(
       future: _profileFuture,
-      builder: (
-        BuildContext context,
-        AsyncSnapshot<RiderProfile?> snapshot,
-      ) {
+      builder: (BuildContext context, AsyncSnapshot<RiderProfile?> snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const _LoadingScreen();
         }
@@ -127,9 +124,7 @@ class _LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
@@ -167,10 +162,8 @@ class _ErrorScreen extends StatelessWidget {
                   onPressed: onRetry,
                   child: const Text('Coba lagi'),
                 ),
-                if (
-                  secondaryActionLabel != null &&
-                  onSecondaryAction != null
-                ) ...<Widget>[
+                if (secondaryActionLabel != null &&
+                    onSecondaryAction != null) ...<Widget>[
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () {
