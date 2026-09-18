@@ -30,6 +30,8 @@ abstract interface class ClubRideApi {
   Future<Ride> startRide(String rideId);
 
   Future<Ride> endRide(String rideId);
+
+  Future<Ride> cancelRide(String rideId);
 }
 
 class ClubRideApiException implements Exception {
