@@ -72,10 +72,7 @@ class HttpClubRideApi implements ClubRideApi {
 
     final http.Response response = await _post(
       '/v1/clubs/${Uri.encodeComponent(clubId)}/members/invite',
-      body: <String, Object?>{
-        'riderId': riderId,
-        'role': role.name,
-      },
+      body: <String, Object?>{'riderId': riderId, 'role': role.name},
     );
     final Map<String, Object?> body = _decodeObject(response);
     _expectStatus(response, body, 200);
@@ -143,10 +140,7 @@ class HttpClubRideApi implements ClubRideApi {
 
     final http.Response response = await _post(
       '/v1/rides/${Uri.encodeComponent(rideId)}/members/invite',
-      body: <String, Object?>{
-        'riderId': riderId,
-        'role': role.name,
-      },
+      body: <String, Object?>{'riderId': riderId, 'role': role.name},
     );
     final Map<String, Object?> body = _decodeObject(response);
     _expectStatus(response, body, 200);
@@ -190,10 +184,7 @@ class HttpClubRideApi implements ClubRideApi {
     return _readRide(body);
   }
 
-  Future<http.Response> _post(
-    String path, {
-    Map<String, Object?>? body,
-  }) async {
+  Future<http.Response> _post(String path, {Map<String, Object?>? body}) async {
     return _client.post(
       _endpoint(path),
       headers: await _headers(includeJson: body != null),
