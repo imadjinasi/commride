@@ -159,7 +159,9 @@ Implemented planning flow:
 - recompute before committing a changed Stop order;
 - convert a Stop into a typed Checkpoint;
 - set planned Checkpoint duration;
-- save the current route as a new RoutePlan revision.
+- save the current route as a new RoutePlan revision;
+- open external navigation to the next Stop, or the destination when no Stop
+  remains in the plan.
 
 If recomputation fails, the UI preserves the previous valid route and Stop
 list. It does not replace them with a partial failed state.
