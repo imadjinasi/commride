@@ -35,6 +35,7 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "route_stops",
         "ride_briefings",
         "ride_briefing_acknowledgements",
+        "ride_messages",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -369,6 +370,95 @@ def assert_briefing_invariants(connection: sqlite3.Connection) -> None:
         raise AssertionError("Duplicate briefing acknowledgement was accepted")
 
 
+
+
+def assert_ride_message_invariants(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT INTO ride_messages(
+          id,
+          ride_id,
+          sender_rider_id,
+          sender_display_name,
+          sender_ride_role,
+          kind,
+          body,
+          client_message_id,
+          created_at
+        ) VALUES (?, ?, ?, ?, 'leader', 'chat', ?, ?, ?)
+        """,
+        (
+            "message-1",
+            "ride-1",
+            "rider-1",
+            "Rider One",
+            "Regroup di depan.",
+            "client-message-1",
+            "2026-09-18T10:00:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_messages(
+              id,
+              ride_id,
+              sender_rider_id,
+              sender_display_name,
+              sender_ride_role,
+              kind,
+              body,
+              client_message_id,
+              created_at
+            ) VALUES (?, ?, ?, ?, 'leader', 'chat', ?, ?, ?)
+            """,
+            (
+                "message-duplicate",
+                "ride-1",
+                "rider-1",
+                "Rider One",
+                "Duplicate retry",
+                "client-message-1",
+                "2026-09-18T10:00:01Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate Ride message idempotency key was accepted")
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_messages(
+              id,
+              ride_id,
+              sender_rider_id,
+              sender_display_name,
+              sender_ride_role,
+              kind,
+              body,
+              client_message_id,
+              created_at
+            ) VALUES (?, ?, ?, ?, 'leader', 'quick_action', ?, ?, ?)
+            """,
+            (
+                "message-invalid-kind",
+                "ride-1",
+                "rider-1",
+                "Rider One",
+                "Invalid kind",
+                "client-message-2",
+                "2026-09-18T10:00:02Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Unsupported Ride message kind was accepted")
+
+
 def main() -> None:
     connection = sqlite3.connect(":memory:")
     connection.execute("PRAGMA foreign_keys = ON")
@@ -378,6 +468,7 @@ def main() -> None:
     assert_membership_invariants(connection)
     assert_route_plan_invariants(connection)
     assert_briefing_invariants(connection)
+    assert_ride_message_invariants(connection)
     assert_foreign_keys(connection)
 
     print("migration-validation-ok")
