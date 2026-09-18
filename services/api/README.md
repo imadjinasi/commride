@@ -354,6 +354,69 @@ Active Ride replanning requires a later explicit operational command rather
 than silently rewriting the pre-Ride plan.
 
 
+## Checkpoint coordination
+
+Checkpoint coordination is persisted operational Ride state tied to the current
+immutable RoutePlan revision.
+
+Endpoints:
+
+- `GET /v1/rides/:rideId/checkpoints`
+- `POST /v1/rides/:rideId/checkpoints/:checkpointId/check-in`
+- `POST /v1/rides/:rideId/checkpoints/:checkpointId/release`
+
+### Read model
+
+A participating Rider may read Checkpoint state while the Ride is Active or
+Completed.
+
+The response includes:
+
+- exact RoutePlan ID and revision;
+- ordered Checkpoints only (ordinary Stops are excluded);
+- current / upcoming / released state;
+- expected, checked-in, and missing Rider counts;
+- whether the authenticated Rider has checked in;
+- release timestamp;
+- compact participant/check-in state.
+
+The current Checkpoint is the first unreleased Checkpoint in route order.
+
+### Manual Rider check-in
+
+Check-in is available only while the Ride is Active.
+
+Identity is derived from authentication. A Rider cannot check in another Rider.
+
+Check-in is idempotent for:
+
+`Ride + RoutePlan revision + Checkpoint + Rider`
+
+The server records the receipt timestamp and `method: manual`.
+
+Manual check-in is a Rider claim of arrival. It is **not** labeled or treated as
+GPS verification, and this slice does not request or persist device location.
+
+Late check-in to a released Checkpoint remains historical and does not reopen
+the Checkpoint.
+
+### Leader release
+
+Only the Ride Leader may release a Checkpoint while the Ride is Active.
+
+Release is idempotent. Earlier Checkpoints must be released first, so
+operational sequence cannot regress.
+
+Release is allowed even when Riders are still missing. The updated read model
+keeps the missing count explicit so mobile can require an appropriate
+confirmation before sending the command.
+
+The persisted API is authoritative. Realtime Checkpoint broadcasts are not
+required by this slice; reconnect can reconstruct current state from this API.
+
+No additional Cloudflare service/resource is introduced. These records use the
+existing D1 database.
+
 ## Ride Briefing and readiness
 
 Ride Briefing is an immutable published snapshot tied to one exact RoutePlan
