@@ -41,11 +41,11 @@ class VehicleProfile {
   final int? safeRangeKm;
 
   String get displayName {
-    final List<String> parts = <String>[
-      if (nickname != null) nickname!,
-      if (make != null) make!,
-      if (model != null) model!,
-    ];
+    final List<String> parts = <String?>[
+      nickname,
+      make,
+      model,
+    ].whereType<String>().toList(growable: false);
 
     if (parts.isEmpty) {
       return kind.label;
