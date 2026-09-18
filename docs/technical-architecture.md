@@ -202,6 +202,14 @@ Each client event carries:
 The server derives Rider ID and Ride role from the authenticated WebSocket
 attachment. Rider identity is never accepted from the event payload.
 
+For `quick_action.raise`, the room also attaches the latest server-accepted
+RiderPresence when one exists. The client does not submit a second location
+claim for the action. The attached presence retains its original
+`observedAt`/`receivedAt` timestamps and a freshness value evaluated when the
+quick action is raised. A quick action still broadcasts with null presence when
+no accepted location exists yet; **Butuh Bantuan** must not depend on GPS being
+available.
+
 ### Presence freshness
 
 The room stores only the latest operational RiderPresence per Rider for room
