@@ -79,41 +79,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 8),
               FutureBuilder<List<VehicleProfile>>(
                 future: _vehiclesFuture,
-                builder: (
-                  BuildContext context,
-                  AsyncSnapshot<List<VehicleProfile>> snapshot,
-                ) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<List<VehicleProfile>> snapshot,
+                    ) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-                  if (snapshot.hasError) {
-                    return _VehicleLoadError(onRetry: _refreshVehicles);
-                  }
+                      if (snapshot.hasError) {
+                        return _VehicleLoadError(onRetry: _refreshVehicles);
+                      }
 
-                  final List<VehicleProfile> vehicles =
-                      snapshot.data ?? const <VehicleProfile>[];
+                      final List<VehicleProfile> vehicles =
+                          snapshot.data ?? const <VehicleProfile>[];
 
-                  if (vehicles.isEmpty) {
-                    return const _EmptyVehicles();
-                  }
+                      if (vehicles.isEmpty) {
+                        return const _EmptyVehicles();
+                      }
 
-                  return Column(
-                    children: vehicles.map((VehicleProfile vehicle) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _VehicleCard(
-                          vehicle: vehicle,
-                          onEdit: () => _openEditVehicle(vehicle),
-                          onDelete: () => _deleteVehicle(vehicle),
-                        ),
+                      return Column(
+                        children: vehicles
+                            .map((VehicleProfile vehicle) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _VehicleCard(
+                                  vehicle: vehicle,
+                                  onEdit: () => _openEditVehicle(vehicle),
+                                  onDelete: () => _deleteVehicle(vehicle),
+                                ),
+                              );
+                            })
+                            .toList(growable: false),
                       );
-                    }).toList(growable: false),
-                  );
-                },
+                    },
               ),
               const SizedBox(height: 24),
               const Divider(),
@@ -225,8 +228,7 @@ class _VehicleCard extends StatelessWidget {
     final List<String> details = <String>[
       vehicle.kind.label,
       if (vehicle.fuelType != null) vehicle.fuelType!,
-      if (vehicle.safeRangeKm != null)
-        'Safe range ${vehicle.safeRangeKm} km',
+      if (vehicle.safeRangeKm != null) 'Safe range ${vehicle.safeRangeKm} km',
     ];
 
     return Card(
