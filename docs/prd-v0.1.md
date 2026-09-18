@@ -104,7 +104,13 @@ The initial product flow is:
 - stops/checkpoints;
 - Leader/Sweeper;
 - important notes;
-- acknowledgement/readiness state.
+- acknowledgement/readiness state;
+- immutable briefing revisions tied to an exact RoutePlan revision;
+- stale indication when RoutePlan changes after publication;
+- readiness calculated only from acknowledgements of the current briefing revision.
+
+Readiness is advisory for MVP. The Leader may see Riders who have not
+acknowledged the current briefing, but Start Ride is not automatically blocked.
 
 #### Live Ride
 - background location sharing while Ride is active;
