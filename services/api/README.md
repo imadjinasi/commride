@@ -12,14 +12,16 @@ Implemented:
 - request IDs;
 - structured JSON errors;
 - optional typed D1/Durable Object bindings;
+- Firebase ID-token verification boundary;
+- authenticated `GET /v1/me` and `PUT /v1/me`;
+- D1 Rider profile repository;
 - a deliberately non-functional `ActiveRideRoom` placeholder;
-- unit tests for the HTTP router.
+- unit tests for the HTTP router and Rider profile behavior.
 
 Not implemented:
 
 - production Cloudflare resources;
-- authentication;
-- D1 schema;
+- production Firebase configuration;
 - Active Ride WebSockets;
 - Google Maps/Routes/Places;
 - notifications;
@@ -41,7 +43,15 @@ npm test
 npm run dev
 ```
 
-No secrets are required for the current scaffold.
+The public health/version endpoints require no secrets.
+
+The Rider profile endpoints require verified runtime bindings:
+
+- `FIREBASE_PROJECT_ID`
+- `DB` (D1)
+
+The Firebase project ID is configuration, not a private credential. No Firebase
+service-account private key is required solely for ID-token verification.
 
 ## Endpoints
 
@@ -96,3 +106,42 @@ It currently returns HTTP 501 and does not accept WebSockets. This avoids accide
 - `../../AGENTS.md`
 - `../../docs/technical-architecture.md`
 - `../../docs/development/ai-assisted-workflow.md`
+
+
+## Authentication
+
+Authenticated clients send a Firebase ID token using:
+
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+The Worker validates the token against Firebase's published signing
+certificates and the configured project audience/issuer.
+
+### GET /v1/me
+
+Returns the Rider profile for the authenticated Firebase subject.
+
+A signed-in Firebase account that has not completed CommRide profile onboarding
+receives `404 rider_profile_not_found`.
+
+### PUT /v1/me
+
+Creates or updates only the authenticated Rider's own profile.
+
+Example body:
+
+```json
+{
+  "displayName": "Imad",
+  "callsign": "Sweep",
+  "homeArea": "Cirebon"
+}
+```
+
+The client does not supply `authSubject`; it is derived from the verified
+Firebase token.
+
+Repository code does not prove that a production Firebase project, D1 database,
+or Cloudflare bindings exist. Those remain deployment configuration.
