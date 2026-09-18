@@ -26,10 +26,7 @@ enum RouteTravelMode {
 }
 
 class GeoPoint {
-  const GeoPoint({
-    required this.latitude,
-    required this.longitude,
-  });
+  const GeoPoint({required this.latitude, required this.longitude});
 
   final double latitude;
   final double longitude;
@@ -42,18 +39,12 @@ class GeoPoint {
   }
 
   Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'latitude': latitude,
-      'longitude': longitude,
-    };
+    return <String, Object?>{'latitude': latitude, 'longitude': longitude};
   }
 }
 
 class PlaceSuggestion {
-  const PlaceSuggestion({
-    required this.reference,
-    required this.text,
-  });
+  const PlaceSuggestion({required this.reference, required this.text});
 
   final String reference;
   final String text;
@@ -81,18 +72,13 @@ class ResolvedPlace {
     return ResolvedPlace(
       reference: json['reference'] as String,
       formattedAddress: json['formattedAddress'] as String?,
-      location: GeoPoint.fromJson(
-        json['location'] as Map<String, Object?>,
-      ),
+      location: GeoPoint.fromJson(json['location'] as Map<String, Object?>),
     );
   }
 }
 
 class RouteLeg {
-  const RouteLeg({
-    required this.distanceMeters,
-    required this.durationSeconds,
-  });
+  const RouteLeg({required this.distanceMeters, required this.durationSeconds});
 
   final int distanceMeters;
   final int durationSeconds;
@@ -125,17 +111,15 @@ class RouteOption {
   factory RouteOption.fromJson(Map<String, Object?> json) {
     return RouteOption(
       routeIndex: json['routeIndex'] as int,
-      labels: (json['labels'] as List<Object?>)
-          .whereType<String>()
-          .toList(growable: false),
+      labels: (json['labels'] as List<Object?>).whereType<String>().toList(
+        growable: false,
+      ),
       distanceMeters: json['distanceMeters'] as int,
       durationSeconds: json['durationSeconds'] as int,
       encodedPolyline: json['encodedPolyline'] as String,
       legs: (json['legs'] as List<Object?>)
           .map(
-            (Object? value) => RouteLeg.fromJson(
-              value as Map<String, Object?>,
-            ),
+            (Object? value) => RouteLeg.fromJson(value as Map<String, Object?>),
           )
           .toList(growable: false),
     );
@@ -188,9 +172,7 @@ enum CheckpointType {
   static CheckpointType fromWireValue(String value) {
     return CheckpointType.values.firstWhere(
       (CheckpointType type) => type.wireValue == value,
-      orElse: () => throw FormatException(
-        'Unknown checkpoint type: $value',
-      ),
+      orElse: () => throw FormatException('Unknown checkpoint type: $value'),
     );
   }
 }
@@ -239,9 +221,7 @@ class PlanningStop {
     return PlanningStop(
       label: json['label'] as String,
       formattedAddress: json['formattedAddress'] as String?,
-      location: GeoPoint.fromJson(
-        json['location'] as Map<String, Object?>,
-      ),
+      location: GeoPoint.fromJson(json['location'] as Map<String, Object?>),
       stopType: StopType.values.firstWhere(
         (StopType type) => type.wireValue == json['stopType'],
       ),
@@ -324,13 +304,9 @@ class SavedRoutePlan {
 
     return SavedRoutePlan(
       revision: json['revision'] as int,
-      travelMode: RouteTravelMode.fromWireValue(
-        json['travelMode'] as String,
-      ),
+      travelMode: RouteTravelMode.fromWireValue(json['travelMode'] as String),
       originLabel: json['originLabel'] as String?,
-      origin: GeoPoint.fromJson(
-        json['origin'] as Map<String, Object?>,
-      ),
+      origin: GeoPoint.fromJson(json['origin'] as Map<String, Object?>),
       destinationLabel: json['destinationLabel'] as String?,
       destination: GeoPoint.fromJson(
         json['destination'] as Map<String, Object?>,
@@ -345,9 +321,8 @@ class SavedRoutePlan {
       ),
       stops: (json['stops'] as List<Object?>)
           .map(
-            (Object? value) => PlanningStop.fromJson(
-              value as Map<String, Object?>,
-            ),
+            (Object? value) =>
+                PlanningStop.fromJson(value as Map<String, Object?>),
           )
           .toList(growable: false),
     );
