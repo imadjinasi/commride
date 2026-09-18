@@ -135,6 +135,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Fuel One'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Fuel One'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Hapus Stop'));
