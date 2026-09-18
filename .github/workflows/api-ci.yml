@@ -39,3 +39,7 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Validate migrations
+        if: ${{ hashFiles('services/api/migrations/*.sql') != '' }}
+        run: python3 scripts/validate_migrations.py
