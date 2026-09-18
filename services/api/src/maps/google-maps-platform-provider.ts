@@ -171,9 +171,11 @@ export class GoogleMapsPlatformProvider implements RoutePlaceProvider {
 
       return [{
         routeIndex,
-        labels: array(raw.routeLabels)
-          .map((value) => typeof value === 'string' ? value : null)
-          .filter((value): value is string => value != null),
+        labels: Array.isArray(raw.routeLabels)
+          ? raw.routeLabels.filter(
+              (value): value is string => typeof value === 'string',
+            )
+          : [],
         distanceMeters,
         durationSeconds,
         encodedPolyline,
