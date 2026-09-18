@@ -93,15 +93,10 @@ class FakeRealtimeClient implements ActiveRideRealtimeClient {
   Future<void> close() => controller.close();
 }
 
-Widget buildScreen({
-  required RideLocationSessionController controller,
-}) {
+Widget buildScreen({required RideLocationSessionController controller}) {
   return MaterialApp(
     theme: CommRideTheme.light(),
-    home: ActiveRideTrackingScreen(
-      ride: activeRide(),
-      controller: controller,
-    ),
+    home: ActiveRideTrackingScreen(ride: activeRide(), controller: controller),
   );
 }
 
@@ -124,9 +119,9 @@ void main() {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final RideLocationSessionController controller =
         RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+          locationProvider: location,
+          realtimeClient: realtime,
+        );
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.pumpAndSettle();
@@ -147,9 +142,9 @@ void main() {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final RideLocationSessionController controller =
         RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+          locationProvider: location,
+          realtimeClient: realtime,
+        );
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
@@ -176,9 +171,9 @@ void main() {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final RideLocationSessionController controller =
         RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+          locationProvider: location,
+          realtimeClient: realtime,
+        );
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
@@ -204,9 +199,9 @@ void main() {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final RideLocationSessionController controller =
         RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+          locationProvider: location,
+          realtimeClient: realtime,
+        );
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
@@ -229,9 +224,9 @@ void main() {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final RideLocationSessionController controller =
         RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+          locationProvider: location,
+          realtimeClient: realtime,
+        );
 
     await controller.startTracking(activeRide());
     await tester.pumpWidget(buildScreen(controller: controller));
