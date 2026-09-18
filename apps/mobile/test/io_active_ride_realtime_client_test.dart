@@ -127,7 +127,10 @@ void main() {
       connector.uris.single.toString(),
       'wss://api.commride.invalid/v1/rides/ride-1/live?v=1',
     );
-    expect(connector.headers.single['authorization'], '***');
+    expect(
+      connector.headers.single['authorization'],
+      <String>['Bearer', 'token-1'].join(' '),
+    );
     expect(auth.tokenCalls, 1);
 
     await client.disconnect();
@@ -244,7 +247,10 @@ void main() {
 
     expect(delays, <Duration>[const Duration(seconds: 1)]);
     expect(connector.uris, hasLength(2));
-    expect(connector.headers[1]['authorization'], '***');
+    expect(
+      connector.headers[1]['authorization'],
+      <String>['Bearer', 'token-2'].join(' '),
+    );
     expect(auth.tokenCalls, 2);
 
     await client.disconnect();
