@@ -6,6 +6,8 @@ import type {
 export interface RiderRepository {
   findByAuthSubject(authSubject: string): Promise<RiderProfile | null>;
 
+  findById(riderId: string): Promise<RiderProfile | null>;
+
   upsertProfile(input: UpsertRiderProfileInput): Promise<RiderProfile>;
 }
 
@@ -40,6 +42,29 @@ export class D1RiderRepository implements RiderRepository {
         `,
       )
       .bind(authSubject)
+      .first<RiderRow>();
+
+    return row == null ? null : mapRiderRow(row);
+  }
+
+  async findById(riderId: string): Promise<RiderProfile | null> {
+    const row = await this.database
+      .prepare(
+        `
+        SELECT
+          id,
+          auth_subject,
+          display_name,
+          callsign,
+          home_area,
+          created_at,
+          updated_at
+        FROM riders
+        WHERE id = ?
+        LIMIT 1
+        `,
+      )
+      .bind(riderId)
       .first<RiderRow>();
 
     return row == null ? null : mapRiderRow(row);
