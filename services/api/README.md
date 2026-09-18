@@ -107,9 +107,71 @@ When infrastructure is provisioned, use real resource identifiers and add the re
 
 ## Active Ride room
 
-`ActiveRideRoom` exists only to make the intended boundary explicit.
+The repository now contains the first versioned Active Ride realtime protocol
+and a hibernatable Cloudflare Durable Object room implementation.
 
-It currently returns HTTP 501 and does not accept WebSockets. This avoids accidentally creating an underspecified realtime protocol before authorization, location freshness, and retention behavior are implemented together.
+### Public connection endpoint
+
+`GET /v1/rides/:rideId/live?v=1`
+
+Requires:
+- WebSocket upgrade;
+- verified Firebase identity;
+- completed Rider profile;
+- Ride state = `active`;
+- participating RideMembership (not invited/left/finished);
+- configured `ACTIVE_RIDE_ROOM` Durable Object binding.
+
+The Worker derives Rider identity and role from verified server-side state,
+then forwards the original WebSocket upgrade request to the room with internal
+identity headers. Client events cannot select another Rider ID.
+
+### Protocol v1
+
+Client -> room:
+- `presence.update`
+- `quick_action.raise`
+
+Room -> client:
+- `ride.snapshot`
+- `presence.updated`
+- `quick_action.raised`
+- `ride.ended`
+- `error`
+
+Presence observations are ordered by `observedAt`. An older queued
+observation cannot replace a newer latest-known position.
+
+### Cost and retention behavior
+
+CommRide uses the Durable Object WebSocket Hibernation API.
+
+While a Rider socket is connected, latest presence is carried in the
+WebSocket attachment so each GPS update does not create a D1 write or an
+append-only Durable Object location record.
+
+When a Rider disconnects, only that Rider's latest operational presence is
+stored so reconnecting Riders can receive a last-known/offline snapshot. This
+is overwritten operational state, not permanent location history.
+
+Ride completion broadcasts `ride.ended`, closes room sockets, and clears the
+stored offline presence entries. Any long-term LocationSample/history feature
+must use a separate sampled retention policy.
+
+### Ride lifecycle integration
+
+`POST /v1/rides/:rideId/end` remains D1-authoritative. After the Ride becomes
+Completed, the API signals the Active Ride room to terminate. Repeating the
+idempotent End Ride command retries room termination when a room binding is
+available.
+
+The room also periodically checks authoritative Ride status while processing
+messages. New realtime connections are independently rejected by the Worker
+unless the Ride is Active.
+
+The repository still does **not** claim a production Durable Object binding is
+provisioned. `wrangler.jsonc` intentionally contains no invented production
+resource configuration.
 
 ## Source of truth
 
