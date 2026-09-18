@@ -1,3 +1,5 @@
+import type { RoutePlan } from '../route-plans/models';
+
 export interface BriefingRoleIdentity {
   readonly riderId: string;
   readonly displayName: string;
@@ -41,6 +43,7 @@ export interface BriefingReadiness {
 
 export interface RideBriefingView {
   readonly briefing: RideBriefing;
+  readonly routePlan: RoutePlan;
   readonly readiness: BriefingReadiness;
   readonly routePlanIsCurrent: boolean;
 }
