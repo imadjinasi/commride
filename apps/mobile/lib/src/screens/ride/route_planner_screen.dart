@@ -224,7 +224,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _stops.length,
-      onReorder: _working ? (_, __) {} : _reorderStops,
+      onReorderItem: _working ? (_, _) {} : _reorderStops,
       itemBuilder: (BuildContext context, int index) {
         final PlanningStop stop = _stops[index];
         return Card(
@@ -477,10 +477,6 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   }
 
   Future<void> _reorderStops(int oldIndex, int newIndex) async {
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
     final List<PlanningStop> candidate = List<PlanningStop>.of(_stops);
     final PlanningStop moved = candidate.removeAt(oldIndex);
     candidate.insert(newIndex, moved);
@@ -1101,7 +1097,7 @@ String _newSessionToken() {
 
 String _formatDistance(int meters) {
   if (meters < 1000) {
-    return '${meters} m';
+    return '$meters m';
   }
 
   final double km = meters / 1000;
@@ -1114,10 +1110,10 @@ String _formatDuration(int seconds) {
   final int remainder = minutes % 60;
 
   if (hours == 0) {
-    return '${minutes} mnt';
+    return '$minutes mnt';
   }
   if (remainder == 0) {
-    return '${hours} jam';
+    return '$hours jam';
   }
-  return '${hours} j ${remainder} mnt';
+  return '$hours j $remainder mnt';
 }
