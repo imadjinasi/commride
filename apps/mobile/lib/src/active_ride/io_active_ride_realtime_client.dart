@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../auth/auth_gateway.dart';
+import '../models/ride_message.dart';
 import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'location_provider.dart';
@@ -290,6 +291,19 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
         _events.add(
           ActiveRideQuickActionRaised(
             action: LiveQuickAction.fromJson(rawPayload),
+          ),
+        );
+      } on FormatException {
+        return;
+      }
+      return;
+    }
+
+    if (type == 'ride.message_created') {
+      try {
+        _events.add(
+          ActiveRideMessageCreated(
+            message: RideMessage.fromJson(rawPayload),
           ),
         );
       } on FormatException {
