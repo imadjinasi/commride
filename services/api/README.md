@@ -201,6 +201,43 @@ The repository still does **not** claim a production Durable Object binding is
 provisioned. `wrangler.jsonc` intentionally contains no invented production
 resource configuration.
 
+## Private Ride communication
+
+The API now defines D1-authoritative private Ride communication.
+
+Endpoints:
+
+- `GET /v1/rides/:rideId/messages` — paginated private history for
+  participating Riders while the Ride is Active or Completed.
+- `POST /v1/rides/:rideId/messages` — participant chat while the Ride is
+  Active.
+- `POST /v1/rides/:rideId/announcements` — Leader-only announcement while
+  the Ride is Active.
+
+Message bodies are trimmed, non-empty, and capped at 1000 Unicode characters.
+
+Each send includes a bounded `clientMessageId`. The unique Ride + sender +
+clientMessageId key makes retries idempotent. Reusing the same key for different
+content returns a conflict.
+
+The API derives sender Rider identity, display name, and Ride role from
+authenticated server state. Client-supplied sender fields are ignored.
+
+After D1 persistence succeeds, the API best-effort signals the Active Ride room,
+which broadcasts `ride.message_created`. If realtime delivery is unavailable,
+the persisted HTTP command still succeeds and clients recover through history.
+
+Completed Ride communication is read-only. Draft/Published Ride chat is not part
+of this initial operational slice.
+
+Message persistence contains no location coordinates. Quick Actions,
+Checkpoints, convoy separation, Ride End, and future SOS remain separate typed
+operational events.
+
+Migration `0005_ride_messages.sql` deliberately follows the Checkpoint stack's
+reserved `0004_checkpoint_coordination.sql`. A branch may temporarily contain
+a numbering gap while these stacked PRs remain unmerged.
+
 ## Source of truth
 
 - `../../AGENTS.md`
