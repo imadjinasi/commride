@@ -1,8 +1,10 @@
+import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/rider_profile_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/app.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/config/app_config.dart';
+import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/rider_profile.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,6 +85,64 @@ class FakeVehicleApi implements VehicleApi {
   }
 }
 
+
+class FakeClubRideApi implements ClubRideApi {
+  @override
+  Future<Club> createClub(ClubInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Ride> createRide(String clubId, RideInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Ride> endRide(String rideId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> inviteClubMember({
+    required String clubId,
+    required String riderId,
+    required ClubRole role,
+  }) async {}
+
+  @override
+  Future<void> inviteRideMember({
+    required String rideId,
+    required String riderId,
+    required RideRole role,
+  }) async {}
+
+  @override
+  Future<void> joinClub(String clubId) async {}
+
+  @override
+  Future<void> joinRide(String rideId) async {}
+
+  @override
+  Future<List<ClubListItem>> listClubs() async {
+    return const <ClubListItem>[];
+  }
+
+  @override
+  Future<List<RideListItem>> listRides(String clubId) async {
+    return const <RideListItem>[];
+  }
+
+  @override
+  Future<Ride> publishRide(String rideId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Ride> startRide(String rideId) {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   testWidgets('signed-out user sees authentication screen', (
     WidgetTester tester,
@@ -93,6 +153,7 @@ void main() {
         authGateway: FakeAuthGateway(null),
         riderProfileApi: FakeRiderProfileApi(null),
         vehicleApi: FakeVehicleApi(),
+        clubRideApi: FakeClubRideApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -113,6 +174,7 @@ void main() {
         ),
         riderProfileApi: FakeRiderProfileApi(null),
         vehicleApi: FakeVehicleApi(),
+        clubRideApi: FakeClubRideApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -140,6 +202,7 @@ void main() {
         ),
         riderProfileApi: FakeRiderProfileApi(profile),
         vehicleApi: FakeVehicleApi(),
+        clubRideApi: FakeClubRideApi(),
       ),
     );
     await tester.pumpAndSettle();
