@@ -135,6 +135,20 @@ class ActiveRideGroupController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> raiseQuickAction(
+    LiveQuickActionKind kind, {
+    String? reason,
+  }) async {
+    if (_disposed) {
+      throw StateError('Active Ride group controller is disposed.');
+    }
+    if (_state.hasEnded) {
+      throw StateError('Quick actions are unavailable after Ride end.');
+    }
+
+    await _realtimeClient.sendQuickAction(kind, reason: reason);
+  }
+
   void _handleEvent(ActiveRideRealtimeEvent event) {
     if (_disposed) {
       return;
