@@ -16,9 +16,7 @@ class PlaceholderPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: <Widget>[
-        SliverAppBar.large(
-          title: Text(title),
-        ),
+        SliverAppBar.large(title: Text(title)),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           sliver: SliverToBoxAdapter(
