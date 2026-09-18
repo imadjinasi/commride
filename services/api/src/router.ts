@@ -18,6 +18,9 @@ import {
 } from './clubs-rides/repository';
 import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
+import { GoogleMapsPlatformProvider } from './maps/google-maps-platform-provider';
+import { handleMapsRequest, isMapsPath } from './maps/handler';
+import type { RoutePlaceProvider } from './maps/provider';
 import { resolveRequestId } from './request-id';
 import { handleRiderProfile } from './riders/profile-handler';
 import {
@@ -35,6 +38,7 @@ export interface RouterOverrides {
   readonly riderRepository?: RiderRepository;
   readonly clubRideRepository?: ClubRideRepository;
   readonly clubRideReadRepository?: ClubRideReadRepository;
+  readonly routePlaceProvider?: RoutePlaceProvider;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -89,6 +93,57 @@ export async function handleRequest(
         200,
         requestId,
       );
+    }
+
+    if (isMapsPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      if (riderRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Rider persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const routePlaceProvider =
+        overrides.routePlaceProvider ?? resolveRoutePlaceProvider(env);
+      if (routePlaceProvider == null) {
+        return errorResponse(
+          'maps_not_configured',
+          'Route and place services are not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleMapsRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          provider: routePlaceProvider,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
     }
 
     if (request.method === 'GET' && isClubRideReadPath(url.pathname)) {
@@ -250,4 +305,14 @@ function resolveFirebaseVerifier(env: Env): IdentityVerifier | null {
   const verifier = new FirebaseIdTokenVerifier(projectId);
   firebaseVerifiers.set(projectId, verifier);
   return verifier;
+}
+
+
+function resolveRoutePlaceProvider(env: Env): RoutePlaceProvider | null {
+  const apiKey = env.GOOGLE_MAPS_PLATFORM_API_KEY?.trim();
+  if (apiKey == null || apiKey.length === 0) {
+    return null;
+  }
+
+  return new GoogleMapsPlatformProvider(apiKey);
 }
