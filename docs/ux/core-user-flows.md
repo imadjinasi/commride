@@ -189,8 +189,14 @@ Leader:
 
 Rider:
 - if joined, receives Active Ride prompt;
-- background location permission requested if not granted;
-- joins realtime room.
+- sees a contextual explanation before any OS location prompt;
+- explicitly enables Ride tracking;
+- the app requests the minimum required location permission only at that point;
+- joins the authenticated realtime room;
+- sees a persistent in-app tracking state while the Ride session is active.
+
+Starting a Ride does not silently start GPS publishing on another Rider's
+device. Each Rider's local tracking session remains explicit.
 
 Start Ride must be idempotent.
 
@@ -198,16 +204,19 @@ Start Ride must be idempotent.
 
 1. App foregrounds Overview
 2. Rider sees next checkpoint
-3. Rider can open Map
-4. background location updates
-5. Leader sees group state
-6. checkpoint approaches
-7. Riders arrive/check in
-8. if Regroup:
+3. Rider enables tracking if it is not already active
+4. CommRide requests location permission contextually if required
+5. Rider can open Map or external navigation
+6. the local Ride location session continues while the app is backgrounded where platform rules permit
+7. latest observations publish to the authenticated Active Ride room
+8. Leader sees group state
+9. checkpoint approaches
+10. Riders arrive/check in
+11. if Regroup:
    - Leader sees arrival count
    - waits as needed
-9. Leader releases group
-10. next Segment becomes active
+12. Leader releases group
+13. next Segment becomes active
 
 ## 13. I'm Stopping
 
@@ -310,7 +319,12 @@ Leader:
 6. recap processing begins
 
 Rider:
+- local location provider stops;
+- realtime publishing stops;
 - clearly sees tracking stopped.
+
+A server `ride.ended` realtime event has the same local stop effect as the
+Leader completing the Ride through the normal lifecycle command.
 
 ## 21. Ride Recap
 
