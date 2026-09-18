@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../auth/auth_gateway.dart';
+import 'live_group_models.dart';
 import 'location_provider.dart';
 import 'realtime_client.dart';
 import 'socket.dart';
@@ -173,6 +174,65 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
     final Object? type = decoded['type'];
     final Object? rawPayload = decoded['payload'];
     if (rawPayload is! Map<String, Object?>) {
+      return;
+    }
+
+    if (type == 'ride.snapshot') {
+      final Object? rawRideId = rawPayload['rideId'];
+      final Object? rawPresences = rawPayload['presences'];
+      if (rawRideId is! String || rawPresences is! List<Object?>) {
+        return;
+      }
+
+      try {
+        final List<LiveRiderPresence> presences = rawPresences
+            .map((Object? value) {
+              if (value is! Map<String, Object?>) {
+                throw const FormatException('Invalid Rider presence.');
+              }
+              return LiveRiderPresence.fromJson(value);
+            })
+            .toList(growable: false);
+        _events.add(
+          ActiveRideSnapshotReceived(
+            rideId: rawRideId,
+            presences: presences,
+          ),
+        );
+      } on FormatException {
+        return;
+      }
+      return;
+    }
+
+    if (type == 'presence.updated') {
+      final Object? rawPresence = rawPayload['presence'];
+      if (rawPresence is! Map<String, Object?>) {
+        return;
+      }
+
+      try {
+        _events.add(
+          ActiveRidePresenceUpdated(
+            presence: LiveRiderPresence.fromJson(rawPresence),
+          ),
+        );
+      } on FormatException {
+        return;
+      }
+      return;
+    }
+
+    if (type == 'quick_action.raised') {
+      try {
+        _events.add(
+          ActiveRideQuickActionRaised(
+            action: LiveQuickAction.fromJson(rawPayload),
+          ),
+        );
+      } on FormatException {
+        return;
+      }
       return;
     }
 
