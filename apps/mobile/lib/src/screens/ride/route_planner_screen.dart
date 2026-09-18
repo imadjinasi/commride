@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/route_planner_api.dart';
 import '../../models/route_planner.dart';
@@ -177,6 +178,12 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
             travelMode: _travelMode,
           ),
           const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: _working ? null : _navigateExternally,
+            icon: const Icon(Icons.navigation_outlined),
+            label: const Text('Buka Navigasi'),
+          ),
+          const SizedBox(height: 10),
           if (widget.canEdit) _buildPlanningActions(),
           if (_stops.isNotEmpty) ...<Widget>[
             const SizedBox(height: 24),
@@ -366,6 +373,31 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         _stops = <PlanningStop>[];
       });
     });
+  }
+
+  Future<void> _navigateExternally() async {
+    final ResolvedPlace? destination = _destination;
+    if (destination == null) {
+      return;
+    }
+
+    final GeoPoint target = _stops.isEmpty
+        ? destination.location
+        : _stops.first.location;
+    final Uri url = Uri.https(
+      'www.google.com',
+      '/maps/dir/',
+      <String, String>{
+        'api': '1',
+        'destination': '${target.latitude},${target.longitude}',
+      },
+    );
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        _showMessage('Aplikasi navigasi belum dapat dibuka.');
+      }
+    }
   }
 
   Future<void> _addStop() async {
