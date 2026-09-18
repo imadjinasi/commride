@@ -265,6 +265,37 @@ higher billing tier.
 
 Cost-control behavior is part of architecture.
 
+## 9A. Checkpoint coordination persistence
+
+Checkpoint operational state is authoritative in D1 so reconnecting clients can
+reconstruct it without relying on a Durable Object event backlog.
+
+The initial manual flow uses the immutable current RoutePlan of an Active Ride:
+
+- a `route_stops.id` with non-null `checkpoint_type` is the Checkpoint ID;
+- RoutePlan replacement is already forbidden once a Ride is Active, so the
+  operational Checkpoint identity/order cannot silently move to a later plan;
+- Rider check-in is an idempotent persistent command keyed by Ride + Checkpoint
+  + authenticated Rider;
+- Leader release is an idempotent persistent command keyed by Ride + Checkpoint;
+- Checkpoint state is derived from ordered releases: Released, first unreleased
+  Current/Waiting, later unreleased Upcoming.
+
+Release requires the first unreleased Checkpoint. This prevents operational
+history from skipping forward and later rewriting an earlier Checkpoint.
+
+A Leader may release while Riders remain missing. That is a deliberate
+coordination decision, not automatic completion. The API read model keeps
+expected, checked-in, and missing counts explicit.
+
+Manual check-in does not require location permission and is not GPS
+verification. Future geofence arrival may add evidence/method metadata without
+changing the manual persistence semantics.
+
+Realtime `checkpoint.checked_in` / `checkpoint.released` events may later
+optimize the Active Ride UI, but D1 remains authoritative and reconnect reads
+the HTTP state.
+
 ## 10. Offline/poor signal
 
 Initial goals:
