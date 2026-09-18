@@ -104,6 +104,12 @@ Future<void> pumpUi(WidgetTester tester) async {
   for (int frame = 0; frame < 5; frame += 1) {
     await tester.pump(const Duration(milliseconds: 100));
   }
+
+  @override
+  Future<void> sendQuickAction(
+    LiveQuickActionKind kind, {
+    String? reason,
+  }) async {}
 }
 
 Future<void> closeFakes(
