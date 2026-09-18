@@ -74,19 +74,10 @@ class LiveRiderPresence {
     final String role = _requiredString(json['role'], 'role');
     final double latitude = _number(json['latitude'], 'latitude');
     final double longitude = _number(json['longitude'], 'longitude');
-    final DateTime observedAt = _requiredDate(
-      json['observedAt'],
-      'observedAt',
-    );
-    final DateTime receivedAt = _requiredDate(
-      json['receivedAt'],
-      'receivedAt',
-    );
+    final DateTime observedAt = _requiredDate(json['observedAt'], 'observedAt');
+    final DateTime receivedAt = _requiredDate(json['receivedAt'], 'receivedAt');
     final String movement = _requiredString(json['movement'], 'movement');
-    final String freshness = _requiredString(
-      json['freshness'],
-      'freshness',
-    );
+    final String freshness = _requiredString(json['freshness'], 'freshness');
 
     if (latitude < -90 || latitude > 90) {
       throw const FormatException('Invalid presence latitude.');
@@ -165,13 +156,8 @@ class LiveQuickAction {
     return LiveQuickAction(
       eventId: _requiredString(json['eventId'], 'eventId'),
       riderId: _requiredString(rawRider['riderId'], 'riderId'),
-      displayName: _requiredString(
-        rawRider['displayName'],
-        'displayName',
-      ),
-      role: RideRole.fromWireValue(
-        _requiredString(rawRider['role'], 'role'),
-      ),
+      displayName: _requiredString(rawRider['displayName'], 'displayName'),
+      role: RideRole.fromWireValue(_requiredString(rawRider['role'], 'role')),
       kind: LiveQuickActionKind.fromWireValue(
         _requiredString(json['kind'], 'kind'),
       ),
