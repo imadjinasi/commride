@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api/rider_profile_api.dart';
+import 'api/vehicle_api.dart';
 import 'auth/auth_gateway.dart';
 import 'auth/auth_gate.dart';
 import 'config/app_config.dart';
@@ -12,12 +13,14 @@ class CommRideApp extends StatelessWidget {
     required this.config,
     required this.authGateway,
     required this.riderProfileApi,
+    required this.vehicleApi,
     super.key,
   });
 
   final AppConfig config;
   final AuthGateway authGateway;
   final RiderProfileApi riderProfileApi;
+  final VehicleApi vehicleApi;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +33,7 @@ class CommRideApp extends StatelessWidget {
         config: config,
         authGateway: authGateway,
         riderProfileApi: riderProfileApi,
+        vehicleApi: vehicleApi,
       ),
     );
   }
