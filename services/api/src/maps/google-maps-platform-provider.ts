@@ -185,6 +185,14 @@ export class GoogleMapsPlatformProvider implements RoutePlaceProvider {
   async searchAlongRoute(
     input: SearchAlongRouteInput,
   ): Promise<readonly AlongRoutePlace[]> {
+    if (input.travelMode === 'two_wheeler') {
+      throw new RoutePlaceProviderError(
+        'search_along_route_mode_not_supported',
+        'Google Places Search Along Route does not currently support TWO_WHEELER.',
+        400,
+      );
+    }
+
     const response = await this.fetcher(
       `${PLACES_BASE_URL}/places:searchText`,
       {
