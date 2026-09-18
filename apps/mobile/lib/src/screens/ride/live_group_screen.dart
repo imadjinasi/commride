@@ -78,18 +78,15 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
-              ...state.quickActions.take(5).map(
-                (LiveQuickAction action) => _QuickActionCard(
-                  action: action,
-                  now: _now,
-                ),
-              ),
+              ...state.quickActions
+                  .take(5)
+                  .map(
+                    (LiveQuickAction action) =>
+                        _QuickActionCard(action: action, now: _now),
+                  ),
             ],
             const SizedBox(height: 18),
-            Text(
-              'Riders',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Riders', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             if (state.presences.isEmpty)
               const Card(
@@ -102,10 +99,8 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
               )
             else
               ...state.presences.map(
-                (LiveRiderPresence presence) => _PresenceCard(
-                  presence: presence,
-                  now: _now,
-                ),
+                (LiveRiderPresence presence) =>
+                    _PresenceCard(presence: presence, now: _now),
               ),
           ],
         ),
@@ -147,7 +142,8 @@ class _ConnectionCard extends StatelessWidget {
           icon = Icons.sync;
         case ActiveRideRealtimeConnectionState.disconnected:
           title = 'Live Group terputus';
-          detail = 'Posisi yang terlihat adalah data terakhir dengan timestamp.';
+          detail =
+              'Posisi yang terlihat adalah data terakhir dengan timestamp.';
           icon = Icons.link_off;
       }
     }
@@ -196,9 +192,15 @@ class _GroupSummary extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: <Widget>[
-            Expanded(child: _Count(label: 'Live', value: counts.live)),
-            Expanded(child: _Count(label: 'Stale', value: counts.stale)),
-            Expanded(child: _Count(label: 'Offline', value: counts.offline)),
+            Expanded(
+              child: _Count(label: 'Live', value: counts.live),
+            ),
+            Expanded(
+              child: _Count(label: 'Stale', value: counts.stale),
+            ),
+            Expanded(
+              child: _Count(label: 'Offline', value: counts.offline),
+            ),
           ],
         ),
       ),
@@ -232,8 +234,7 @@ class _PresenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final LivePresenceFreshness freshness =
-        presence.effectiveFreshness(now);
+    final LivePresenceFreshness freshness = presence.effectiveFreshness(now);
     final String age = _formatAge(now.difference(presence.observedAt));
 
     return Card(
