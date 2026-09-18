@@ -203,8 +203,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Publish Briefing'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Fuel One'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Fuel One'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Publish Briefing'),
+      -240,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Publish Briefing'));
     await tester.pumpAndSettle();
 
@@ -252,6 +262,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.acknowledgeCalls, 1);
+    await tester.scrollUntilVisible(
+      find.text('1/2 Rider sudah membaca Briefing ini.'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('1/2 Rider sudah membaca Briefing ini.'), findsOneWidget);
   });
 
