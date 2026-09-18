@@ -43,15 +43,12 @@ export class DurableObjectActiveRideGateway
       'x-commride-protocol-version',
       String(ACTIVE_RIDE_PROTOCOL_VERSION),
     );
+    headers.set('x-commride-internal-action', 'connect');
 
     return stub.fetch(
-      new Request(
-        'https://active-ride.internal/connect',
-        {
-          method: 'GET',
-          headers,
-        },
-      ),
+      new Request(request, {
+        headers,
+      }),
     );
   }
 
