@@ -1,5 +1,6 @@
 import { ACTIVE_RIDE_PROTOCOL_VERSION } from './protocol';
 import type { RideRole } from '../clubs-rides/models';
+import type { RideMessage } from '../ride-comms/models';
 
 export interface ActiveRideParticipant {
   readonly riderId: string;
@@ -15,6 +16,11 @@ export interface ActiveRideGateway {
   ): Promise<Response>;
 
   endRide(rideId: string, endedAt: string): Promise<void>;
+
+  messageCreated?(
+    rideId: string,
+    message: RideMessage,
+  ): Promise<void>;
 }
 
 export class DurableObjectActiveRideGateway
@@ -70,6 +76,32 @@ export class DurableObjectActiveRideGateway
 
     if (!response.ok) {
       throw new Error('Active Ride room did not acknowledge Ride end.');
+    }
+  }
+
+  async messageCreated(
+    rideId: string,
+    message: RideMessage,
+  ): Promise<void> {
+    const stub = this.namespace.get(
+      this.namespace.idFromName(rideId),
+    );
+
+    const response = await stub.fetch(
+      new Request('https://active-ride.internal/message', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-commride-ride-id': rideId,
+        },
+        body: JSON.stringify(message),
+      }),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        'Active Ride room did not acknowledge persisted message broadcast.',
+      );
     }
   }
 }
