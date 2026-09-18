@@ -170,9 +170,9 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${kind.label} terkirim.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${kind.label} terkirim.')));
     } catch (_) {
       if (!mounted) {
         return;
@@ -187,9 +187,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
     }
   }
 
-  Future<void> _sendQuickActionWithReason(
-    LiveQuickActionKind kind,
-  ) async {
+  Future<void> _sendQuickActionWithReason(LiveQuickActionKind kind) async {
     final TextEditingController reasonController = TextEditingController();
     final String? reason = await showDialog<String>(
       context: context,
@@ -234,9 +232,9 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${kind.label} terkirim.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${kind.label} terkirim.')));
     } catch (_) {
       if (!mounted) {
         return;
@@ -554,9 +552,7 @@ class _QuickActionsPanel extends StatelessWidget {
                     const SizedBox(width: 8),
                     IconButton.outlined(
                       tooltip: 'Kirim ${kind.label} dengan alasan',
-                      onPressed: enabled
-                          ? () => onSendWithReason(kind)
-                          : null,
+                      onPressed: enabled ? () => onSendWithReason(kind) : null,
                       icon: const Icon(Icons.edit_note_outlined),
                     ),
                   ],
@@ -575,6 +571,7 @@ class _QuickActionsPanel extends StatelessWidget {
     );
   }
 }
+
 class _QuickActionCard extends StatelessWidget {
   const _QuickActionCard({required this.action, required this.now});
 
