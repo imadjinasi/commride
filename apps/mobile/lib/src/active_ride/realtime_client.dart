@@ -1,10 +1,6 @@
 import 'location_provider.dart';
 
-enum ActiveRideRealtimeConnectionState {
-  disconnected,
-  connecting,
-  connected,
-}
+enum ActiveRideRealtimeConnectionState { disconnected, connecting, connected }
 
 sealed class ActiveRideRealtimeEvent {
   const ActiveRideRealtimeEvent();
