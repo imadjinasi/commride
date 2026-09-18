@@ -142,6 +142,13 @@ Room -> client:
 Presence observations are ordered by `observedAt`. An older queued
 observation cannot replace a newer latest-known position.
 
+`quick_action.raised` is built from the authenticated socket attachment. The
+room derives Rider identity/role server-side and, when available, includes the
+latest server-accepted RiderPresence as optional context. That context preserves
+its timestamps and current Live/Stale/Offline freshness. When no accepted
+presence exists, the action still broadcasts with `presence: null`; quick
+actions do not require GPS availability.
+
 ### Cost and retention behavior
 
 CommRide uses the Durable Object WebSocket Hibernation API.
