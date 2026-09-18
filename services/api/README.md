@@ -283,3 +283,57 @@ with only a partial new plan.
 The initial MVP rejects RoutePlan replacement once a Ride is Active. Dynamic
 Active Ride replanning requires a later explicit operational command rather
 than silently rewriting the pre-Ride plan.
+
+
+## Ride Briefing and readiness
+
+Ride Briefing is an immutable published snapshot tied to one exact RoutePlan
+revision.
+
+### GET /v1/rides/:rideId/briefing
+
+Returns the current published Briefing to a joined Ride participant.
+
+The response includes:
+
+- the immutable Briefing revision;
+- the RoutePlan revision referenced by that Briefing;
+- whether that RoutePlan is still the Ride's current plan;
+- expected/ready Rider counts;
+- whether the authenticated Rider acknowledged this exact revision.
+
+Invited-only Riders cannot read the private Briefing.
+
+### POST /v1/rides/:rideId/briefing/publish
+
+Leader-only. Allowed while the Ride is Draft or Published.
+
+A current valid RoutePlan is required. Publishing creates a new immutable
+Briefing revision, snapshots the current Leader/Sweeper identity, and makes the
+new revision current.
+
+Optional body:
+
+```json
+{
+  "notes": "Meet at 05:30. Fuel before departure."
+}
+```
+
+If the RoutePlan changes later, the previously published Briefing remains
+readable but is marked stale through `routePlanIsCurrent: false`.
+
+### POST /v1/rides/:rideId/briefing/acknowledge
+
+A joined Rider acknowledges the current Briefing revision for themselves.
+
+Acknowledgement is idempotent for one Rider + Briefing revision.
+
+If the current RoutePlan changed after the Briefing was published,
+acknowledgement is rejected with `briefing_stale` until the Leader publishes a
+new Briefing revision.
+
+Acknowledgements for older Briefing revisions remain historical but do not
+count toward readiness for a newer revision.
+
+Readiness is advisory in the MVP. It is not a server-side Start Ride blocker.
