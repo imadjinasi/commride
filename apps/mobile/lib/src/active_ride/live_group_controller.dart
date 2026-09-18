@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/club_ride.dart';
+import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'realtime_client.dart';
 
@@ -27,6 +28,7 @@ class ActiveRideGroupState {
     required this.connectionState,
     required this.presences,
     required this.quickActions,
+    required this.separation,
     required this.endedAt,
     required this.latestError,
   });
@@ -35,12 +37,14 @@ class ActiveRideGroupState {
     : connectionState = ActiveRideRealtimeConnectionState.disconnected,
       presences = const <LiveRiderPresence>[],
       quickActions = const <LiveQuickAction>[],
+      separation = null,
       endedAt = null,
       latestError = null;
 
   final ActiveRideRealtimeConnectionState connectionState;
   final List<LiveRiderPresence> presences;
   final List<LiveQuickAction> quickActions;
+  final LiveConvoySeparation? separation;
   final DateTime? endedAt;
   final ActiveRideServerError? latestError;
 
@@ -75,6 +79,8 @@ class ActiveRideGroupState {
     ActiveRideRealtimeConnectionState? connectionState,
     List<LiveRiderPresence>? presences,
     List<LiveQuickAction>? quickActions,
+    LiveConvoySeparation? separation,
+    bool clearSeparation = false,
     DateTime? endedAt,
     bool clearEndedAt = false,
     ActiveRideServerError? latestError,
@@ -84,6 +90,7 @@ class ActiveRideGroupState {
       connectionState: connectionState ?? this.connectionState,
       presences: presences ?? this.presences,
       quickActions: quickActions ?? this.quickActions,
+      separation: clearSeparation ? null : (separation ?? this.separation),
       endedAt: clearEndedAt ? null : (endedAt ?? this.endedAt),
       latestError: clearLatestError ? null : (latestError ?? this.latestError),
     );
@@ -166,6 +173,8 @@ class ActiveRideGroupController extends ChangeNotifier {
       _setState(
         _state.copyWith(
           presences: _sortedPresences(event.presences),
+          separation: event.separation,
+          clearSeparation: event.separation == null,
           clearLatestError: true,
         ),
       );
@@ -189,6 +198,16 @@ class ActiveRideGroupController extends ChangeNotifier {
       _setState(
         _state.copyWith(
           presences: _sortedPresences(byRider.values),
+          clearLatestError: true,
+        ),
+      );
+      return;
+    }
+
+    if (event is ActiveRideSeparationUpdated) {
+      _setState(
+        _state.copyWith(
+          separation: event.separation,
           clearLatestError: true,
         ),
       );
@@ -228,6 +247,7 @@ class ActiveRideGroupController extends ChangeNotifier {
                     presence.copyWith(freshness: LivePresenceFreshness.offline),
               )
               .toList(growable: false),
+          clearSeparation: true,
         ),
       );
       return;
