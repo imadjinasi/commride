@@ -100,8 +100,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
             ),
             items: RouteTravelMode.values
                 .map(
-                  (RouteTravelMode mode) =>
-                      DropdownMenuItem<RouteTravelMode>(
+                  (RouteTravelMode mode) => DropdownMenuItem<RouteTravelMode>(
                     value: mode,
                     child: Text(mode.label),
                   ),
@@ -145,10 +144,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         ],
         if (_routeOptions.isNotEmpty && _selectedRoute == null) ...<Widget>[
           const SizedBox(height: 28),
-          Text(
-            'Pilih rute',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Pilih rute', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           ..._routeOptions.map(
             (RouteOption route) => Padding(
@@ -173,10 +169,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         ],
         if (_selectedRoute != null) ...<Widget>[
           const SizedBox(height: 28),
-          _RouteSummaryCard(
-            route: _selectedRoute!,
-            travelMode: _travelMode,
-          ),
+          _RouteSummaryCard(route: _selectedRoute!, travelMode: _travelMode),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: _working ? null : _navigateExternally,
@@ -218,8 +211,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
           label: const Text('Tambah Stop'),
         ),
         OutlinedButton.icon(
-          onPressed:
-              _working || _stops.length >= 10 ? null : _searchAlongRoute,
+          onPressed: _working || _stops.length >= 10 ? null : _searchAlongRoute,
           icon: const Icon(Icons.manage_search),
           label: const Text('Cari di Sepanjang Rute'),
         ),
@@ -252,9 +244,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
                     children: <Widget>[
                       IconButton(
                         tooltip: 'Hapus Stop',
-                        onPressed: _working
-                            ? null
-                            : () => _removeStop(index),
+                        onPressed: _working ? null : () => _removeStop(index),
                         icon: const Icon(Icons.delete_outline),
                       ),
                       const Icon(Icons.drag_handle),
@@ -274,8 +264,9 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     });
 
     try {
-      final SavedRoutePlan? saved =
-          await widget.routePlannerApi.fetchRoutePlan(widget.rideId);
+      final SavedRoutePlan? saved = await widget.routePlannerApi.fetchRoutePlan(
+        widget.rideId,
+      );
 
       if (!mounted) {
         return;
@@ -349,14 +340,14 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     }
 
     await _runWorking(() async {
-      final List<RouteOption> routes =
-          await widget.routePlannerApi.computeRoutes(
-        origin: origin,
-        destination: destination,
-        stops: const <PlanningStop>[],
-        travelMode: _travelMode,
-        computeAlternatives: true,
-      );
+      final List<RouteOption> routes = await widget.routePlannerApi
+          .computeRoutes(
+            origin: origin,
+            destination: destination,
+            stops: const <PlanningStop>[],
+            travelMode: _travelMode,
+            computeAlternatives: true,
+          );
 
       if (!mounted) {
         return;
@@ -384,18 +375,14 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     final GeoPoint target = _stops.isEmpty
         ? destination.location
         : _stops.first.location;
-    final Uri url = Uri.https(
-      'www.google.com',
-      '/maps/dir/',
-      <String, String>{
-        'api': '1',
-        'destination': '${target.latitude},${target.longitude}',
-        'travelmode': _travelMode == RouteTravelMode.twoWheeler
-            ? 'two-wheeler'
-            : 'driving',
-        'dir_action': 'navigate',
-      },
-    );
+    final Uri url = Uri.https('www.google.com', '/maps/dir/', <String, String>{
+      'api': '1',
+      'destination': '${target.latitude},${target.longitude}',
+      'travelmode': _travelMode == RouteTravelMode.twoWheeler
+          ? 'two-wheeler'
+          : 'driving',
+      'dir_action': 'navigate',
+    });
 
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
@@ -469,10 +456,8 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
 
     final AlongRoutePlace? selected = await showDialog<AlongRoutePlace>(
       context: context,
-      builder: (BuildContext context) => _AlongRouteResultsDialog(
-        results: results!,
-        currentRoute: route,
-      ),
+      builder: (BuildContext context) =>
+          _AlongRouteResultsDialog(results: results!, currentRoute: route),
     );
 
     if (selected?.location == null) {
@@ -516,14 +501,14 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     }
 
     await _runWorking(() async {
-      final List<RouteOption> routes =
-          await widget.routePlannerApi.computeRoutes(
-        origin: origin,
-        destination: destination,
-        stops: candidateStops,
-        travelMode: _travelMode,
-        computeAlternatives: false,
-      );
+      final List<RouteOption> routes = await widget.routePlannerApi
+          .computeRoutes(
+            origin: origin,
+            destination: destination,
+            stops: candidateStops,
+            travelMode: _travelMode,
+            computeAlternatives: false,
+          );
 
       if (!mounted) {
         return;
@@ -548,9 +533,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   Future<void> _editCheckpoint(int index) async {
     final PlanningStop? updated = await showDialog<PlanningStop>(
       context: context,
-      builder: (BuildContext context) => _CheckpointDialog(
-        stop: _stops[index],
-      ),
+      builder: (BuildContext context) => _CheckpointDialog(stop: _stops[index]),
     );
 
     if (updated == null || !mounted) {
@@ -572,8 +555,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     }
 
     await _runWorking(() async {
-      final SavedRoutePlan saved =
-          await widget.routePlannerApi.saveRoutePlan(
+      final SavedRoutePlan saved = await widget.routePlannerApi.saveRoutePlan(
         rideId: widget.rideId,
         origin: origin,
         destination: destination,
@@ -620,9 +602,9 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _stopSubtitle(PlanningStop stop) {
@@ -665,10 +647,7 @@ class _PlaceTile extends StatelessWidget {
 }
 
 class _RouteSummaryCard extends StatelessWidget {
-  const _RouteSummaryCard({
-    required this.route,
-    required this.travelMode,
-  });
+  const _RouteSummaryCard({required this.route, required this.travelMode});
 
   final RouteOption route;
   final RouteTravelMode travelMode;
@@ -769,9 +748,7 @@ class _PlaceSearchDialogState extends State<_PlaceSearchDialog> {
                       .map(
                         (PlaceSuggestion suggestion) => ListTile(
                           title: Text(suggestion.text),
-                          onTap: _working
-                              ? null
-                              : () => _select(suggestion),
+                          onTap: _working ? null : () => _select(suggestion),
                         ),
                       )
                       .toList(growable: false),
@@ -805,11 +782,8 @@ class _PlaceSearchDialogState extends State<_PlaceSearchDialog> {
     });
 
     try {
-      final List<PlaceSuggestion> suggestions =
-          await widget.routePlannerApi.autocomplete(
-        input: query,
-        sessionToken: _sessionToken,
-      );
+      final List<PlaceSuggestion> suggestions = await widget.routePlannerApi
+          .autocomplete(input: query, sessionToken: _sessionToken);
       if (mounted) {
         setState(() {
           _suggestions = suggestions;
@@ -837,8 +811,7 @@ class _PlaceSearchDialogState extends State<_PlaceSearchDialog> {
     });
 
     try {
-      final ResolvedPlace place =
-          await widget.routePlannerApi.resolvePlace(
+      final ResolvedPlace place = await widget.routePlannerApi.resolvePlace(
         reference: suggestion.reference,
         sessionToken: _sessionToken,
       );
@@ -858,10 +831,7 @@ class _PlaceSearchDialogState extends State<_PlaceSearchDialog> {
 }
 
 class _AlongRouteQuery {
-  const _AlongRouteQuery({
-    required this.query,
-    required this.stopType,
-  });
+  const _AlongRouteQuery({required this.query, required this.stopType});
 
   final String query;
   final StopType stopType;
@@ -883,12 +853,9 @@ class _AlongRouteQueryDialog extends StatelessWidget {
           onPressed: () async {
             final String? query = await _customQuery(context);
             if (query != null && context.mounted) {
-              Navigator.of(context).pop(
-                _AlongRouteQuery(
-                  query: query,
-                  stopType: StopType.custom,
-                ),
-              );
+              Navigator.of(
+                context,
+              ).pop(_AlongRouteQuery(query: query, stopType: StopType.custom));
             }
           },
           child: const Text('Custom search'),
@@ -904,9 +871,9 @@ class _AlongRouteQueryDialog extends StatelessWidget {
     StopType stopType,
   ) {
     return SimpleDialogOption(
-      onPressed: () => Navigator.of(context).pop(
-        _AlongRouteQuery(query: query, stopType: stopType),
-      ),
+      onPressed: () => Navigator.of(
+        context,
+      ).pop(_AlongRouteQuery(query: query, stopType: stopType)),
       child: Text(label),
     );
   }
@@ -1061,8 +1028,7 @@ class _CheckpointDialogState extends State<_CheckpointDialog> {
               ),
               items: CheckpointType.values
                   .map(
-                    (CheckpointType type) =>
-                        DropdownMenuItem<CheckpointType>(
+                    (CheckpointType type) => DropdownMenuItem<CheckpointType>(
                       value: type,
                       child: Text(type.label),
                     ),
@@ -1100,10 +1066,7 @@ class _CheckpointDialogState extends State<_CheckpointDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Batal'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Simpan'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Simpan')),
       ],
     );
   }
@@ -1130,10 +1093,7 @@ class _CheckpointDialogState extends State<_CheckpointDialog> {
 
 String _newSessionToken() {
   final Random random = Random.secure();
-  final List<int> bytes = List<int>.generate(
-    16,
-    (_) => random.nextInt(256),
-  );
+  final List<int> bytes = List<int>.generate(16, (_) => random.nextInt(256));
   return bytes
       .map((int value) => value.toRadixString(16).padLeft(2, '0'))
       .join();
