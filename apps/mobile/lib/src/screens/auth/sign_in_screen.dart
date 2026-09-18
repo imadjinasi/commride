@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import '../../auth/auth_gateway.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({
-    required this.authGateway,
-    super.key,
-  });
+  const SignInScreen({required this.authGateway, super.key});
 
   final AuthGateway authGateway;
 
@@ -155,10 +152,7 @@ class _SignInScreenState extends State<SignInScreen> {
           password: password,
         );
       } else {
-        await widget.authGateway.signIn(
-          email: email,
-          password: password,
-        );
+        await widget.authGateway.signIn(email: email, password: password);
       }
     } catch (_) {
       if (!mounted) {
