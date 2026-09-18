@@ -135,7 +135,7 @@ describe('Club/Ride read model', () => {
       clubRideRepository: commandRepository(membership),
       clubRideReadRepository: new TestReadRepository(
         { club, membership },
-        <RideListItem>[],
+        [],
       ),
     });
 
