@@ -309,6 +309,61 @@ Simple computations can run in application code:
 
 Complex discovery such as “fuel stations along this route” remains the map provider's job.
 
+### Convoy separation heuristic
+
+The first separation heuristic is intentionally provider-independent and
+conservative.
+
+It must not equate `distance from Leader > threshold` with a separated Rider.
+
+Only currently connected **Live** RiderPresence participates in geometry.
+Stale/Offline presence remains a separate connectivity truth and is excluded
+from separation calculations.
+
+The evaluator builds an undirected connectivity graph:
+
+- one node per eligible Rider;
+- an edge exists when Haversine distance is within the configured continuity
+  threshold;
+- connected components represent coarse convoy continuity.
+
+This permits a stretched convoy to remain one group when intermediate Riders
+bridge the chain, while still detecting a front/rear split into multiple
+sub-groups.
+
+Initial policy values for deterministic testing/field validation:
+
+- continuity threshold: 600 m;
+- split confirmation: 20 seconds;
+- recovery confirmation: 15 seconds;
+- fewer than 2 eligible Live Riders: geometry is **insufficientData**.
+
+These values are policy configuration, not final safety truth.
+
+Operational phases:
+
+- `insufficientData`;
+- `normal`;
+- `splitCandidate`;
+- `separatedAttention`.
+
+A single split sample can only enter `splitCandidate`. It must remain
+continuously split for the confirmation window before becoming
+`separatedAttention`.
+
+A confirmed separation does not immediately clear on one normal sample.
+Continuity must remain restored through the recovery window.
+
+If data becomes insufficient while separation is already confirmed, the engine
+must not claim recovery. It retains the last attention state while marking
+geometry as insufficient until enough fresh data returns.
+
+Straight-line component distance must never be labeled as route distance.
+Route-projected gap detection is a later explicit revision.
+
+The engine is pure operational state: it does not write each calculation to D1,
+does not score Riders, and does not persist permanent location history.
+
 If future analytics require serious spatial querying, the persistence layer can evolve toward PostgreSQL/PostGIS.
 
 ## 8. Route planning flow
