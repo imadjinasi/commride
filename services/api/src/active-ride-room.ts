@@ -7,6 +7,7 @@ import {
   type ConnectionAttachment,
   parseClientEvent,
   presenceView,
+  quickActionPresenceContext,
   shouldAcceptPresence,
   type StoredPresence,
 } from './active-ride/protocol';
@@ -428,6 +429,8 @@ export class ActiveRideRoom {
     );
     await this.state.storage.put(QUICK_ACTION_IDS_KEY, nextRecent);
 
+    const raisedAt = new Date();
+
     this.broadcast(
       serverEvent('quick_action.raised', {
         eventId: event.eventId,
@@ -438,7 +441,11 @@ export class ActiveRideRoom {
         },
         kind: event.payload.kind,
         reason: event.payload.reason,
-        raisedAt: new Date().toISOString(),
+        raisedAt: raisedAt.toISOString(),
+        presence: quickActionPresenceContext(
+          attachment.lastPresence,
+          raisedAt,
+        ),
       }),
     );
   }
