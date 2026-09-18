@@ -33,14 +33,50 @@ The promise does not mean every rider must remain in one formation. It means rid
 
 ## Documentation
 
-The initial product documentation is being established under `docs/`.
+### Product
+- [Product Vision](docs/product-vision.md)
+- [PRD v0.1](docs/prd-v0.1.md)
+- [Domain Model](docs/domain-model.md)
+- [Technical Architecture](docs/technical-architecture.md)
+- [Delivery Roadmap](docs/roadmap.md)
 
-- Product vision and principles
-- Product requirements (PRD)
-- Domain model
-- Technical architecture
-- Delivery roadmap
+### UX
+- [Information Architecture](docs/ux/information-architecture.md)
+- [Core User Flows](docs/ux/core-user-flows.md)
+- [Low-Fidelity Wireframe Specification](docs/ux/wireframe-spec.md)
+- [Interaction Principles](docs/ux/interaction-principles.md)
+
+### Development
+- [Repository Agent Instructions](AGENTS.md)
+- [AI-Assisted Development Workflow](docs/development/ai-assisted-workflow.md)
+
+## Current direction
+
+The planned early stack is:
+
+- Flutter for the mobile application;
+- Cloudflare Workers for the API;
+- Cloudflare D1 for initial relational persistence;
+- Durable Objects for Active Ride realtime rooms;
+- Cloudflare R2 for object storage when needed;
+- Firebase Authentication and FCM;
+- Google Maps / Routes / Places through provider adapters.
+
+The architecture intentionally targets **near-zero fixed recurring infrastructure cost at low usage** and keeps full turn-by-turn navigation outside the MVP.
 
 ## Status
 
-CommRide is currently in **product definition / pre-implementation**. The repository intentionally starts with documentation before feature code so product behavior, privacy boundaries, architecture, and MVP scope are explicit before implementation.
+CommRide is currently in **product definition / pre-implementation**.
+
+The product baseline and UX foundation are being documented before feature code so behavior, privacy boundaries, routing interactions, Active Ride operations, and MVP scope are explicit before implementation.
+
+The next implementation sequence is:
+
+1. Flutter app scaffold
+2. Worker/API scaffold
+3. environment and CI conventions
+4. authentication
+5. initial D1 schema
+6. Rider profile vertical slice
+7. Club and Ride lifecycle
+8. Route Planner
