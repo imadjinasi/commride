@@ -203,18 +203,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Publish Briefing'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Fuel One'),
-      240,
-      scrollable: find.byType(Scrollable).first,
+    await tester.drag(
+      find.byType(ListView),
+      const Offset(0, -300),
     );
+    await tester.pumpAndSettle();
     expect(find.text('Fuel One'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('Publish Briefing'),
-      -240,
-      scrollable: find.byType(Scrollable).first,
+    await tester.drag(
+      find.byType(ListView),
+      const Offset(0, 300),
     );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Publish Briefing'));
     await tester.pumpAndSettle();
 
