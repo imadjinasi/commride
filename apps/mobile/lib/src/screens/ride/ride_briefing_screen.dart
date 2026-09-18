@@ -288,14 +288,15 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
   Future<void> _publishBriefing({
     required String? currentNotes,
   }) async {
-    final String? notes = await showDialog<String?>(
+    final _BriefingNotesResult? result =
+        await showDialog<_BriefingNotesResult>(
       context: context,
       builder: (BuildContext context) => _BriefingNotesDialog(
         initialNotes: currentNotes,
       ),
     );
 
-    if (!mounted || notes == _cancelledDialogValue) {
+    if (!mounted || result == null) {
       return;
     }
 
@@ -303,7 +304,7 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
       final RideBriefingView view =
           await widget.rideBriefingApi.publishBriefing(
         rideId: widget.ride.id,
-        notes: notes,
+        notes: result.notes,
       );
       _replaceState(view);
       _showMessage('Briefing v${view.briefing.revision} dipublikasikan.');
@@ -376,7 +377,11 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
   }
 }
 
-const String _cancelledDialogValue = '__commride_cancelled__';
+class _BriefingNotesResult {
+  const _BriefingNotesResult(this.notes);
+
+  final String? notes;
+}
 
 class _BriefingNotesDialog extends StatefulWidget {
   const _BriefingNotesDialog({required this.initialNotes});
@@ -418,14 +423,15 @@ class _BriefingNotesDialogState extends State<_BriefingNotesDialog> {
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_cancelledDialogValue),
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text('Batal'),
         ),
         FilledButton(
           onPressed: () {
             final String value = _controller.text.trim();
-            Navigator.of(context).pop(value.isEmpty ? null : value);
+            Navigator.of(context).pop(
+              _BriefingNotesResult(value.isEmpty ? null : value),
+            );
           },
           child: const Text('Publish'),
         ),
