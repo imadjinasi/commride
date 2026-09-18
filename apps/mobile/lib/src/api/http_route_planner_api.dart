@@ -43,10 +43,7 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
   }) async {
     final Map<String, Object?> body = await _post(
       '/v1/maps/resolve-place',
-      <String, Object?>{
-        'reference': reference,
-        'sessionToken': sessionToken,
-      },
+      <String, Object?>{'reference': reference, 'sessionToken': sessionToken},
     );
     final Object? raw = body['place'];
     if (raw is! Map<String, Object?>) {
@@ -90,11 +87,7 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
       },
     );
 
-    return _readList(
-      body['routes'],
-      RouteOption.fromJson,
-      'route options',
-    );
+    return _readList(body['routes'], RouteOption.fromJson, 'route options');
   }
 
   @override
@@ -166,25 +159,23 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
     final http.Response response = await _client.put(
       _endpoint('/v1/rides/${Uri.encodeComponent(rideId)}/route-plan'),
       headers: await _headers(includeJson: true),
-      body: jsonEncode(
-        <String, Object?>{
-          'travelMode': travelMode.wireValue,
-          'origin': <String, Object?>{
-            'label': origin.formattedAddress,
-            'location': origin.location.toJson(),
-          },
-          'destination': <String, Object?>{
-            'label': destination.formattedAddress,
-            'location': destination.location.toJson(),
-          },
-          'distanceMeters': route.distanceMeters,
-          'durationSeconds': route.durationSeconds,
-          'encodedPolyline': route.encodedPolyline,
-          'stops': stops
-              .map((PlanningStop stop) => stop.toJson())
-              .toList(growable: false),
+      body: jsonEncode(<String, Object?>{
+        'travelMode': travelMode.wireValue,
+        'origin': <String, Object?>{
+          'label': origin.formattedAddress,
+          'location': origin.location.toJson(),
         },
-      ),
+        'destination': <String, Object?>{
+          'label': destination.formattedAddress,
+          'location': destination.location.toJson(),
+        },
+        'distanceMeters': route.distanceMeters,
+        'durationSeconds': route.durationSeconds,
+        'encodedPolyline': route.encodedPolyline,
+        'stops': stops
+            .map((PlanningStop stop) => stop.toJson())
+            .toList(growable: false),
+      }),
     );
 
     final Map<String, Object?> body = _decodeObject(response);
@@ -228,23 +219,23 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
       );
     }
 
-    return raw.map((Object? value) {
-      if (value is! Map<String, Object?>) {
-        throw RoutePlannerApiException(
-          statusCode: 500,
-          code: 'invalid_response',
-          message: 'CommRide API returned invalid $label.',
-        );
-      }
-      return parser(value);
-    }).toList(growable: false);
+    return raw
+        .map((Object? value) {
+          if (value is! Map<String, Object?>) {
+            throw RoutePlannerApiException(
+              statusCode: 500,
+              code: 'invalid_response',
+              message: 'CommRide API returned invalid $label.',
+            );
+          }
+          return parser(value);
+        })
+        .toList(growable: false);
   }
 
   Uri _endpoint(String path) => _apiBaseUrl.resolve(path);
 
-  Future<Map<String, String>> _headers({
-    bool includeJson = false,
-  }) async {
+  Future<Map<String, String>> _headers({bool includeJson = false}) async {
     final String token = await _authGateway.idToken();
     return <String, String>{
       'authorization': 'Bearer $token',
