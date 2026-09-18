@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../active_ride/convoy_separation.dart';
 import '../../active_ride/live_group_controller.dart';
 import '../../active_ride/live_group_models.dart';
 import '../../active_ride/location_provider.dart';
@@ -78,6 +79,11 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
             _ConnectionCard(state: state),
             const SizedBox(height: 14),
             _GroupSummary(counts: counts),
+            if (state.separation != null &&
+                state.separation!.phase != ConvoySeparationPhase.normal) ...<Widget>[
+              const SizedBox(height: 12),
+              _SeparationCard(separation: state.separation!),
+            ],
             if (state.quickActions.isNotEmpty) ...<Widget>[
               const SizedBox(height: 18),
               Text(
@@ -366,6 +372,90 @@ class _GroupSummary extends StatelessWidget {
             ),
             Expanded(
               child: _Count(label: 'Offline', value: counts.offline),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SeparationCard extends StatelessWidget {
+  const _SeparationCard({required this.separation});
+
+  final LiveConvoySeparation separation;
+
+  @override
+  Widget build(BuildContext context) {
+    final String title;
+    final String detail;
+    final IconData icon;
+
+    switch (separation.phase) {
+      case ConvoySeparationPhase.insufficientData:
+        title = 'Data jarak rombongan belum cukup';
+        detail =
+            'Belum ada cukup posisi Rider Live untuk menilai kontinuitas '
+            'rombongan. Stale/Offline tetap ditampilkan terpisah.';
+        icon = Icons.sensors_off_outlined;
+      case ConvoySeparationPhase.splitCandidate:
+        title = 'Memeriksa jarak rombongan';
+        detail =
+            'Posisi Rider Live tampak terbagi, tetapi CommRide masih '
+            'menunggu konfirmasi agar satu sampel GPS tidak menjadi alarm.';
+        icon = Icons.travel_explore_outlined;
+      case ConvoySeparationPhase.separatedAttention:
+        if (separation.dataSufficient) {
+          title = 'Jarak rombongan melebar';
+          detail =
+              'Posisi Rider Live mungkin terbagi menjadi '
+              '${separation.components.length} kelompok. Periksa kondisi '
+              'rombongan; ini bukan kepastian ada Rider tersesat.';
+        } else {
+          title = 'Perhatian rombongan belum dapat diverifikasi ulang';
+          detail =
+              'Separation sebelumnya sudah terkonfirmasi, tetapi posisi Live '
+              'saat ini belum cukup untuk menyatakan kondisi sudah pulih.';
+        }
+        icon = Icons.warning_amber_rounded;
+      case ConvoySeparationPhase.normal:
+        title = 'Rombongan terhubung';
+        detail = 'Posisi Rider Live membentuk satu kontinuitas.';
+        icon = Icons.link;
+    }
+
+    final List<String> facts = <String>[
+      if (separation.isolatedRiderIds.isNotEmpty)
+        '${separation.isolatedRiderIds.length} Rider terisolasi secara posisi',
+      if (separation.sweeperComponentRiderIds != null)
+        'Komponen Sweeper: '
+            '${separation.sweeperComponentRiderIds!.length} Rider',
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(icon),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(detail),
+                  if (facts.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Text(
+                      facts.join(' · '),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
