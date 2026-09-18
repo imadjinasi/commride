@@ -72,10 +72,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Masuk'), findsWidgets);
-    expect(
-      find.textContaining('Izin lokasi tidak diminta'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Izin lokasi tidak diminta'), findsOneWidget);
     expect(find.text('Home'), findsNothing);
   });
 
