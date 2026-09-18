@@ -46,24 +46,19 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
               runSpacing: 8,
               children: <Widget>[
                 Chip(label: Text(ride.status.label)),
-                if (membership != null) Chip(label: Text(membership.role.label)),
+                if (membership != null)
+                  Chip(label: Text(membership.role.label)),
               ],
             ),
             if (ride.scheduledStartAt != null) ...<Widget>[
               const SizedBox(height: 18),
-              Text(
-                'Berangkat',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
+              Text('Berangkat', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(_formatDateTime(ride.scheduledStartAt!.toLocal())),
             ],
             if (ride.notes != null) ...<Widget>[
               const SizedBox(height: 18),
-              Text(
-                'Catatan',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
+              Text('Catatan', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 4),
               Text(ride.notes!),
             ],
@@ -217,9 +212,9 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
 
       widget.onChanged();
       if (successMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(successMessage)));
       }
       setState(() {});
     } catch (_) {
