@@ -17,7 +17,9 @@ class AppConfig {
       'COMMRIDE_ENV',
       defaultValue: 'development',
     );
-    const String rawApiBaseUrl = String.fromEnvironment('COMMRIDE_API_BASE_URL');
+    const String rawApiBaseUrl = String.fromEnvironment(
+      'COMMRIDE_API_BASE_URL',
+    );
 
     final AppEnvironment environment = switch (rawEnvironment) {
       'production' => AppEnvironment.production,
