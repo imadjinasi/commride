@@ -105,10 +105,29 @@ Future<void> closeFakes(
   FakeLocationProvider location,
   FakeRealtimeClient realtime,
 ) async {
+  await controller.stopForSignOut();
   controller.dispose();
-  await Future<void>.delayed(Duration.zero);
   await location.close();
   await realtime.close();
+}
+
+Future<void> pumpUntilPhase(
+  WidgetTester tester,
+  RideLocationSessionController controller,
+  RideLocationSessionPhase phase,
+) async {
+  for (int attempt = 0; attempt < 10; attempt += 1) {
+    await tester.pump();
+    if (controller.state.phase == phase) {
+      await tester.pump();
+      return;
+    }
+  }
+
+  fail(
+    'Expected Ride location phase $phase, '
+    'got ${controller.state.phase}.',
+  );
 }
 
 void main() {
@@ -237,7 +256,11 @@ void main() {
     realtime.controller.add(
       ActiveRideEnded(endedAt: DateTime.utc(2026, 9, 18, 11)),
     );
-    await tester.pumpAndSettle();
+    await pumpUntilPhase(
+      tester,
+      controller,
+      RideLocationSessionPhase.stoppedByRideEnd,
+    );
 
     expect(find.text('Tracking berhenti'), findsOneWidget);
     expect(location.stopCalls, 1);
