@@ -196,7 +196,7 @@ Leader of that Ride; a different Club owner does not automatically gain Leader
 authority over it.
 
 The initial API does not yet implement role transfer, Active Ride route
-revision, checkpoint check-in/release, location, chat, or social feed behavior.
+revision, location, chat, or social feed behavior.
 
 
 ### Read-model privacy
@@ -337,3 +337,56 @@ Acknowledgements for older Briefing revisions remain historical but do not
 count toward readiness for a newer revision.
 
 Readiness is advisory in the MVP. It is not a server-side Start Ride blocker.
+
+
+## Checkpoint coordination
+
+Checkpoint coordination is private Ride operational state and uses the
+Checkpoint Stops of the immutable RoutePlan that is current when the Ride is
+Active.
+
+Endpoints:
+
+- `GET /v1/rides/:rideId/checkpoints`
+- `POST /v1/rides/:rideId/checkpoints/:checkpointId/check-in`
+- `POST /v1/rides/:rideId/checkpoints/:checkpointId/release`
+
+### Read
+
+Joined Ride participants may read Checkpoint state. Invited/left Riders cannot
+read it. Completed Ride participants may still read the final state.
+
+The ordered read model derives:
+
+- **released** — explicitly released by the Leader;
+- **current** — the first unreleased Checkpoint;
+- **upcoming** — later unreleased Checkpoints.
+
+It includes expected, checked-in, and missing counts plus each eligible
+participant's check-in timestamp.
+
+### Manual check-in
+
+While the Ride is Active, an eligible joined/ready/active Rider may check in
+only themselves.
+
+The command is idempotent for Rider + Checkpoint and records server receipt
+time. It does not request or accept GPS evidence and must not be presented as
+GPS-verified arrival.
+
+A late check-in after Leader release remains recorded and does not reopen the
+Checkpoint.
+
+### Leader release
+
+Only the Active Ride Leader may release a Checkpoint.
+
+Release is idempotent and allowed with missing Riders; the client must make that
+missing count explicit before confirmation.
+
+Only the first unreleased Checkpoint can be released. This keeps operational
+sequence monotonic and prevents later commands from rewriting an earlier
+Checkpoint state.
+
+The persistent HTTP state is authoritative. Realtime broadcast can be layered
+on later without making reconnect depend on event history.
