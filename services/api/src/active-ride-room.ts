@@ -2,6 +2,7 @@ import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
 import { resolveRequestId } from './request-id';
 import type { RideRole } from './clubs-rides/models';
+import type { RideMessage } from './ride-comms/models';
 import {
   evaluateConvoySeparation,
   separationStateMeaningfullyChanged,
@@ -52,6 +53,61 @@ export class ActiveRideRoom {
       request.headers.get('x-commride-internal-action') === 'connect'
     ) {
       return this.connect(request, requestId);
+    }
+
+    if (url.pathname === '/message') {
+      if (request.method !== 'POST') {
+        return errorResponse(
+          'method_not_allowed',
+          'Only POST is supported for this endpoint.',
+          405,
+          requestId,
+        );
+      }
+
+      const rideId = requiredHeader(request, 'x-commride-ride-id');
+      if (rideId == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'Ride identity is required.',
+          400,
+          requestId,
+        );
+      }
+
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return errorResponse(
+          'invalid_internal_request',
+          'Ride message payload must be valid JSON.',
+          400,
+          requestId,
+        );
+      }
+
+      const message = parseInternalRideMessage(body, rideId);
+      if (message == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'Persisted Ride message payload is invalid.',
+          400,
+          requestId,
+        );
+      }
+
+      if (await this.state.storage.get<string>(ENDED_AT_KEY)) {
+        return errorResponse(
+          'active_ride_ended',
+          'This Active Ride room has already ended.',
+          409,
+          requestId,
+        );
+      }
+
+      this.broadcast(serverEvent('ride.message_created', message));
+      return jsonResponse({ broadcast: true }, 200, requestId);
     }
 
     if (url.pathname === '/end') {
@@ -642,6 +698,56 @@ function parseRideRole(value: unknown): RideRole | null {
 
 function offlinePresenceKey(riderId: string): string {
   return `${OFFLINE_PRESENCE_PREFIX}${riderId}`;
+}
+
+function parseInternalRideMessage(
+  value: unknown,
+  rideId: string,
+): RideMessage | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const role = parseRideRole(value.senderRideRole);
+  const kind =
+    value.kind === 'chat' || value.kind === 'announcement'
+      ? value.kind
+      : null;
+  const createdAt =
+    typeof value.createdAt === 'string'
+      ? normalizeIsoDate(value.createdAt)
+      : null;
+
+  if (
+    value.rideId !== rideId ||
+    typeof value.id !== 'string' ||
+    value.id.length === 0 ||
+    typeof value.senderRiderId !== 'string' ||
+    value.senderRiderId.length === 0 ||
+    typeof value.senderDisplayName !== 'string' ||
+    value.senderDisplayName.length === 0 ||
+    role == null ||
+    kind == null ||
+    typeof value.body !== 'string' ||
+    value.body.length === 0 ||
+    typeof value.clientMessageId !== 'string' ||
+    value.clientMessageId.length === 0 ||
+    createdAt == null
+  ) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    rideId,
+    senderRiderId: value.senderRiderId,
+    senderDisplayName: value.senderDisplayName,
+    senderRideRole: role,
+    kind,
+    body: value.body,
+    clientMessageId: value.clientMessageId,
+    createdAt,
+  };
 }
 
 function normalizeIsoDate(value: string): string | null {
