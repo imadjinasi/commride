@@ -57,8 +57,5 @@ abstract interface class ActiveRideRealtimeClient {
 
   Future<void> sendPresence(RideLocationSample sample);
 
-  Future<void> sendQuickAction(
-    LiveQuickActionKind kind, {
-    String? reason,
-  });
+  Future<void> sendQuickAction(LiveQuickActionKind kind, {String? reason});
 }
