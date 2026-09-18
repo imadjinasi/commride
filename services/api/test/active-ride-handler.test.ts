@@ -96,11 +96,12 @@ function ride(status: RideStatus): Ride {
 
 function membership(
   status: RideMembership['status'] = 'active',
+  role: RideMembership['role'] = 'sweeper',
 ): RideMembership {
   return {
     rideId: 'ride-1',
     riderId: rider.id,
-    role: 'sweeper',
+    role,
     status,
   };
 }
@@ -108,6 +109,7 @@ function membership(
 function repository(
   initialStatus: RideStatus,
   membershipStatus: RideMembership['status'] = 'active',
+  membershipRole: RideMembership['role'] = 'sweeper',
 ): ClubRideRepository {
   let currentRide = ride(initialStatus);
 
@@ -117,7 +119,7 @@ function repository(
     },
     async findRideMembership(rideId: string, riderId: string) {
       return rideId === currentRide.id && riderId === rider.id
-        ? membership(membershipStatus)
+        ? membership(membershipStatus, membershipRole)
         : null;
     },
     async transitionRideStatus(
@@ -250,7 +252,7 @@ describe('Active Ride public boundary', () => {
         },
       ),
       {},
-      overrides(repository('active'), gateway),
+      overrides(repository('active', 'active', 'leader'), gateway),
     );
 
     expect(response.status).toBe(200);
@@ -276,7 +278,7 @@ describe('Active Ride public boundary', () => {
         },
       ),
       {},
-      overrides(repository('completed'), gateway),
+      overrides(repository('completed', 'active', 'leader'), gateway),
     );
 
     expect(response.status).toBe(200);
