@@ -1,4 +1,12 @@
 import { FirebaseIdTokenVerifier } from './auth/firebase-id-token-verifier';
+import {
+  handleRideBriefingRequest,
+  isRideBriefingPath,
+} from './briefings/handler';
+import {
+  D1RideBriefingRepository,
+  type RideBriefingRepository,
+} from './briefings/repository';
 import type { IdentityVerifier } from './auth/identity';
 import {
   handleClubRideRequest,
@@ -48,6 +56,7 @@ export interface RouterOverrides {
   readonly clubRideReadRepository?: ClubRideReadRepository;
   readonly routePlaceProvider?: RoutePlaceProvider;
   readonly routePlanRepository?: RoutePlanRepository;
+  readonly rideBriefingRepository?: RideBriefingRepository;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -102,6 +111,65 @@ export async function handleRequest(
         200,
         requestId,
       );
+    }
+
+    if (isRideBriefingPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const routePlanRepository =
+        overrides.routePlanRepository ??
+        (env.DB == null ? null : new D1RoutePlanRepository(env.DB));
+      const rideBriefingRepository =
+        overrides.rideBriefingRepository ??
+        (env.DB == null ? null : new D1RideBriefingRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        routePlanRepository == null ||
+        rideBriefingRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Ride Briefing persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleRideBriefingRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          routePlanRepository,
+          rideBriefingRepository,
+          idFactory: overrides.idFactory,
+          now: overrides.now,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
     }
 
     if (isRoutePlanPath(url.pathname)) {
