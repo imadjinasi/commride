@@ -190,6 +190,7 @@ Room -> client:
 - `ride.snapshot`
 - `presence.updated`
 - `quick_action.raised`
+- `convoy.separation_updated`
 - `ride.ended`
 - `error`
 
@@ -363,6 +364,28 @@ Route-projected gap detection is a later explicit revision.
 
 The engine is pure operational state: it does not write each calculation to D1,
 does not score Riders, and does not persist permanent location history.
+
+The Active Ride room may evaluate this engine after accepted presence/disconnect
+changes. For WebSocket hibernation recovery, the room stores only the compact
+derived separation state and only when it changes meaningfully:
+
+- phase;
+- data sufficiency;
+- component membership;
+- isolated Rider IDs;
+- Sweeper component;
+- split/confirmation/recovery timestamps.
+
+A changing `lastUpdatedAt` timestamp alone must not cause Durable Object
+storage writes.
+
+`ride.snapshot` includes the latest derived separation state when available.
+Meaningful changes broadcast `convoy.separation_updated`. Candidate state is
+operational context only; rider-facing automatic alerts still require
+real-device/field validation.
+
+Ride completion clears the derived separation recovery state together with the
+room lifecycle. No D1 location history is created by separation evaluation.
 
 If future analytics require serious spatial querying, the persistence layer can evolve toward PostgreSQL/PostGIS.
 
