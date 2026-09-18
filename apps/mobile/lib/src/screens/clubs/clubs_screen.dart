@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/route_planner_api.dart';
@@ -10,12 +11,14 @@ import 'create_club_screen.dart';
 class ClubsScreen extends StatefulWidget {
   const ClubsScreen({
     required this.clubRideApi,
+    required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
     super.key,
   });
 
   final ClubRideApi clubRideApi;
+  final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
 
@@ -143,6 +146,7 @@ class _ClubsScreenState extends State<ClubsScreen> {
         builder: (BuildContext context) => ClubDetailScreen(
           item: item,
           clubRideApi: widget.clubRideApi,
+          checkpointApi: widget.checkpointApi,
           routePlannerApi: widget.routePlannerApi,
           rideBriefingApi: widget.rideBriefingApi,
           onChanged: _refresh,
