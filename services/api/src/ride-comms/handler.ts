@@ -96,7 +96,8 @@ export async function handleRideCommsRequest(
   if (
     membership == null ||
     membership.status === 'invited' ||
-    membership.status === 'left'
+    membership.status === 'left' ||
+    (ride.status === 'active' && membership.status === 'finished')
   ) {
     return errorResponse(
       'ride_membership_required',
