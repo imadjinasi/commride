@@ -390,6 +390,10 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
       <String, String>{
         'api': '1',
         'destination': '${target.latitude},${target.longitude}',
+        'travelmode': _travelMode == RouteTravelMode.twoWheeler
+            ? 'two-wheeler'
+            : 'driving',
+        'dir_action': 'navigate',
       },
     );
 
