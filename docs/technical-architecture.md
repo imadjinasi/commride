@@ -79,10 +79,16 @@ D1 is chosen for low fixed cost and early-stage simplicity, not because it is th
 
 Model:
 - one logical realtime coordination room per Active Ride;
-- WebSocket clients join the Ride room;
+- authenticated WebSocket clients join through the Worker API;
+- Worker verifies Firebase identity, Rider profile, Ride state, and RideMembership before forwarding the upgrade to the room;
+- room identity is derived from Ride ID; client input never selects another Rider identity;
 - latest Ride presence/state kept near the room;
 - outgoing updates broadcast to authorized participants;
-- hibernation/scale-to-zero behavior used when inactive.
+- Cloudflare WebSocket Hibernation API is used so idle connected rooms can hibernate;
+- per-connection Rider metadata is stored as WebSocket attachment so it survives hibernation.
+
+The initial protocol is versioned as `v=1`. An unsupported protocol version is
+rejected before the WebSocket upgrade.
 
 ### Object storage
 **Cloudflare R2**
@@ -173,6 +179,56 @@ Durable Object: Active Ride Room
 ## 5. Realtime location strategy
 
 A location update should not automatically become a permanent database write.
+
+### Active Ride protocol v1
+
+Client -> room:
+- `presence.update`
+- `quick_action.raise`
+
+Room -> client:
+- `ride.snapshot`
+- `presence.updated`
+- `quick_action.raised`
+- `ride.ended`
+- `error`
+
+Each client event carries:
+- `v: 1`;
+- a client-generated `eventId`;
+- `sentAt`;
+- typed payload.
+
+The server derives Rider ID and Ride role from the authenticated WebSocket
+attachment. Rider identity is never accepted from the event payload.
+
+### Presence freshness
+
+The room stores only the latest operational RiderPresence per Rider for room
+recovery; it does not append every GPS message.
+
+Initial freshness policy:
+- **Live**: latest accepted observation age <= 30 seconds while a socket is connected;
+- **Stale**: observation age > 30 seconds;
+- **Offline**: no active socket for that Rider; last-known position may remain with its timestamp.
+
+The 30-second freshness threshold is an initial coordination policy and may be
+changed after field testing. UI must always show the observation timestamp and
+must not animate stale/offline coordinates as live.
+
+Presence updates with an `observedAt` older than the currently accepted
+observation for that Rider are ignored so reconnect queues cannot regress
+latest-known state.
+
+The room may periodically confirm the Ride is still Active from authoritative
+D1 state, but must not perform a D1 write for each location update.
+
+### Room end
+
+When Ride state becomes Completed, the lifecycle command signals the room.
+The room broadcasts `ride.ended`, rejects further operational messages, and
+closes connected sockets. New connections are independently rejected by the
+Worker because D1 Ride state is no longer Active.
 
 Proposed path:
 
