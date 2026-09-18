@@ -31,12 +31,7 @@ class _CreateRideScreenState extends State<CreateRideScreen> {
   void initState() {
     super.initState();
     final DateTime now = DateTime.now();
-    _departure = DateTime(
-      now.year,
-      now.month,
-      now.day + 1,
-      6,
-    );
+    _departure = DateTime(now.year, now.month, now.day + 1, 6);
   }
 
   @override
