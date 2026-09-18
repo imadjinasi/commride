@@ -55,13 +55,16 @@ class ActiveRideGroupState {
     int offline = 0;
 
     for (final LiveRiderPresence presence in presences) {
-      switch (presence.effectiveFreshness(now, liveWindow: liveWindow)) {
-        case LivePresenceFreshness.live:
-          live += 1;
-        case LivePresenceFreshness.stale:
-          stale += 1;
-        case LivePresenceFreshness.offline:
-          offline += 1;
+      final LivePresenceFreshness freshness = presence.effectiveFreshness(
+        now,
+        liveWindow: liveWindow,
+      );
+      if (freshness == LivePresenceFreshness.live) {
+        live += 1;
+      } else if (freshness == LivePresenceFreshness.stale) {
+        stale += 1;
+      } else {
+        offline += 1;
       }
     }
 
