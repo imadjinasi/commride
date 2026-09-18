@@ -90,6 +90,12 @@ Lifecycle:
 - Completed
 - Cancelled
 
+Lifecycle semantics:
+- Draft -> Published -> Active -> Completed is the normal execution path.
+- Draft or Published -> Cancelled is allowed before a Ride starts.
+- Cancelled is terminal and idempotent.
+- Active -> Cancelled is not allowed; once a Ride starts it must be ended as Completed so the product does not erase the fact that live Ride operations began.
+
 Key concepts:
 - organizer/Club;
 - title;
