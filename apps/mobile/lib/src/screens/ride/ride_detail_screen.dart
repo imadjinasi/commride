@@ -89,6 +89,14 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                   onPressed: _working ? null : _endRide,
                   child: const Text('End Ride'),
                 ),
+              if (ride.status == RideStatus.draft ||
+                  ride.status == RideStatus.published) ...<Widget>[
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: _working ? null : _confirmCancelRide,
+                  child: const Text('Cancel Ride'),
+                ),
+              ],
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _working ? null : _inviteRider,
@@ -136,6 +144,35 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
 
   Future<void> _endRide() {
     return _transition(widget.clubRideApi.endRide);
+  }
+
+  Future<void> _confirmCancelRide() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cancel Ride?'),
+          content: const Text(
+            'Ride yang belum dimulai akan ditandai Cancelled. '
+            'Ride yang sudah Active harus diakhiri dengan End Ride.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Cancel Ride'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _transition(widget.clubRideApi.cancelRide);
+    }
   }
 
   Future<void> _transition(Future<Ride> Function(String) action) async {
