@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:commride_mobile/src/active_ride/convoy_separation.dart';
 import 'package:commride_mobile/src/active_ride/live_group_controller.dart';
 import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/location_provider.dart';
@@ -75,6 +76,28 @@ LiveRiderPresence presence({
     receivedAt: observedAt.add(const Duration(seconds: 1)),
     movement: movement,
     freshness: freshness,
+  );
+}
+
+LiveConvoySeparation separation({
+  required ConvoySeparationPhase phase,
+  required bool dataSufficient,
+}) {
+  return LiveConvoySeparation(
+    phase: phase,
+    dataSufficient: dataSufficient,
+    components: const <List<String>>[
+      <String>['leader', 'sweeper'],
+      <String>['rider-3'],
+    ],
+    isolatedRiderIds: const <String>['rider-3'],
+    sweeperComponentRiderIds: const <String>['leader', 'sweeper'],
+    firstSplitObservedAt: DateTime.utc(2026, 9, 18, 10),
+    confirmedAt: phase == ConvoySeparationPhase.separatedAttention
+        ? DateTime.utc(2026, 9, 18, 10, 0, 20)
+        : null,
+    recoveryObservedAt: null,
+    lastUpdatedAt: DateTime.utc(2026, 9, 18, 10, 0, 20),
   );
 }
 
@@ -154,6 +177,72 @@ void main() {
     expect(find.text('Stale'), findsWidgets);
     expect(find.text('Offline'), findsWidgets);
     expect(find.textContaining('observasi 3 mnt lalu'), findsOneWidget);
+
+    await cleanup(tester, controller, realtime);
+  });
+
+  testWidgets('shows confirmed separation as factual attention', (
+    WidgetTester tester,
+  ) async {
+    final DateTime now = DateTime.utc(2026, 9, 18, 10, 0, 20);
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await tester.pumpWidget(buildScreen(controller: controller, now: now));
+    realtime.controller.add(
+      ActiveRideSeparationUpdated(
+        separation: separation(
+          phase: ConvoySeparationPhase.separatedAttention,
+          dataSufficient: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Jarak rombongan melebar'), findsOneWidget);
+    expect(
+      find.textContaining('mungkin terbagi menjadi 2 kelompok'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('bukan kepastian'), findsOneWidget);
+    expect(
+      find.textContaining('1 Rider terisolasi secara posisi'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Komponen Sweeper: 2 Rider'), findsOneWidget);
+
+    await cleanup(tester, controller, realtime);
+  });
+
+  testWidgets('confirmed separation does not claim recovery with insufficient data', (
+    WidgetTester tester,
+  ) async {
+    final DateTime now = DateTime.utc(2026, 9, 18, 10, 0, 30);
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await tester.pumpWidget(buildScreen(controller: controller, now: now));
+    realtime.controller.add(
+      ActiveRideSeparationUpdated(
+        separation: separation(
+          phase: ConvoySeparationPhase.separatedAttention,
+          dataSufficient: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.text('Perhatian rombongan belum dapat diverifikasi ulang'),
+      findsOneWidget,
+    );
+    expect(find.text('Rombongan terhubung'), findsNothing);
 
     await cleanup(tester, controller, realtime);
   });
