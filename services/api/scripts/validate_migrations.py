@@ -31,6 +31,8 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "club_memberships",
         "rides",
         "ride_memberships",
+        "route_plans",
+        "route_stops",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -88,14 +90,177 @@ def assert_membership_invariants(connection: sqlite3.Connection) -> None:
         raise AssertionError("A second active Club owner was accepted")
 
 
+def assert_route_plan_invariants(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT INTO rides(id, club_id, created_by_rider_id, title)
+        VALUES (?, ?, ?, ?)
+        """,
+        ("ride-1", "club-1", "rider-1", "RoutePlan Test Ride"),
+    )
+    connection.execute(
+        """
+        INSERT INTO ride_memberships(
+          ride_id, rider_id, role, status, joined_at
+        ) VALUES (?, ?, 'leader', 'joined', ?)
+        """,
+        ("ride-1", "rider-1", "2026-09-18T00:00:00Z"),
+    )
+    connection.execute(
+        """
+        INSERT INTO route_plans(
+          id,
+          ride_id,
+          revision,
+          created_by_rider_id,
+          travel_mode,
+          origin_latitude,
+          origin_longitude,
+          destination_latitude,
+          destination_longitude,
+          distance_meters,
+          duration_seconds,
+          encoded_polyline,
+          is_current
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        """,
+        (
+            "plan-1",
+            "ride-1",
+            1,
+            "rider-1",
+            "drive",
+            -6.732,
+            108.552,
+            -6.917,
+            107.619,
+            130000,
+            9000,
+            "polyline-v1",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO route_plans(
+              id,
+              ride_id,
+              revision,
+              created_by_rider_id,
+              travel_mode,
+              origin_latitude,
+              origin_longitude,
+              destination_latitude,
+              destination_longitude,
+              distance_meters,
+              duration_seconds,
+              encoded_polyline,
+              is_current
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                "plan-conflict",
+                "ride-1",
+                2,
+                "rider-1",
+                "drive",
+                -6.732,
+                108.552,
+                -6.917,
+                107.619,
+                130000,
+                9000,
+                "polyline-conflict",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("A second current RoutePlan revision was accepted")
+
+    connection.execute(
+        "UPDATE route_plans SET is_current = 0 WHERE id = ?",
+        ("plan-1",),
+    )
+    connection.execute(
+        """
+        INSERT INTO route_plans(
+          id,
+          ride_id,
+          revision,
+          created_by_rider_id,
+          travel_mode,
+          origin_latitude,
+          origin_longitude,
+          destination_latitude,
+          destination_longitude,
+          distance_meters,
+          duration_seconds,
+          encoded_polyline,
+          is_current
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        """,
+        (
+            "plan-2",
+            "ride-1",
+            2,
+            "rider-1",
+            "drive",
+            -6.732,
+            108.552,
+            -6.917,
+            107.619,
+            132000,
+            9100,
+            "polyline-v2",
+        ),
+    )
+    connection.execute(
+        """
+        INSERT INTO route_stops(
+          id,
+          route_plan_id,
+          sequence,
+          label,
+          latitude,
+          longitude,
+          stop_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        ("stop-1", "plan-2", 0, "Fuel", -6.8, 108.0, "fuel"),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO route_stops(
+              id,
+              route_plan_id,
+              sequence,
+              label,
+              latitude,
+              longitude,
+              stop_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("stop-2", "plan-2", 0, "Rest", -6.85, 107.9, "rest"),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate RouteStop sequence was accepted")
+
+
 def main() -> None:
     connection = sqlite3.connect(":memory:")
     connection.execute("PRAGMA foreign_keys = ON")
 
     apply_migrations(connection)
     assert_core_tables(connection)
-    assert_foreign_keys(connection)
     assert_membership_invariants(connection)
+    assert_route_plan_invariants(connection)
+    assert_foreign_keys(connection)
 
     print("migration-validation-ok")
 
