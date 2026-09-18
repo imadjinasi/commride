@@ -180,3 +180,34 @@ authority over it.
 
 The initial API does not yet implement role transfer, cancellation, route
 planning, checkpoints, location, chat, or social feed behavior.
+
+
+## Rider Vehicles
+
+Vehicle data is Rider-owned and deliberately limited to fields useful for Ride
+planning.
+
+Endpoints:
+
+- `GET /v1/me/vehicles` — list the authenticated Rider's Vehicles.
+- `POST /v1/me/vehicles` — create a Vehicle.
+- `PUT /v1/me/vehicles/:vehicleId` — replace editable data for an owned Vehicle.
+- `DELETE /v1/me/vehicles/:vehicleId` — delete an owned Vehicle.
+
+Supported fields:
+
+- `kind`: `motorcycle | car | other`
+- `make`
+- `model`
+- `nickname`
+- `fuelType`
+- `safeRangeKm` (1-2000, optional)
+
+`safeRangeKm` is intentionally a Rider-provided planning value, not a promise
+of actual remaining fuel/range.
+
+The initial Vehicle profile does not collect a license plate or other additional
+vehicle identifiers because the current product requirements do not need them.
+
+All update/delete queries are scoped by both Vehicle ID and authenticated Rider
+ownership.
