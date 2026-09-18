@@ -107,10 +107,7 @@ class ClubMembership {
 }
 
 class ClubListItem {
-  const ClubListItem({
-    required this.club,
-    required this.membership,
-  });
+  const ClubListItem({required this.club, required this.membership});
 
   final Club club;
   final ClubMembership membership;
@@ -286,10 +283,7 @@ class RideMembership {
 }
 
 class RideListItem {
-  const RideListItem({
-    required this.ride,
-    required this.membership,
-  });
+  const RideListItem({required this.ride, required this.membership});
 
   final Ride ride;
   final RideMembership? membership;
@@ -312,11 +306,7 @@ class RideListItem {
 }
 
 class RideInput {
-  const RideInput({
-    required this.title,
-    this.scheduledStartAt,
-    this.notes,
-  });
+  const RideInput({required this.title, this.scheduledStartAt, this.notes});
 
   final String title;
   final DateTime? scheduledStartAt;
