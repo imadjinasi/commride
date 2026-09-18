@@ -215,6 +215,29 @@ void main() {
     },
   );
 
+  test('sendQuickAction rejects an overlong reason before sending', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+    );
+
+    await client.connect('ride-1');
+
+    await expectLater(
+      client.sendQuickAction(
+        LiveQuickActionKind.stopping,
+        reason: List<String>.filled(241, 'x').join(),
+      ),
+      throwsArgumentError,
+    );
+    expect(socket.sent, isEmpty);
+
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
   test('sendQuickAction fails explicitly while disconnected', () async {
     final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
       apiBaseUrl: Uri.parse('https://api.commride.invalid'),
