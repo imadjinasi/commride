@@ -38,6 +38,14 @@ import { GoogleMapsPlatformProvider } from './maps/google-maps-platform-provider
 import { handleMapsRequest, isMapsPath } from './maps/handler';
 import type { RoutePlaceProvider } from './maps/provider';
 import { resolveRequestId } from './request-id';
+import {
+  handleRideCommsRequest,
+  isRideCommsPath,
+} from './ride-comms/handler';
+import {
+  D1RideMessageRepository,
+  type RideMessageRepository,
+} from './ride-comms/repository';
 import { handleRiderProfile } from './riders/profile-handler';
 import {
   handleRoutePlanRequest,
@@ -65,6 +73,7 @@ export interface RouterOverrides {
   readonly routePlaceProvider?: RoutePlaceProvider;
   readonly routePlanRepository?: RoutePlanRepository;
   readonly rideBriefingRepository?: RideBriefingRepository;
+  readonly rideMessageRepository?: RideMessageRepository;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
@@ -173,6 +182,64 @@ export async function handleRequest(
           riderRepository,
           clubRideRepository,
           activeRideGateway,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isRideCommsPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const rideMessageRepository =
+        overrides.rideMessageRepository ??
+        (env.DB == null ? null : new D1RideMessageRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        rideMessageRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Ride communication persistence is not configured.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleRideCommsRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          messageRepository: rideMessageRepository,
+          activeRideGateway:
+            overrides.activeRideGateway ??
+            resolveActiveRideGateway(env) ??
+            undefined,
+          idFactory: overrides.idFactory,
+          now: overrides.now,
         },
       );
 
