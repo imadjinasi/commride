@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeRealtimeClient implements ActiveRideRealtimeClient {
   final StreamController<ActiveRideRealtimeEvent> controller =
       StreamController<ActiveRideRealtimeEvent>.broadcast(sync: true);
+  final List<LiveQuickActionKind> sentKinds = <LiveQuickActionKind>[];
+  final List<String?> sentReasons = <String?>[];
 
   @override
   Stream<ActiveRideRealtimeEvent> get events => controller.stream;
@@ -27,7 +29,10 @@ class FakeRealtimeClient implements ActiveRideRealtimeClient {
   Future<void> sendQuickAction(
     LiveQuickActionKind kind, {
     String? reason,
-  }) async {}
+  }) async {
+    sentKinds.add(kind);
+    sentReasons.add(reason);
+  }
 
   Future<void> close() => controller.close();
 }
@@ -318,6 +323,48 @@ void main() {
       ),
       <String>['three', 'two'],
     );
+
+    controller.dispose();
+    await realtime.close();
+  });
+
+  test('raiseQuickAction delegates typed action and reason', () async {
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await controller.raiseQuickAction(
+      LiveQuickActionKind.stopping,
+      reason: 'Isi BBM',
+    );
+
+    expect(realtime.sentKinds, <LiveQuickActionKind>[
+      LiveQuickActionKind.stopping,
+    ]);
+    expect(realtime.sentReasons, <String?>['Isi BBM']);
+
+    controller.dispose();
+    await realtime.close();
+  });
+
+  test('raiseQuickAction is rejected after Ride end', () async {
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    )..start();
+
+    realtime.controller.add(
+      ActiveRideEnded(endedAt: DateTime.utc(2026, 9, 18, 11)),
+    );
+
+    await expectLater(
+      controller.raiseQuickAction(LiveQuickActionKind.needHelp),
+      throwsStateError,
+    );
+    expect(realtime.sentKinds, isEmpty);
 
     controller.dispose();
     await realtime.close();
