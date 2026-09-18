@@ -33,10 +33,7 @@ const SavedRoutePlan savedPlan = SavedRoutePlan(
 );
 
 class FakeRoutePlannerApi implements RoutePlannerApi {
-  FakeRoutePlannerApi({
-    this.plan = savedPlan,
-    this.failRecompute = false,
-  });
+  FakeRoutePlannerApi({this.plan = savedPlan, this.failRecompute = false});
 
   final SavedRoutePlan? plan;
   final bool failRecompute;
@@ -101,10 +98,7 @@ class FakeRoutePlannerApi implements RoutePlannerApi {
   }
 }
 
-Widget buildPlanner({
-  required RoutePlannerApi api,
-  required bool canEdit,
-}) {
+Widget buildPlanner({required RoutePlannerApi api, required bool canEdit}) {
   return MaterialApp(
     theme: CommRideTheme.light(),
     home: RoutePlannerScreen(
@@ -120,10 +114,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      buildPlanner(
-        api: FakeRoutePlannerApi(),
-        canEdit: false,
-      ),
+      buildPlanner(api: FakeRoutePlannerApi(), canEdit: false),
     );
     await tester.pumpAndSettle();
 
@@ -150,9 +141,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Fuel One'), findsOneWidget);
-    expect(
-      find.textContaining('Route terakhir tetap dipakai'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Route terakhir tetap dipakai'), findsOneWidget);
   });
 }
