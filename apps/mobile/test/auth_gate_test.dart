@@ -1,11 +1,13 @@
 import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/rider_profile_api.dart';
+import 'package:commride_mobile/src/api/route_planner_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/app.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/config/app_config.dart';
 import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/rider_profile.dart';
+import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -147,6 +149,59 @@ class FakeClubRideApi implements ClubRideApi {
   }
 }
 
+class FakeRoutePlannerApi implements RoutePlannerApi {
+  @override
+  Future<List<PlaceSuggestion>> autocomplete({
+    required String input,
+    required String sessionToken,
+  }) async {
+    return const <PlaceSuggestion>[];
+  }
+
+  @override
+  Future<List<RouteOption>> computeRoutes({
+    required ResolvedPlace origin,
+    required ResolvedPlace destination,
+    required List<PlanningStop> stops,
+    required RouteTravelMode travelMode,
+    required bool computeAlternatives,
+  }) async {
+    return const <RouteOption>[];
+  }
+
+  @override
+  Future<SavedRoutePlan?> fetchRoutePlan(String rideId) async => null;
+
+  @override
+  Future<ResolvedPlace> resolvePlace({
+    required String reference,
+    required String sessionToken,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SavedRoutePlan> saveRoutePlan({
+    required String rideId,
+    required ResolvedPlace origin,
+    required ResolvedPlace destination,
+    required RouteOption route,
+    required RouteTravelMode travelMode,
+    required List<PlanningStop> stops,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<AlongRoutePlace>> searchAlongRoute({
+    required String textQuery,
+    required RouteOption route,
+    required RouteTravelMode travelMode,
+  }) async {
+    return const <AlongRoutePlace>[];
+  }
+}
+
 void main() {
   testWidgets('signed-out user sees authentication screen', (
     WidgetTester tester,
@@ -158,6 +213,7 @@ void main() {
         riderProfileApi: FakeRiderProfileApi(null),
         vehicleApi: FakeVehicleApi(),
         clubRideApi: FakeClubRideApi(),
+        routePlannerApi: FakeRoutePlannerApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -179,6 +235,7 @@ void main() {
         riderProfileApi: FakeRiderProfileApi(null),
         vehicleApi: FakeVehicleApi(),
         clubRideApi: FakeClubRideApi(),
+        routePlannerApi: FakeRoutePlannerApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -207,6 +264,7 @@ void main() {
         riderProfileApi: FakeRiderProfileApi(profile),
         vehicleApi: FakeVehicleApi(),
         clubRideApi: FakeClubRideApi(),
+        routePlannerApi: FakeRoutePlannerApi(),
       ),
     );
     await tester.pumpAndSettle();
