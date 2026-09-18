@@ -195,8 +195,8 @@ Club roles and Ride roles are separate. A Club admin who creates a Ride becomes
 Leader of that Ride; a different Club owner does not automatically gain Leader
 authority over it.
 
-The initial API does not yet implement role transfer, route planning,
-checkpoints, location, chat, or social feed behavior.
+The initial API does not yet implement role transfer, Active Ride route
+revision, checkpoint check-in/release, location, chat, or social feed behavior.
 
 
 ### Read-model privacy
@@ -248,3 +248,38 @@ DRIVE results for motorcycle routing.
 - no web-service API key in the mobile app;
 - no repeated per-Rider provider query for shared Ride planning state;
 - quotas and billing alerts remain deployment prerequisites.
+
+
+## RoutePlan persistence
+
+A Ride can persist one current RoutePlan while retaining superseded immutable
+revisions.
+
+### GET /v1/rides/:rideId/route-plan
+
+Returns the current RoutePlan to a Rider who has already joined the Ride.
+Invited-only Riders cannot read the plan through this endpoint.
+
+### PUT /v1/rides/:rideId/route-plan
+
+Leader-only full-revision replacement while the Ride is Draft or Published.
+
+The request contains:
+- travel mode;
+- origin and destination labels/coordinates;
+- selected route distance/duration/polyline;
+- ordered intermediate Stops;
+- optional Checkpoint type and planned duration per Stop.
+
+Stop order is derived from array order and persisted as a unique zero-based
+sequence. The API accepts at most 10 intermediate Stops, matching the route
+provider cost guard.
+
+A successful PUT creates a new revision and makes it current. The prior
+revision becomes superseded but is retained. The persistence operation uses one
+D1 batch so the previous current plan is not intentionally left deactivated
+with only a partial new plan.
+
+The initial MVP rejects RoutePlan replacement once a Ride is Active. Dynamic
+Active Ride replanning requires a later explicit operational command rather
+than silently rewriting the pre-Ride plan.
