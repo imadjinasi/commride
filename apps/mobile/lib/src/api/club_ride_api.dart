@@ -33,10 +33,7 @@ abstract interface class ClubRideApi {
 }
 
 class ClubRideApiException implements Exception {
-  const ClubRideApiException({
-    required this.statusCode,
-    required this.message,
-  });
+  const ClubRideApiException({required this.statusCode, required this.message});
 
   final int statusCode;
   final String message;
