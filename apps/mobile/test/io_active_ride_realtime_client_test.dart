@@ -177,6 +177,54 @@ void main() {
     },
   );
 
+  test('sendQuickAction emits typed protocol payload without Rider identity', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+      now: () => DateTime.utc(2026, 9, 18, 10, 0, 10),
+      eventIdFactory: () => 'quick-event-1',
+    );
+
+    await client.connect('ride-1');
+    await client.sendQuickAction(
+      LiveQuickActionKind.leftBehind,
+      reason: 'Lampu merah',
+    );
+
+    final Map<String, Object?> event =
+        jsonDecode(socket.sent.single) as Map<String, Object?>;
+    final Map<String, Object?> payload =
+        event['payload']! as Map<String, Object?>;
+
+    expect(event['v'], 1);
+    expect(event['type'], 'quick_action.raise');
+    expect(event['eventId'], 'quick-event-1');
+    expect(event['sentAt'], '2026-09-18T10:00:10.000Z');
+    expect(payload['kind'], 'left_behind');
+    expect(payload['reason'], 'Lampu merah');
+    expect(payload.containsKey('riderId'), isFalse);
+    expect(payload.containsKey('latitude'), isFalse);
+    expect(payload.containsKey('longitude'), isFalse);
+
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
+  test('sendQuickAction fails explicitly while disconnected', () async {
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[]),
+    );
+
+    await expectLater(
+      client.sendQuickAction(LiveQuickActionKind.needHelp),
+      throwsStateError,
+    );
+  });
+
   test('ride.ended emits lifecycle event and disables reconnect', () async {
     final FakeSocket socket = FakeSocket();
     final RecordingConnector connector = RecordingConnector(<FakeSocket>[
@@ -424,6 +472,18 @@ void main() {
           'kind': 'left_behind',
           'reason': 'Lampu merah memisahkan rombongan.',
           'raisedAt': '2026-09-18T10:00:00Z',
+          'presence': <String, Object?>{
+            'riderId': 'rider-2',
+            'displayName': 'Rider Two',
+            'role': 'member',
+            'latitude': -6.733,
+            'longitude': 108.553,
+            'observedAt': '2026-09-18T09:59:00Z',
+            'receivedAt': '2026-09-18T09:59:01Z',
+            'movement': 'stopped',
+            'connected': true,
+            'freshness': 'stale',
+          },
         },
       }),
     );
@@ -435,6 +495,15 @@ void main() {
     expect(raised.action.eventId, 'quick-1');
     expect(raised.action.kind, LiveQuickActionKind.leftBehind);
     expect(raised.action.displayName, 'Rider Two');
+    expect(raised.action.presence, isNotNull);
+    expect(
+      raised.action.presence!.freshness,
+      LivePresenceFreshness.stale,
+    );
+    expect(
+      raised.action.presence!.observedAt.toUtc(),
+      DateTime.utc(2026, 9, 18, 9, 59),
+    );
 
     await subscription.cancel();
     await client.disconnect();
