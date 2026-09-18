@@ -33,6 +33,8 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "ride_memberships",
         "route_plans",
         "route_stops",
+        "ride_briefings",
+        "ride_briefing_acknowledgements",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -252,6 +254,121 @@ def assert_route_plan_invariants(connection: sqlite3.Connection) -> None:
         raise AssertionError("Duplicate RouteStop sequence was accepted")
 
 
+def assert_briefing_invariants(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT INTO ride_briefings(
+          id,
+          ride_id,
+          revision,
+          route_plan_id,
+          created_by_rider_id,
+          leader_rider_id,
+          leader_display_name,
+          is_current,
+          published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+        """,
+        (
+            "briefing-1",
+            "ride-1",
+            1,
+            "plan-2",
+            "rider-1",
+            "rider-1",
+            "Rider One",
+            "2026-09-18T09:00:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_briefings(
+              id,
+              ride_id,
+              revision,
+              route_plan_id,
+              created_by_rider_id,
+              leader_rider_id,
+              leader_display_name,
+              is_current,
+              published_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+            """,
+            (
+                "briefing-conflict",
+                "ride-1",
+                2,
+                "plan-2",
+                "rider-1",
+                "rider-1",
+                "Rider One",
+                "2026-09-18T09:01:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("A second current RideBriefing revision was accepted")
+
+    connection.execute(
+        "UPDATE ride_briefings SET is_current = 0 WHERE id = ?",
+        ("briefing-1",),
+    )
+    connection.execute(
+        """
+        INSERT INTO ride_briefings(
+          id,
+          ride_id,
+          revision,
+          route_plan_id,
+          created_by_rider_id,
+          leader_rider_id,
+          leader_display_name,
+          is_current,
+          published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+        """,
+        (
+            "briefing-2",
+            "ride-1",
+            2,
+            "plan-2",
+            "rider-1",
+            "rider-1",
+            "Rider One",
+            "2026-09-18T09:02:00Z",
+        ),
+    )
+    connection.execute(
+        """
+        INSERT INTO ride_briefing_acknowledgements(
+          briefing_id,
+          rider_id,
+          acknowledged_at
+        ) VALUES (?, ?, ?)
+        """,
+        ("briefing-2", "rider-1", "2026-09-18T09:03:00Z"),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_briefing_acknowledgements(
+              briefing_id,
+              rider_id,
+              acknowledged_at
+            ) VALUES (?, ?, ?)
+            """,
+            ("briefing-2", "rider-1", "2026-09-18T09:04:00Z"),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate briefing acknowledgement was accepted")
+
+
 def main() -> None:
     connection = sqlite3.connect(":memory:")
     connection.execute("PRAGMA foreign_keys = ON")
@@ -260,6 +377,7 @@ def main() -> None:
     assert_core_tables(connection)
     assert_membership_invariants(connection)
     assert_route_plan_invariants(connection)
+    assert_briefing_invariants(connection)
     assert_foreign_keys(connection)
 
     print("migration-validation-ok")
