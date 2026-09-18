@@ -85,8 +85,7 @@ class BriefingReadiness {
     return BriefingReadiness(
       expectedCount: json['expectedCount'] as int,
       readyCount: json['readyCount'] as int,
-      currentRiderAcknowledged:
-          json['currentRiderAcknowledged'] as bool,
+      currentRiderAcknowledged: json['currentRiderAcknowledged'] as bool,
     );
   }
 }
@@ -106,9 +105,7 @@ class RideBriefingView {
 
   factory RideBriefingView.fromJson(Map<String, Object?> json) {
     return RideBriefingView(
-      briefing: RideBriefing.fromJson(
-        json['briefing'] as Map<String, Object?>,
-      ),
+      briefing: RideBriefing.fromJson(json['briefing'] as Map<String, Object?>),
       routePlan: SavedRoutePlan.fromJson(
         json['routePlan'] as Map<String, Object?>,
       ),
