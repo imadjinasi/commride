@@ -32,10 +32,7 @@ void main() {
   test('fetchProfile sends Bearer token and maps Rider response', () async {
     final MockClient client = MockClient((http.Request request) async {
       expect(request.url.path, '/v1/me');
-      expect(
-        request.headers['authorization'],
-        'Bearer firebase-id-token',
-      );
+      expect(request.headers['authorization'], 'Bearer firebase-id-token');
 
       return http.Response(
         '{"rider":{"id":"rider-1","displayName":"Rider One",'
