@@ -104,9 +104,11 @@ class FakeClubRideApi implements ClubRideApi {
     throw UnimplementedError();
   }
 
-  FakeClubRideApi({List<ClubListItem>? clubs, Map<String, List<RideListItem>>? rides})
-    : clubs = clubs ?? <ClubListItem>[],
-      rides = rides ?? <String, List<RideListItem>>{};
+  FakeClubRideApi({
+    List<ClubListItem>? clubs,
+    Map<String, List<RideListItem>>? rides,
+  }) : clubs = clubs ?? <ClubListItem>[],
+       rides = rides ?? <String, List<RideListItem>>{};
 
   final List<ClubListItem> clubs;
   final Map<String, List<RideListItem>> rides;
@@ -169,10 +171,7 @@ class FakeClubRideApi implements ClubRideApi {
   }
 }
 
-Widget buildShell({
-  VehicleApi? vehicleApi,
-  ClubRideApi? clubRideApi,
-}) {
+Widget buildShell({VehicleApi? vehicleApi, ClubRideApi? clubRideApi}) {
   return MaterialApp(
     theme: CommRideTheme.light(),
     home: AppShell(
@@ -206,15 +205,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.route_outlined));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Gabung atau buat Club dulu'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Gabung atau buat Club dulu'), findsOneWidget);
   });
 
-  testWidgets('Clubs tab exposes Club creation', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('Clubs tab exposes Club creation', (WidgetTester tester) async {
     await tester.pumpWidget(buildShell());
 
     await tester.tap(find.byIcon(Icons.groups_outlined));
