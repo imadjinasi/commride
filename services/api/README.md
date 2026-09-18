@@ -136,6 +136,7 @@ Room -> client:
 - `ride.snapshot`
 - `presence.updated`
 - `quick_action.raised`
+- `convoy.separation_updated`
 - `ride.ended`
 - `error`
 
@@ -164,6 +165,26 @@ is overwritten operational state, not permanent location history.
 Ride completion broadcasts `ride.ended`, closes room sockets, and clears the
 stored offline presence entries. Any long-term LocationSample/history feature
 must use a separate sampled retention policy.
+
+### Convoy separation operational state
+
+The room evaluates the provider-independent convoy graph only from connected
+Live presence.
+
+The current derived state is included in `ride.snapshot` and meaningful
+changes broadcast `convoy.separation_updated`.
+
+To preserve hysteresis across Durable Object hibernation, the compact derived
+state may be stored in Durable Object storage. The room writes it only when
+phase, data sufficiency, component membership, Sweeper context, or hysteresis
+timestamps change. A new GPS sample with the same meaningful separation state
+does not cause another separation storage write.
+
+This is not D1 history and does not persist every GPS calculation.
+
+Initial field-test policy remains 600 m continuity, 20 s split confirmation,
+and 15 s recovery confirmation. It is not presented as final production safety
+truth.
 
 ### Ride lifecycle integration
 
