@@ -86,13 +86,15 @@ describe('GoogleMapsPlatformProvider', () => {
   });
 
   it('disables provider alternatives once intermediate stops exist', async () => {
-    let requestBody: Record<string, unknown> | null = null;
+    const requestBodies: Record<string, unknown>[] = [];
 
     const fetcher: typeof fetch = async (
       _input: RequestInfo | URL,
       init?: RequestInit,
     ) => {
-      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      requestBodies.push(
+        JSON.parse(String(init?.body)) as Record<string, unknown>,
+      );
       return jsonResponse({
         routes: [{
           distanceMeters: 150000,
@@ -123,9 +125,9 @@ describe('GoogleMapsPlatformProvider', () => {
       },
     });
 
-    expect(requestBody).not.toBeNull();
-    expect(requestBody?.computeAlternativeRoutes).toBe(false);
-    expect(requestBody?.intermediates).toHaveLength(1);
+    expect(requestBodies).toHaveLength(1);
+    expect(requestBodies[0]?.computeAlternativeRoutes).toBe(false);
+    expect(requestBodies[0]?.intermediates).toHaveLength(1);
   });
 
   it('maps Search Along Route routing summaries to via-place totals', async () => {
@@ -212,7 +214,7 @@ describe('GoogleMapsPlatformProvider', () => {
         },
         maxResults: 5,
       }),
-    ).rejects.toMatchObject<RoutePlaceProviderError>({
+    ).rejects.toMatchObject({
       code: 'search_along_route_mode_not_supported',
       status: 400,
     });
@@ -228,7 +230,7 @@ describe('GoogleMapsPlatformProvider', () => {
 
     await expect(
       provider.autocomplete({ input: 'Cirebon' }),
-    ).rejects.toMatchObject<RoutePlaceProviderError>({
+    ).rejects.toMatchObject({
       code: 'maps_provider_error',
       status: 400,
       message: 'Quota exceeded.',
