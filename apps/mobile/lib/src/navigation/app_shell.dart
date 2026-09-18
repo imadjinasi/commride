@@ -8,10 +8,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/ride/ride_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({
-    required this.config,
-    super.key,
-  });
+  const AppShell({required this.config, super.key});
 
   final AppConfig config;
 
@@ -34,10 +31,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: _destinations,
-        ),
+        child: IndexedStack(index: _selectedIndex, children: _destinations),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
