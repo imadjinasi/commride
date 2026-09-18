@@ -177,32 +177,38 @@ class _QuickActionsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Quick Actions', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          const Text(
-            'Kirim kondisi penting ke semua Rider tanpa membuka chat.',
-          ),
-          const SizedBox(height: 12),
-          _QuickActionSendTile(
-            kind: LiveQuickActionKind.stopping,
-            subtitle: 'Berhenti sementara untuk BBM, istirahat, atau kendala.',
-            onSend: onSend,
-          ),
-          _QuickActionSendTile(
-            kind: LiveQuickActionKind.leftBehind,
-            subtitle: 'Beri tahu rombongan bahwa kamu tertinggal.',
-            onSend: onSend,
-          ),
-          _QuickActionSendTile(
-            kind: LiveQuickActionKind.needHelp,
-            subtitle: 'Minta bantuan rombongan. Ini bukan layanan SOS.',
-            onSend: onSend,
-          ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Quick Actions',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Kirim kondisi penting ke semua Rider tanpa membuka chat.',
+            ),
+            const SizedBox(height: 12),
+            _QuickActionSendTile(
+              kind: LiveQuickActionKind.stopping,
+              subtitle:
+                  'Berhenti sementara untuk BBM, istirahat, atau kendala.',
+              onSend: onSend,
+            ),
+            _QuickActionSendTile(
+              kind: LiveQuickActionKind.leftBehind,
+              subtitle: 'Beri tahu rombongan bahwa kamu tertinggal.',
+              onSend: onSend,
+            ),
+            _QuickActionSendTile(
+              kind: LiveQuickActionKind.needHelp,
+              subtitle: 'Minta bantuan rombongan. Ini bukan layanan SOS.',
+              onSend: onSend,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -236,17 +242,19 @@ class _QuickActionSendTile extends StatelessWidget {
   }
 
   Future<void> _sendWithReason(BuildContext context) async {
-    final TextEditingController reasonController = TextEditingController();
+    String draftReason = '';
     final String? reason = await showDialog<String>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text('${kind.label} — alasan'),
           content: TextField(
-            controller: reasonController,
             maxLength: 240,
             minLines: 1,
             maxLines: 3,
+            onChanged: (String value) {
+              draftReason = value;
+            },
             decoration: const InputDecoration(
               hintText: 'Opsional, mis. isi BBM atau kendala mesin',
             ),
@@ -258,14 +266,13 @@ class _QuickActionSendTile extends StatelessWidget {
             ),
             FilledButton(
               onPressed: () =>
-                  Navigator.of(dialogContext).pop(reasonController.text.trim()),
+                  Navigator.of(dialogContext).pop(draftReason.trim()),
               child: const Text('Kirim'),
             ),
           ],
         );
       },
     );
-    reasonController.dispose();
 
     if (reason == null) {
       return;
