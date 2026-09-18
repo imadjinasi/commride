@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../api/club_ride_api.dart';
+import '../../api/ride_briefing_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
 import 'create_ride_screen.dart';
@@ -10,11 +11,13 @@ class RideScreen extends StatefulWidget {
   const RideScreen({
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     super.key,
   });
 
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
 
   @override
   State<RideScreen> createState() => _RideScreenState();
@@ -130,6 +133,7 @@ class _RideScreenState extends State<RideScreen> {
           item: item,
           clubRideApi: widget.clubRideApi,
           routePlannerApi: widget.routePlannerApi,
+          rideBriefingApi: widget.rideBriefingApi,
           onChanged: _refresh,
         ),
       ),
