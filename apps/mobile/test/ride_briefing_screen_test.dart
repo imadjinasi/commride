@@ -168,10 +168,7 @@ class FakeRideBriefingApi implements RideBriefingApi {
   @override
   Future<RideBriefingView> acknowledgeBriefing(String rideId) async {
     acknowledgeCalls += 1;
-    view = briefingView(
-      acknowledged: true,
-      readyCount: 1,
-    );
+    view = briefingView(acknowledged: true, readyCount: 1);
     return view!;
   }
 }
@@ -201,11 +198,7 @@ void main() {
     final FakeRideBriefingApi api = FakeRideBriefingApi(null);
 
     await tester.pumpWidget(
-      buildScreen(
-        briefingApi: api,
-        currentPlan: routePlan(),
-        canPublish: true,
-      ),
+      buildScreen(briefingApi: api, currentPlan: routePlan(), canPublish: true),
     );
     await tester.pumpAndSettle();
 
@@ -215,10 +208,7 @@ void main() {
     await tester.tap(find.text('Publish Briefing'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byType(TextField),
-      'Fuel before departure.',
-    );
+    await tester.enterText(find.byType(TextField), 'Fuel before departure.');
     await tester.tap(find.widgetWithText(FilledButton, 'Publish'));
     await tester.pumpAndSettle();
 
@@ -233,11 +223,7 @@ void main() {
     final FakeRideBriefingApi api = FakeRideBriefingApi(null);
 
     await tester.pumpWidget(
-      buildScreen(
-        briefingApi: api,
-        currentPlan: routePlan(),
-        canPublish: true,
-      ),
+      buildScreen(briefingApi: api, currentPlan: routePlan(), canPublish: true),
     );
     await tester.pumpAndSettle();
 
@@ -252,13 +238,9 @@ void main() {
   testWidgets('joined Rider can acknowledge the current Briefing', (
     WidgetTester tester,
   ) async {
-    final FakeRideBriefingApi api = FakeRideBriefingApi(
-      briefingView(),
-    );
+    final FakeRideBriefingApi api = FakeRideBriefingApi(briefingView());
 
-    await tester.pumpWidget(
-      buildScreen(briefingApi: api),
-    );
+    await tester.pumpWidget(buildScreen(briefingApi: api));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
@@ -280,9 +262,7 @@ void main() {
       briefingView(routePlanIsCurrent: false),
     );
 
-    await tester.pumpWidget(
-      buildScreen(briefingApi: api),
-    );
+    await tester.pumpWidget(buildScreen(briefingApi: api));
     await tester.pumpAndSettle();
 
     expect(
