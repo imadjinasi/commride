@@ -111,3 +111,32 @@ See:
 - `../../docs/ux/information-architecture.md`
 - `../../docs/ux/interaction-principles.md`
 - `../../docs/ux/core-user-flows.md`
+
+
+## Club and Ride lifecycle
+
+The authenticated application shell now has a server-backed lifecycle client
+and UI for the initial Club/Ride flow:
+
+- list membership-scoped Clubs;
+- create a Club;
+- accept a Club invitation;
+- Club owner/admin can invite another Rider by Rider ID;
+- list Rides for an active Club membership;
+- create a Ride;
+- accept a Ride invitation;
+- Leader can invite Member/Sweeper/Navigator;
+- Leader can publish, start, and end a Ride.
+
+The mobile lifecycle uses explicit command endpoints rather than locally
+mutating authoritative Ride state. After restart, Club and Ride lists are
+loaded from the API.
+
+Current backend dependencies are the stacked API work in PRs #12 and #16.
+
+Rider-ID invitation is an internal baseline, not the intended final discovery
+experience. Invite links, user-friendly Rider lookup, and public discovery are
+future product work.
+
+This lifecycle does not yet include Route planning, checkpoints, live location,
+chat, or the social feed.
