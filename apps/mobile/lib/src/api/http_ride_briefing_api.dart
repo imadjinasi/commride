@@ -45,9 +45,7 @@ class HttpRideBriefingApi implements RideBriefingApi {
     required String? notes,
   }) async {
     final http.Response response = await _client.post(
-      _endpoint(
-        '/v1/rides/${Uri.encodeComponent(rideId)}/briefing/publish',
-      ),
+      _endpoint('/v1/rides/${Uri.encodeComponent(rideId)}/briefing/publish'),
       headers: await _headers(includeJson: true),
       body: jsonEncode(<String, Object?>{'notes': notes}),
     );
@@ -83,9 +81,7 @@ class HttpRideBriefingApi implements RideBriefingApi {
 
   Uri _endpoint(String path) => _apiBaseUrl.resolve(path);
 
-  Future<Map<String, String>> _headers({
-    bool includeJson = false,
-  }) async {
+  Future<Map<String, String>> _headers({bool includeJson = false}) async {
     final String token = await _authGateway.idToken();
     return <String, String>{
       'authorization': 'Bearer $token',
