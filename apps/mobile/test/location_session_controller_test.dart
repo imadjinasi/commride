@@ -105,6 +105,12 @@ class FakeRealtimeClient implements ActiveRideRealtimeClient {
     sent.add(sample);
   }
 
+  @override
+  Future<void> sendQuickAction(
+    LiveQuickActionKind kind, {
+    String? reason,
+  }) async {}
+
   Future<void> close() => controller.close();
 }
 
