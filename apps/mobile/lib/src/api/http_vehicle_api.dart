@@ -39,15 +39,17 @@ class HttpVehicleApi implements VehicleApi {
       );
     }
 
-    return rawVehicles.map((Object? value) {
-      if (value is! Map<String, Object?>) {
-        throw const VehicleApiException(
-          statusCode: 500,
-          message: 'CommRide API returned an invalid Vehicle.',
-        );
-      }
-      return VehicleProfile.fromJson(value);
-    }).toList(growable: false);
+    return rawVehicles
+        .map((Object? value) {
+          if (value is! Map<String, Object?>) {
+            throw const VehicleApiException(
+              statusCode: 500,
+              message: 'CommRide API returned an invalid Vehicle.',
+            );
+          }
+          return VehicleProfile.fromJson(value);
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -141,18 +143,12 @@ class HttpVehicleApi implements VehicleApi {
     return decoded;
   }
 
-  VehicleApiException _exception(
-    int statusCode,
-    Map<String, Object?> body,
-  ) {
+  VehicleApiException _exception(int statusCode, Map<String, Object?> body) {
     final Object? error = body['error'];
     if (error is Map<String, Object?>) {
       final Object? message = error['message'];
       if (message is String && message.isNotEmpty) {
-        return VehicleApiException(
-          statusCode: statusCode,
-          message: message,
-        );
+        return VehicleApiException(statusCode: statusCode, message: message);
       }
     }
 
