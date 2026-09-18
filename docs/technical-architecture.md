@@ -424,6 +424,36 @@ higher billing tier.
 
 Cost-control behavior is part of architecture.
 
+## 9A. Private Ride communication
+
+Ride chat and Leader announcements use durable D1 persistence plus realtime
+fan-out.
+
+Authoritative flow:
+
+1. mobile submits an authenticated HTTP command;
+2. Worker derives Rider identity and RideMembership;
+3. Worker validates Ride lifecycle and role;
+4. one immutable Message row is persisted in D1;
+5. only after persistence succeeds, the Worker best-effort signals the Active
+   Ride room;
+6. the room broadcasts `ride.message_created` to connected participants;
+7. reconnect/history is rebuilt from D1 rather than room memory.
+
+This is deliberately different from high-frequency RiderPresence. One accepted
+chat/announcement creates one low-frequency D1 write; GPS updates do not.
+
+A retry uses the same clientMessageId. The unique
+`(ride_id, sender_rider_id, client_message_id)` key prevents duplicate
+messages. Reusing that key for different content is a conflict.
+
+Message rows contain no location coordinates. Quick Actions, Checkpoints,
+separation state, Ride End, and SOS remain typed operational events rather than
+free-form chat.
+
+Realtime broadcast failure does not roll back an already-persisted message.
+The client can recover through authenticated history.
+
 ## 10. Offline/poor signal
 
 Initial goals:
