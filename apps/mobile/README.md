@@ -1,28 +1,38 @@
 # CommRide Mobile
 
-Flutter application shell for CommRide.
+Flutter application for CommRide.
 
 ## Current scope
 
-This scaffold implements only the documented top-level information architecture:
+Implemented foundation:
 
-- Home
-- Ride
-- Explore
-- Clubs
-- Profile
+- primary navigation: Home, Ride, Explore, Clubs, Profile;
+- CommRide theme tokens;
+- Firebase Authentication adapter;
+- email/password sign in and account creation;
+- authenticated CommRide API client;
+- Rider profile onboarding through `GET/PUT /v1/me`;
+- explicit setup screen when Firebase or API configuration is absent.
 
-It intentionally does **not** implement authentication, maps, background location, realtime Ride state, or final visual design yet.
+Not implemented yet:
+
+- vehicle profile UI;
+- Google Maps;
+- background location;
+- realtime Ride state;
+- final high-fidelity design.
 
 ## Prerequisites
 
 - Flutter stable with Dart compatible with `pubspec.yaml`
 - Android SDK for Android builds
 - Xcode for iOS builds on macOS
+- a Firebase project configured for the target platform when testing real auth
 
 ## First local bootstrap
 
-Platform directories are intentionally generated with the local Flutter SDK rather than hand-maintained before the first verified Flutter bootstrap.
+Platform directories are intentionally generated with the local Flutter SDK
+rather than hand-maintained before the first verified Flutter bootstrap.
 
 From `apps/mobile`:
 
@@ -35,32 +45,64 @@ flutter test
 
 Review generated platform identifiers before any store release.
 
+## Firebase configuration
+
+The repository intentionally does not invent or commit a production Firebase
+project configuration.
+
+For a real device build, configure Firebase using the official FlutterFire
+workflow or verified platform configuration for the Firebase project you
+actually own.
+
+The application calls `Firebase.initializeApp()`. If Firebase is not
+configured, CommRide shows a setup-required screen instead of bypassing
+authentication.
+
+Email/password authentication must be enabled in the selected Firebase project
+for the currently implemented sign-in flow.
+
+No SMS OTP is required by the MVP auth flow.
+
 ## Run
 
 Development:
 
 ```bash
-flutter run --dart-define=COMMRIDE_ENV=development
-```
-
-With an API endpoint:
-
-```bash
 flutter run \
   --dart-define=COMMRIDE_ENV=development \
-  --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid
+  --dart-define=COMMRIDE_API_BASE_URL=https://your-api.example
 ```
 
-Do not pass secrets through `--dart-define`. Mobile clients cannot safely hold server secrets.
+Do not pass server secrets through `--dart-define`. Mobile clients cannot
+safely hold server secrets.
 
 ## Configuration
 
-Currently supported non-secret defines:
+Supported non-secret defines:
 
 - `COMMRIDE_ENV=development|production`
 - `COMMRIDE_API_BASE_URL=<url>`
 
-Provider keys and platform-specific configuration will be added only when the relevant integration issue is implemented.
+The API base URL is required for authenticated Rider profile bootstrap.
+
+## Authentication flow
+
+1. Firebase determines signed-in/signed-out state.
+2. Signed-out users see Sign In / Create Account.
+3. Signed-in users call `GET /v1/me` using their Firebase ID token.
+4. API `404 rider_profile_not_found` enters Rider profile onboarding.
+5. `PUT /v1/me` creates/updates the authenticated Rider profile.
+6. A completed profile enters the main CommRide shell.
+
+The client never sends its own auth subject to the API.
+
+## Location permission
+
+Authentication and Rider onboarding do **not** request foreground or background
+location permission.
+
+Location permission belongs to the later Ride/location feature and must be
+requested contextually when the user uses functionality that requires it.
 
 ## UX source of truth
 
