@@ -78,12 +78,6 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
             _ConnectionCard(state: state),
             const SizedBox(height: 14),
             _GroupSummary(counts: counts),
-            const SizedBox(height: 18),
-            _QuickActionsPanel(
-              enabled: !state.hasEnded,
-              onSend: _sendQuickAction,
-              onSendWithReason: _sendQuickActionWithReason,
-            ),
             if (state.quickActions.isNotEmpty) ...<Widget>[
               const SizedBox(height: 18),
               Text(
@@ -146,91 +140,6 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       }
       if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
         Navigator.of(sheetContext).pop();
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${kind.label} terkirim.')));
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Quick action belum terkirim. Periksa koneksi realtime.',
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _sendQuickAction(LiveQuickActionKind kind) async {
-    try {
-      await widget.controller.raiseQuickAction(kind);
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${kind.label} terkirim.')));
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Quick action belum terkirim. Periksa koneksi realtime.',
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _sendQuickActionWithReason(LiveQuickActionKind kind) async {
-    final TextEditingController reasonController = TextEditingController();
-    final String? reason = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(kind.label),
-          content: TextField(
-            controller: reasonController,
-            maxLength: 240,
-            maxLines: 3,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Alasan opsional',
-              hintText: 'Contoh: berhenti isi BBM atau terpisah di lampu merah',
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(reasonController.text.trim()),
-              child: const Text('Kirim'),
-            ),
-          ],
-        );
-      },
-    );
-    reasonController.dispose();
-
-    if (reason == null || !mounted) {
-      return;
-    }
-
-    try {
-      await widget.controller.raiseQuickAction(
-        kind,
-        reason: reason.isEmpty ? null : reason,
-      );
-      if (!mounted) {
-        return;
       }
       ScaffoldMessenger.of(
         context,
@@ -504,69 +413,6 @@ class _PresenceCard extends StatelessWidget {
           'observasi $age lalu',
         ),
         trailing: Chip(label: Text(freshness.label)),
-      ),
-    );
-  }
-}
-
-class _QuickActionsPanel extends StatelessWidget {
-  const _QuickActionsPanel({
-    required this.enabled,
-    required this.onSend,
-    required this.onSendWithReason,
-  });
-
-  final bool enabled;
-  final Future<void> Function(LiveQuickActionKind kind) onSend;
-  final Future<void> Function(LiveQuickActionKind kind) onSendWithReason;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Quick Actions',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Kirim kondisi singkat ke semua Rider tanpa membuka chat.',
-            ),
-            const SizedBox(height: 14),
-            ...LiveQuickActionKind.values.map(
-              (LiveQuickActionKind kind) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed: enabled ? () => onSend(kind) : null,
-                        icon: Icon(_quickActionIcon(kind)),
-                        label: Text(kind.label),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.outlined(
-                      tooltip: 'Kirim ${kind.label} dengan alasan',
-                      onPressed: enabled ? () => onSendWithReason(kind) : null,
-                      icon: const Icon(Icons.edit_note_outlined),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Butuh Bantuan memberi tahu grup Ride. Ini bukan SOS dan tidak '
-              'menghubungi layanan darurat.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
       ),
     );
   }
