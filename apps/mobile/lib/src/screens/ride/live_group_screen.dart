@@ -171,7 +171,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${kind.label} terkirim ke grup Ride.')),
+        SnackBar(content: Text('${kind.label} terkirim.')),
       );
     } catch (_) {
       if (!mounted) {
@@ -180,7 +180,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Quick action belum terkirim. Periksa koneksi Live Group.',
+            'Quick action belum terkirim. Periksa koneksi realtime.',
           ),
         ),
       );
@@ -235,7 +235,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${kind.label} terkirim ke grup Ride.')),
+        SnackBar(content: Text('${kind.label} terkirim.')),
       );
     } catch (_) {
       if (!mounted) {
@@ -244,7 +244,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Quick action belum terkirim. Periksa koneksi Live Group.',
+            'Quick action belum terkirim. Periksa koneksi realtime.',
           ),
         ),
       );
@@ -553,7 +553,7 @@ class _QuickActionsPanel extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     IconButton.outlined(
-                      tooltip: 'Kirim dengan alasan',
+                      tooltip: 'Kirim ${kind.label} dengan alasan',
                       onPressed: enabled
                           ? () => onSendWithReason(kind)
                           : null,
