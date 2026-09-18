@@ -165,6 +165,13 @@ Every change recalculates:
 - estimated drive time;
 - expected checkpoint arrival times.
 
+Persistence rule:
+- only a successful recomputation may become the new current RoutePlan;
+- the previous valid plan remains current if provider recomputation fails;
+- each saved plan is a new revision so reorder/add/remove history is recoverable;
+- Draft and Published Rides may replace the current plan in the initial MVP;
+- Active Ride replanning is deferred to an explicit operational flow.
+
 ### Search Along Route
 The Leader can search categories along the planned route without manually panning the map.
 
