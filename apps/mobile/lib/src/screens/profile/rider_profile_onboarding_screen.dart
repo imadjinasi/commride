@@ -20,8 +20,7 @@ class RiderProfileOnboardingScreen extends StatefulWidget {
 
 class _RiderProfileOnboardingScreenState
     extends State<RiderProfileOnboardingScreen> {
-  final TextEditingController _displayNameController =
-      TextEditingController();
+  final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _callsignController = TextEditingController();
   final TextEditingController _homeAreaController = TextEditingController();
 
