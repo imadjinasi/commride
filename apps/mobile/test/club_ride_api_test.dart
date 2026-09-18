@@ -29,37 +29,40 @@ class TokenAuthGateway implements AuthGateway {
 }
 
 void main() {
-  test('listClubs uses Bearer token and maps membership-scoped items', () async {
-    final MockClient client = MockClient((http.Request request) async {
-      expect(request.method, 'GET');
-      expect(request.url.path, '/v1/clubs');
-      expect(request.headers['authorization'], 'Bearer firebase-id-token');
+  test(
+    'listClubs uses Bearer token and maps membership-scoped items',
+    () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/v1/clubs');
+        expect(request.headers['authorization'], 'Bearer firebase-id-token');
 
-      return http.Response(
-        '{"clubs":[{"club":{"id":"club-1","createdByRiderId":"rider-1",'
-        '"name":"Cirebon Riders","slug":"cirebon-riders",'
-        '"homeArea":"Cirebon","description":null,"visibility":"private",'
-        '"createdAt":"2026-09-18T00:00:00Z",'
-        '"updatedAt":"2026-09-18T00:00:00Z"},'
-        '"membership":{"clubId":"club-1","riderId":"rider-1",'
-        '"role":"owner","status":"active"}}]}',
-        200,
-        headers: <String, String>{'content-type': 'application/json'},
+        return http.Response(
+          '{"clubs":[{"club":{"id":"club-1","createdByRiderId":"rider-1",'
+          '"name":"Cirebon Riders","slug":"cirebon-riders",'
+          '"homeArea":"Cirebon","description":null,"visibility":"private",'
+          '"createdAt":"2026-09-18T00:00:00Z",'
+          '"updatedAt":"2026-09-18T00:00:00Z"},'
+          '"membership":{"clubId":"club-1","riderId":"rider-1",'
+          '"role":"owner","status":"active"}}]}',
+          200,
+          headers: <String, String>{'content-type': 'application/json'},
+        );
+      });
+
+      final HttpClubRideApi api = HttpClubRideApi(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: TokenAuthGateway(),
+        client: client,
       );
-    });
 
-    final HttpClubRideApi api = HttpClubRideApi(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: TokenAuthGateway(),
-      client: client,
-    );
+      final List<ClubListItem> clubs = await api.listClubs();
 
-    final List<ClubListItem> clubs = await api.listClubs();
-
-    expect(clubs, hasLength(1));
-    expect(clubs.single.club.name, 'Cirebon Riders');
-    expect(clubs.single.membership.role, ClubRole.owner);
-  });
+      expect(clubs, hasLength(1));
+      expect(clubs.single.club.name, 'Cirebon Riders');
+      expect(clubs.single.membership.role, ClubRole.owner);
+    },
+  );
 
   test('publishRide uses explicit lifecycle command endpoint', () async {
     final MockClient client = MockClient((http.Request request) async {
