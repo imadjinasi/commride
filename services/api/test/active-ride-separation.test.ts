@@ -4,6 +4,7 @@ import {
   DEFAULT_CONVOY_SEPARATION_POLICY,
   evaluateConvoySeparation,
   haversineDistanceMeters,
+  separationStateMeaningfullyChanged,
   type ConvoySeparationState,
 } from '../src/active-ride/separation';
 import type { StoredPresence } from '../src/active-ride/protocol';
@@ -270,6 +271,41 @@ describe('Convoy separation engine', () => {
 
     expect(left.components).toEqual(right.components);
     expect(left.isolatedRiderIds).toEqual(right.isolatedRiderIds);
+  });
+
+  it('ignores lastUpdatedAt-only changes for Durable Object writes', () => {
+    const previous: ConvoySeparationState = {
+      phase: 'normal',
+      dataSufficient: true,
+      components: [['leader', 'member']],
+      isolatedRiderIds: [],
+      sweeperComponentRiderIds: null,
+      firstSplitObservedAt: null,
+      confirmedAt: null,
+      recoveryObservedAt: null,
+      lastUpdatedAt: '2026-09-18T10:00:00.000Z',
+    };
+    const timestampOnly: ConvoySeparationState = {
+      ...previous,
+      lastUpdatedAt: '2026-09-18T10:00:05.000Z',
+    };
+    const changed: ConvoySeparationState = {
+      ...timestampOnly,
+      components: [['leader'], ['member']],
+      isolatedRiderIds: ['leader', 'member'],
+      phase: 'split_candidate',
+      firstSplitObservedAt: '2026-09-18T10:00:05.000Z',
+    };
+
+    expect(
+      separationStateMeaningfullyChanged(previous, timestampOnly),
+    ).toBe(false);
+    expect(
+      separationStateMeaningfullyChanged(previous, changed),
+    ).toBe(true);
+    expect(
+      separationStateMeaningfullyChanged(null, previous),
+    ).toBe(true);
   });
 
   it('computes Haversine distance independently from map providers', () => {
