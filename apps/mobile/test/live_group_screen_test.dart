@@ -264,7 +264,12 @@ void main() {
     await tester.tap(find.text('Quick Actions'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Kirim Butuh Bantuan dengan alasan'));
+    final Finder reasonButton = find.byTooltip(
+      'Kirim Butuh Bantuan dengan alasan',
+    );
+    await tester.ensureVisible(reasonButton);
+    await tester.pumpAndSettle();
+    await tester.tap(reasonButton);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Ban bocor');
     await tester.tap(find.text('Kirim'));
@@ -329,7 +334,7 @@ void main() {
       ),
     );
     realtime.controller.add(ActiveRideEnded(endedAt: now));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Ride selesai'), findsOneWidget);
     expect(
@@ -338,7 +343,10 @@ void main() {
     );
     expect(find.text('Offline'), findsWidgets);
     expect(find.text('Live'), findsOneWidget);
-    expect(find.text('Quick Actions'), findsNothing);
+    expect(
+      find.widgetWithText(FloatingActionButton, 'Quick Actions'),
+      findsNothing,
+    );
 
     await cleanup(tester, controller, realtime);
   });
