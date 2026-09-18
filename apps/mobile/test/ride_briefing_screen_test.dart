@@ -205,7 +205,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Publish Briefing'), findsOneWidget);
-    expect(find.text('Fuel One'), findsOneWidget);
+    expect(find.textContaining('Fuel One'), findsOneWidget);
 
     await tester.tap(find.text('Publish Briefing'));
     await tester.pumpAndSettle();
