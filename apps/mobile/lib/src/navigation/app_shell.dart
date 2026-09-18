@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/club_ride_api.dart';
 import '../api/vehicle_api.dart';
 import '../auth/auth_gateway.dart';
 import '../config/app_config.dart';
@@ -15,6 +16,7 @@ class AppShell extends StatefulWidget {
     required this.config,
     required this.riderProfile,
     required this.vehicleApi,
+    required this.clubRideApi,
     required this.authGateway,
     super.key,
   });
@@ -22,6 +24,7 @@ class AppShell extends StatefulWidget {
   final AppConfig config;
   final RiderProfile riderProfile;
   final VehicleApi vehicleApi;
+  final ClubRideApi clubRideApi;
   final AuthGateway authGateway;
 
   @override
@@ -35,9 +38,9 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final List<Widget> destinations = <Widget>[
       const HomeScreen(),
-      const RideScreen(),
+      RideScreen(clubRideApi: widget.clubRideApi),
       const ExploreScreen(),
-      const ClubsScreen(),
+      ClubsScreen(clubRideApi: widget.clubRideApi),
       ProfileScreen(
         riderProfile: widget.riderProfile,
         vehicleApi: widget.vehicleApi,
