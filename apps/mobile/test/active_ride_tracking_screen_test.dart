@@ -119,18 +119,22 @@ Future<void> pumpUntilPhase(
   RideLocationSessionController controller,
   RideLocationSessionPhase phase,
 ) async {
-  for (int attempt = 0; attempt < 10; attempt += 1) {
-    await tester.pump();
-    if (controller.state.phase == phase) {
-      await tester.pump();
-      return;
+  await tester.runAsync(() async {
+    for (int attempt = 0; attempt < 20; attempt += 1) {
+      if (controller.state.phase == phase) {
+        return;
+      }
+      await Future<void>.delayed(Duration.zero);
     }
-  }
+  });
+  await tester.pump();
 
-  fail(
-    'Expected Ride location phase $phase, '
-    'got ${controller.state.phase}.',
-  );
+  if (controller.state.phase != phase) {
+    fail(
+      'Expected Ride location phase $phase, '
+      'got ${controller.state.phase}.',
+    );
+  }
 }
 
 void main() {
