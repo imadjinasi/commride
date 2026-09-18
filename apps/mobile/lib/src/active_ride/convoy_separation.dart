@@ -53,10 +53,7 @@ class LiveConvoySeparation {
       phase: ConvoySeparationPhase.fromWireValue(
         _requiredString(json['phase'], 'phase'),
       ),
-      dataSufficient: _requiredBool(
-        json['dataSufficient'],
-        'dataSufficient',
-      ),
+      dataSufficient: _requiredBool(json['dataSufficient'], 'dataSufficient'),
       components: _stringMatrix(json['components'], 'components'),
       isolatedRiderIds: _stringList(
         json['isolatedRiderIds'],
@@ -99,12 +96,14 @@ List<String> _stringList(Object? value, String field) {
     throw FormatException('$field must be a string list.');
   }
 
-  return value.map((Object? item) {
-    if (item is! String || item.trim().isEmpty) {
-      throw FormatException('$field contains an invalid Rider ID.');
-    }
-    return item.trim();
-  }).toList(growable: false);
+  return value
+      .map((Object? item) {
+        if (item is! String || item.trim().isEmpty) {
+          throw FormatException('$field contains an invalid Rider ID.');
+        }
+        return item.trim();
+      })
+      .toList(growable: false);
 }
 
 List<String>? _optionalStringList(Object? value, String field) {
@@ -119,12 +118,14 @@ List<List<String>> _stringMatrix(Object? value, String field) {
     throw FormatException('$field must be a list of Rider groups.');
   }
 
-  return value.map((Object? item) {
-    if (item is! List<Object?>) {
-      throw FormatException('$field contains an invalid Rider group.');
-    }
-    return _stringList(item, field);
-  }).toList(growable: false);
+  return value
+      .map((Object? item) {
+        if (item is! List<Object?>) {
+          throw FormatException('$field contains an invalid Rider group.');
+        }
+        return _stringList(item, field);
+      })
+      .toList(growable: false);
 }
 
 DateTime _requiredDate(Object? value, String field) {
