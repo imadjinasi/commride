@@ -160,17 +160,28 @@ Leader flow:
 
 1. Planner completed
 2. Open Briefing
-3. Review generated summary
+3. Review generated summary for the current RoutePlan revision
 4. Add notes
-5. Publish
-6. Riders notified
+5. Publish briefing revision
+6. Riders can read the current briefing
+7. notification delivery may be added separately
+
+If the Leader changes the RoutePlan afterward, the published briefing is shown
+as stale until a new briefing revision is published.
 
 Rider flow:
 
 1. Open Ride
-2. Read Briefing
-3. Confirm **Ready / I've read this**
-4. readiness state updates
+2. Read the current Briefing revision
+3. Confirm **Ready / Sudah dibaca**
+4. readiness state updates for that exact briefing revision
+
+If a newer briefing revision is published, the older acknowledgement stays in
+history but no longer counts as current readiness.
+
+Readiness is advisory. The pre-start view may warn about Riders who have not
+acknowledged the current briefing, but it does not automatically block Start
+Ride in the MVP.
 
 ## 11. Start Ride
 
