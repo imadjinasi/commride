@@ -3,6 +3,11 @@ import { errorResponse, jsonResponse } from './http/json';
 import { resolveRequestId } from './request-id';
 import type { RideRole } from './clubs-rides/models';
 import {
+  evaluateConvoySeparation,
+  separationStateMeaningfullyChanged,
+  type ConvoySeparationState,
+} from './active-ride/separation';
+import {
   ACTIVE_RIDE_PROTOCOL_VERSION,
   type ConnectionAttachment,
   parseClientEvent,
@@ -16,6 +21,7 @@ const RIDE_STATUS_CHECK_INTERVAL_MS = 60_000;
 const QUICK_ACTION_DEDUP_LIMIT = 128;
 const ENDED_AT_KEY = 'room.endedAt';
 const QUICK_ACTION_IDS_KEY = 'room.quickActionIds';
+const SEPARATION_STATE_KEY = 'room.separationState';
 const OFFLINE_PRESENCE_PREFIX = 'presence:';
 
 interface RideStatusRow {
@@ -194,6 +200,8 @@ export class ActiveRideRoom {
         presence: presenceView(offline, new Date()),
       }),
     );
+
+    await this.evaluateSeparation();
   }
 
   async webSocketError(
@@ -345,12 +353,14 @@ export class ActiveRideRoom {
     };
     server.serializeAttachment(attachment);
 
+    const separation = await this.evaluateSeparation();
     const snapshot = await this.snapshot();
     server.send(
       serverEvent('ride.snapshot', {
         rideId,
         protocolVersion: ACTIVE_RIDE_PROTOCOL_VERSION,
         presences: snapshot,
+        separation,
       }),
     );
 
@@ -409,6 +419,8 @@ export class ActiveRideRoom {
         presence: presenceView(next, new Date()),
       }),
     );
+
+    await this.evaluateSeparation();
   }
 
   private async handleQuickAction(
@@ -440,6 +452,12 @@ export class ActiveRideRoom {
   }
 
   private async snapshot(): Promise<readonly ReturnType<typeof presenceView>[]> {
+    const now = new Date();
+    const presences = await this.presenceState();
+    return presences.map((presence) => presenceView(presence, now));
+  }
+
+  private async presenceState(): Promise<StoredPresence[]> {
     const byRider = new Map<string, StoredPresence>();
 
     const offline =
@@ -451,6 +469,10 @@ export class ActiveRideRoom {
     }
 
     for (const socket of this.state.getWebSockets()) {
+      if (socket.readyState !== 1) {
+        continue;
+      }
+
       const attachment = readAttachment(socket);
       const presence = attachment?.lastPresence;
       if (presence == null) {
@@ -470,10 +492,30 @@ export class ActiveRideRoom {
       }
     }
 
-    const now = new Date();
-    return [...byRider.values()].map((presence) =>
-      presenceView(presence, now)
+    return [...byRider.values()];
+  }
+
+  private async evaluateSeparation(): Promise<ConvoySeparationState> {
+    const previous =
+      await this.state.storage.get<ConvoySeparationState>(
+        SEPARATION_STATE_KEY,
+      ) ?? null;
+    const next = evaluateConvoySeparation(
+      previous,
+      await this.presenceState(),
+      new Date(),
     );
+
+    if (separationStateMeaningfullyChanged(previous, next)) {
+      await this.state.storage.put(SEPARATION_STATE_KEY, next);
+      this.broadcast(
+        serverEvent('convoy.separation_updated', {
+          separation: next,
+        }),
+      );
+    }
+
+    return next;
   }
 
   private async ensureRideActive(
@@ -532,6 +574,7 @@ export class ActiveRideRoom {
     if (stored.size > 0) {
       await this.state.storage.delete([...stored.keys()]);
     }
+    await this.state.storage.delete(SEPARATION_STATE_KEY);
   }
 
   private broadcast(message: string): void {
