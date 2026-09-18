@@ -16,13 +16,15 @@ Implemented foundation:
 - Club/Ride lifecycle;
 - Route Planner flow with place search, route alternatives, Add Stop, Search Along Route, reorder/remove, Checkpoint metadata, and RoutePlan revision save;
 - Ride Briefing publish/read/readiness flow tied to immutable RoutePlan revisions;
+- Active Ride location-session core with explicit contextual permission and realtime lifecycle contracts;
 - explicit setup screen when Firebase or API configuration is absent.
 
 Not implemented yet:
 
 - native Google Maps canvas / map rendering;
-- background location;
-- realtime Ride state;
+- native Android/iOS location-provider adapter and platform declarations;
+- production WebSocket adapter wiring;
+- realtime Ride map/group-state rendering;
 - final high-fidelity design.
 
 ## Prerequisites
@@ -214,3 +216,52 @@ readiness as a hard block for Start Ride.
 
 This mobile flow depends on the backend Briefing API in PR #26. It does not
 request location permission and does not assume push notification delivery.
+
+
+## Active Ride location-session core
+
+The repository now defines a testable Flutter boundary for Active Ride location
+sharing without inventing native project configuration.
+
+Core components:
+
+- `RideLocationProvider` — permission + device-location adapter contract;
+- `ActiveRideRealtimeClient` — authenticated realtime transport contract;
+- `RideLocationSessionController` — lifecycle state machine;
+- `ActiveRideTrackingScreen` — contextual permission explanation and visible
+  tracking state.
+
+The controller separates Ride lifecycle from OS permission and transport state.
+
+It guarantees at the Flutter/domain boundary that:
+
+- a non-Active Ride cannot start tracking;
+- opening the Active Ride screen does not request location permission;
+- permission is requested only after the Rider explicitly confirms tracking;
+- denied permission stays recoverable and does not fabricate an active session;
+- provider samples retain their original observation timestamp;
+- failed presence delivery retains only the newest pending observation rather
+  than building a long offline GPS trace;
+- realtime reconnection can flush that newest pending observation;
+- server `ride.ended` stops local location and realtime publishing;
+- sign-out teardown stops the local session.
+
+### Native platform work still required
+
+This repository still intentionally has no committed generated `android/` or
+`ios/` application projects. Per the bootstrap rule above, those projects must
+be generated and verified locally before committing app identifiers, manifest
+permissions, Android foreground-service declarations, iOS Info.plist usage
+descriptions, or background-location capabilities.
+
+The intended minimum-permission direction is:
+
+- Android: foreground location plus a visible location foreground service for
+  an explicitly active Ride; do not add `ACCESS_BACKGROUND_LOCATION` unless
+  verified device behavior proves the accepted lifecycle requires it.
+- iOS: request When In Use first and start the continuous Ride location session
+  while the app is foregrounded; do not request Always unless a separately
+  accepted requirement needs terminated-app relaunch/location delivery.
+
+The native adapter must be tested on real Android/iOS lifecycle transitions
+before #30 can be considered fully closed.
