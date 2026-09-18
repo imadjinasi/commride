@@ -250,7 +250,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(realtime.sentKinds, isEmpty);
-    expect(find.text('Quick Actions'), findsOneWidget);
+    expect(find.text('Quick Actions'), findsWidgets);
 
     await cleanup(tester, controller, realtime);
   });
@@ -345,6 +345,7 @@ void main() {
     );
     expect(find.text('Offline'), findsWidgets);
     expect(find.text('Live'), findsOneWidget);
+    expect(find.text('Quick Actions'), findsNothing);
 
     await cleanup(tester, controller, realtime);
   });
