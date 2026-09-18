@@ -24,6 +24,14 @@ import type { RoutePlaceProvider } from './maps/provider';
 import { resolveRequestId } from './request-id';
 import { handleRiderProfile } from './riders/profile-handler';
 import {
+  handleRoutePlanRequest,
+  isRoutePlanPath,
+} from './route-plans/handler';
+import {
+  D1RoutePlanRepository,
+  type RoutePlanRepository,
+} from './route-plans/repository';
+import {
   D1RiderRepository,
   type RiderRepository,
 } from './riders/rider-repository';
@@ -39,6 +47,7 @@ export interface RouterOverrides {
   readonly clubRideRepository?: ClubRideRepository;
   readonly clubRideReadRepository?: ClubRideReadRepository;
   readonly routePlaceProvider?: RoutePlaceProvider;
+  readonly routePlanRepository?: RoutePlanRepository;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -93,6 +102,59 @@ export async function handleRequest(
         200,
         requestId,
       );
+    }
+
+    if (isRoutePlanPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const routePlanRepository =
+        overrides.routePlanRepository ??
+        (env.DB == null ? null : new D1RoutePlanRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        routePlanRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'RoutePlan persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleRoutePlanRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          routePlanRepository,
+          idFactory: overrides.idFactory,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
     }
 
     if (isMapsPath(url.pathname)) {
