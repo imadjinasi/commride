@@ -107,6 +107,16 @@ Expected capabilities:
 - Nearby Search;
 - Search Along Route.
 
+The first web-service adapter runs server-side in the Worker. The mobile app
+does not receive the Google Maps Platform web-service key and does not depend
+on raw Google response models.
+
+Provider limitations must remain explicit. As of the implementation baseline,
+Google Routes supports `TWO_WHEELER` where region support is available, but
+Places Search Along Route does not support `TWO_WHEELER`. CommRide therefore
+must not silently present DRIVE routing summaries as motorcycle-specific
+results.
+
 Embedded Navigation SDK is not required for MVP.
 
 The app may deep-link to:
@@ -244,7 +254,14 @@ Rules:
 - a Leader search should be shareable to the Ride rather than repeated by every Rider;
 - cache appropriate results for the planning session where provider terms permit;
 - impose server-side request controls;
-- configure external API quotas/budgets.
+- configure external API quotas/budgets;
+- use narrow provider response field masks rather than wildcard response masks;
+- cap MVP route requests at 10 intermediate stops even when the provider allows more;
+- request route alternatives before intermediate stops are added, then recompute the selected route as stops change.
+
+The 10-stop cap is both a product-complexity guard and a billing guard: current
+Google Routes billing places requests with 11-25 intermediate waypoints in a
+higher billing tier.
 
 Cost-control behavior is part of architecture.
 
