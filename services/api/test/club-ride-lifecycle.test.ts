@@ -423,6 +423,79 @@ describe('Club and Ride lifecycle API', () => {
     });
   });
 
+  it('cancels only pre-start Rides and keeps cancellation idempotent', async () => {
+    const repository = new MemoryClubRideRepository();
+    const deps = dependencies(repository);
+
+    const clubResponse = await handleRequest(
+      request('/v1/clubs', 'token-1', {
+        name: 'Cirebon Riders',
+        slug: 'cirebon-riders',
+      }),
+      {},
+      deps,
+    );
+    const club = (await clubResponse.json() as { club: Club }).club;
+
+    const draftResponse = await handleRequest(
+      request(`/v1/clubs/${club.id}/rides`, 'token-1', {
+        title: 'Cancelled Before Start',
+      }),
+      {},
+      deps,
+    );
+    const draftRide = (await draftResponse.json() as { ride: Ride }).ride;
+
+    const cancelDraft = await handleRequest(
+      request(`/v1/rides/${draftRide.id}/cancel`, 'token-1'),
+      {},
+      deps,
+    );
+    expect(cancelDraft.status).toBe(200);
+
+    const repeatedCancel = await handleRequest(
+      request(`/v1/rides/${draftRide.id}/cancel`, 'token-1'),
+      {},
+      deps,
+    );
+    expect(repeatedCancel.status).toBe(200);
+    await expect(repository.findRide(draftRide.id)).resolves.toMatchObject({
+      status: 'cancelled',
+      actualStartAt: null,
+      endedAt: null,
+    });
+
+    const activeResponse = await handleRequest(
+      request(`/v1/clubs/${club.id}/rides`, 'token-1', {
+        title: 'Already Started',
+      }),
+      {},
+      deps,
+    );
+    const activeRide = (await activeResponse.json() as { ride: Ride }).ride;
+
+    await handleRequest(
+      request(`/v1/rides/${activeRide.id}/publish`, 'token-1'),
+      {},
+      deps,
+    );
+    await handleRequest(
+      request(`/v1/rides/${activeRide.id}/start`, 'token-1'),
+      {},
+      deps,
+    );
+
+    const cancelActive = await handleRequest(
+      request(`/v1/rides/${activeRide.id}/cancel`, 'token-1'),
+      {},
+      deps,
+    );
+    expect(cancelActive.status).toBe(409);
+    await expect(repository.findRide(activeRide.id)).resolves.toMatchObject({
+      status: 'active',
+    });
+  });
+
   it('keeps Club administration separate from Ride leadership', async () => {
     const repository = new MemoryClubRideRepository();
     const deps = dependencies(repository);
