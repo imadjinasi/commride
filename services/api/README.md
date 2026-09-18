@@ -145,3 +145,38 @@ Firebase token.
 
 Repository code does not prove that a production Firebase project, D1 database,
 or Cloudflare bindings exist. Those remain deployment configuration.
+
+
+## Club and Ride lifecycle
+
+The initial lifecycle API is intentionally command-oriented rather than open
+CRUD.
+
+All endpoints below require an authenticated Rider with a completed CommRide
+Rider profile.
+
+### Club
+
+- `POST /v1/clubs` — create a Club; creator becomes active `owner`.
+- `POST /v1/clubs/:clubId/members/invite` — active owner/admin invites a Rider as `admin` or `member`.
+- `POST /v1/clubs/:clubId/join` — authenticated invited Rider accepts the invitation.
+
+### Ride
+
+- `POST /v1/clubs/:clubId/rides` — active Club owner/admin creates a Ride and becomes its `leader`.
+- `POST /v1/rides/:rideId/members/invite` — Ride Leader invites a Rider as `member`, `sweeper`, or `navigator`.
+- `POST /v1/rides/:rideId/join` — authenticated invited Rider joins.
+- `POST /v1/rides/:rideId/publish` — `draft -> published`.
+- `POST /v1/rides/:rideId/start` — `published -> active`.
+- `POST /v1/rides/:rideId/end` — `active -> completed`.
+
+Publishing, starting, and ending a Ride are Leader-only commands. Repeating a
+successful transition command after the Ride is already in that target state is
+idempotent.
+
+Club roles and Ride roles are separate. A Club admin who creates a Ride becomes
+Leader of that Ride; a different Club owner does not automatically gain Leader
+authority over it.
+
+The initial API does not yet implement role transfer, cancellation, route
+planning, checkpoints, location, chat, or social feed behavior.
