@@ -81,6 +81,10 @@ class MemoryRoutePlanRepository implements RoutePlanRepository {
     return this.current?.rideId === rideId ? this.current : null;
   }
 
+  async findById(routePlanId: string): Promise<RoutePlan | null> {
+    return this.history.find((item) => item.id === routePlanId) ?? null;
+  }
+
   async replaceCurrent(input: SaveRoutePlanInput): Promise<RoutePlan> {
     if (this.current != null) {
       const superseded: RoutePlan = {
