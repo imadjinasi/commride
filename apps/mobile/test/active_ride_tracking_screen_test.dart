@@ -100,6 +100,12 @@ Widget buildScreen({required RideLocationSessionController controller}) {
   );
 }
 
+Future<void> pumpUi(WidgetTester tester) async {
+  for (int frame = 0; frame < 5; frame += 1) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 Future<void> closeFakes(
   WidgetTester tester,
   RideLocationSessionController controller,
@@ -141,7 +147,7 @@ void main() {
         );
 
     await tester.pumpWidget(buildScreen(controller: controller));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('Tracking belum aktif'), findsOneWidget);
     expect(find.text('Aktifkan tracking'), findsOneWidget);
@@ -165,13 +171,13 @@ void main() {
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('Aktifkan lokasi untuk Ride?'), findsOneWidget);
     expect(location.checkCalls, 0);
 
     await tester.tap(find.text('Lanjutkan'));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(location.checkCalls, 1);
     expect(location.startCalls, 1);
@@ -194,9 +200,9 @@ void main() {
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
     await tester.tap(find.text('Nanti'));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(location.checkCalls, 0);
     expect(location.requestCalls, 0);
@@ -222,9 +228,9 @@ void main() {
 
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
     await tester.tap(find.text('Lanjutkan'));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('Izin lokasi belum diberikan'), findsOneWidget);
     expect(find.text('Coba izin lokasi lagi'), findsOneWidget);
@@ -247,7 +253,7 @@ void main() {
 
     await controller.startTracking(activeRide());
     await tester.pumpWidget(buildScreen(controller: controller));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('Tracking aktif'), findsOneWidget);
 
