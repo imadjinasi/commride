@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
+import 'checkpoints_screen.dart';
 import 'ride_briefing_screen.dart';
 import 'route_planner_screen.dart';
 
@@ -11,6 +13,7 @@ class RideDetailScreen extends StatefulWidget {
   const RideDetailScreen({
     required this.item,
     required this.clubRideApi,
+    required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
     required this.onChanged,
@@ -19,6 +22,7 @@ class RideDetailScreen extends StatefulWidget {
 
   final RideListItem item;
   final ClubRideApi clubRideApi;
+  final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
   final VoidCallback onChanged;
@@ -102,6 +106,15 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                 label: const Text('Ride Briefing'),
               ),
               const SizedBox(height: 8),
+              if (ride.status == RideStatus.active ||
+                  ride.status == RideStatus.completed) ...<Widget>[
+                OutlinedButton.icon(
+                  onPressed: _working ? null : _openCheckpoints,
+                  icon: const Icon(Icons.flag_outlined),
+                  label: const Text('Checkpoints'),
+                ),
+                const SizedBox(height: 8),
+              ],
             ],
             if (membership?.status == RideMembershipStatus.invited)
               FilledButton(
@@ -141,11 +154,28 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
             ],
             const SizedBox(height: 20),
             Text(
-              'Live Ride map, realtime convoy, dan communication akan '
+              'Live Ride map dan convoy visualization akan '
               'ditambahkan pada fase berikutnya.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openCheckpoints() async {
+    final RideMembership? membership = _item.membership;
+    if (membership == null) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => CheckpointsScreen(
+          ride: _item.ride,
+          membership: membership,
+          checkpointApi: widget.checkpointApi,
         ),
       ),
     );
