@@ -88,6 +88,11 @@ class FakeVehicleApi implements VehicleApi {
 
 class FakeClubRideApi implements ClubRideApi {
   @override
+  Future<Ride> cancelRide(String rideId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Club> createClub(ClubInput input) {
     throw UnimplementedError();
   }
