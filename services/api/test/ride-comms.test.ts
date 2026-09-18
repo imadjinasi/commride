@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  ActiveRideGateway,
-  ActiveRideParticipant,
+import {
+  DurableObjectActiveRideGateway,
+  type ActiveRideGateway,
+  type ActiveRideParticipant,
 } from '../src/active-ride/gateway';
 import type {
   AuthenticatedIdentity,
@@ -407,6 +408,21 @@ describe('Ride communication API', () => {
     expect(send.status).toBe(403);
   });
 
+  it('rejects finished membership from a still-Active Ride', async () => {
+    const response = await handleRequest(
+      request('/v1/rides/ride-1/messages', 'GET', 'member-token'),
+      {},
+      dependencies(
+        ride(),
+        new MemoryRideMessageRepository(),
+        new RecordingGateway(),
+        'finished',
+      ),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it('keeps Completed Ride history readable but read-only', async () => {
     const messages = new MemoryRideMessageRepository();
     messages.messages.push({
@@ -519,6 +535,49 @@ describe('Ride communication API', () => {
       'message-1',
     ]);
     expect(secondBody.nextCursor).toBeNull();
+  });
+
+  it('forwards only the persisted message DTO to the Durable Object', async () => {
+    const requests: Request[] = [];
+    const namespace = {
+      idFromName(name: string) {
+        return { name };
+      },
+      get(_id: unknown) {
+        return {
+          async fetch(internalRequest: Request) {
+            requests.push(internalRequest);
+            return new Response(
+              JSON.stringify({ broadcast: true }),
+              {
+                status: 200,
+                headers: { 'content-type': 'application/json' },
+              },
+            );
+          },
+        };
+      },
+    } as unknown as DurableObjectNamespace;
+
+    const gateway = new DurableObjectActiveRideGateway(namespace);
+    const message: RideMessage = {
+      id: 'message-1',
+      rideId: 'ride-1',
+      senderRiderId: member.id,
+      senderDisplayName: member.displayName,
+      senderRideRole: 'member',
+      kind: 'chat',
+      body: 'Persisted first.',
+      clientMessageId: 'client-1',
+      createdAt: '2026-09-18T10:00:00Z',
+    };
+
+    await gateway.messageCreated('ride-1', message);
+
+    expect(requests).toHaveLength(1);
+    expect(new URL(requests[0].url).pathname).toBe('/message');
+    expect(requests[0].headers.get('x-commride-ride-id')).toBe('ride-1');
+    expect(await requests[0].json()).toEqual(message);
   });
 
   it('rejects oversized message bodies', async () => {
