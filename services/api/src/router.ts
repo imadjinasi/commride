@@ -1,3 +1,11 @@
+import {
+  DurableObjectActiveRideGateway,
+  type ActiveRideGateway,
+} from './active-ride/gateway';
+import {
+  handleActiveRideRequest,
+  isActiveRidePath,
+} from './active-ride/handler';
 import { FirebaseIdTokenVerifier } from './auth/firebase-id-token-verifier';
 import {
   handleRideBriefingRequest,
@@ -57,6 +65,7 @@ export interface RouterOverrides {
   readonly routePlaceProvider?: RoutePlaceProvider;
   readonly routePlanRepository?: RoutePlanRepository;
   readonly rideBriefingRepository?: RideBriefingRepository;
+  readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -111,6 +120,65 @@ export async function handleRequest(
         200,
         requestId,
       );
+    }
+
+    if (isActiveRidePath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const activeRideGateway =
+        overrides.activeRideGateway ?? resolveActiveRideGateway(env);
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Active Ride authorization persistence is not configured.',
+          503,
+          requestId,
+        );
+      }
+
+      if (activeRideGateway == null) {
+        return errorResponse(
+          'realtime_not_configured',
+          'Active Ride realtime is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleActiveRideRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          activeRideGateway,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
     }
 
     if (isRideBriefingPath(url.pathname)) {
@@ -364,6 +432,8 @@ export async function handleRequest(
           identityVerifier,
           riderRepository,
           clubRideRepository,
+          activeRideGateway:
+            overrides.activeRideGateway ?? resolveActiveRideGateway(env) ?? undefined,
           idFactory: overrides.idFactory,
           now: overrides.now,
         },
@@ -445,4 +515,13 @@ function resolveRoutePlaceProvider(env: Env): RoutePlaceProvider | null {
   }
 
   return new GoogleMapsPlatformProvider(apiKey);
+}
+
+
+function resolveActiveRideGateway(env: Env): ActiveRideGateway | null {
+  if (env.ACTIVE_RIDE_ROOM == null) {
+    return null;
+  }
+
+  return new DurableObjectActiveRideGateway(env.ACTIVE_RIDE_ROOM);
 }
