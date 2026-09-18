@@ -1,3 +1,4 @@
+import { ACTIVE_RIDE_PROTOCOL_VERSION } from './protocol';
 import type { RideRole } from '../clubs-rides/models';
 
 export interface ActiveRideParticipant {
@@ -38,6 +39,10 @@ export class DurableObjectActiveRideGateway
       participant.displayName,
     );
     headers.set('x-commride-ride-role', participant.role);
+    headers.set(
+      'x-commride-protocol-version',
+      String(ACTIVE_RIDE_PROTOCOL_VERSION),
+    );
 
     return stub.fetch(
       new Request(
