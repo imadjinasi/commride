@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:commride_mobile/src/active_ride/convoy_separation.dart';
 import 'package:commride_mobile/src/active_ride/io_active_ride_realtime_client.dart';
 import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/location_provider.dart';
@@ -404,6 +405,20 @@ void main() {
               'freshness': 'live',
             },
           ],
+          'separation': <String, Object?>{
+            'phase': 'split_candidate',
+            'dataSufficient': true,
+            'components': <Object?>[
+              <Object?>['rider-1'],
+              <Object?>['rider-2'],
+            ],
+            'isolatedRiderIds': <Object?>['rider-1', 'rider-2'],
+            'sweeperComponentRiderIds': <Object?>['rider-1'],
+            'firstSplitObservedAt': '2026-09-18T09:59:58Z',
+            'confirmedAt': null,
+            'recoveryObservedAt': null,
+            'lastUpdatedAt': '2026-09-18T10:00:00Z',
+          },
         },
       }),
     );
@@ -416,6 +431,68 @@ void main() {
     expect(snapshot.presences, hasLength(1));
     expect(snapshot.presences.single.displayName, 'Rider One');
     expect(snapshot.presences.single.freshness, LivePresenceFreshness.live);
+    expect(snapshot.separation, isNotNull);
+    expect(
+      snapshot.separation!.phase,
+      ConvoySeparationPhase.splitCandidate,
+    );
+    expect(snapshot.separation!.components, hasLength(2));
+
+    await subscription.cancel();
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
+  test('convoy.separation_updated maps server-derived attention state', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+    );
+    final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
+
+    await client.connect('ride-1');
+    socket.controller.add(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'type': 'convoy.separation_updated',
+        'sentAt': '2026-09-18T10:00:20Z',
+        'payload': <String, Object?>{
+          'separation': <String, Object?>{
+            'phase': 'separated_attention',
+            'dataSufficient': true,
+            'components': <Object?>[
+              <Object?>['leader', 'sweeper'],
+              <Object?>['rider-3'],
+            ],
+            'isolatedRiderIds': <Object?>['rider-3'],
+            'sweeperComponentRiderIds': <Object?>['leader', 'sweeper'],
+            'firstSplitObservedAt': '2026-09-18T10:00:00Z',
+            'confirmedAt': '2026-09-18T10:00:20Z',
+            'recoveryObservedAt': null,
+            'lastUpdatedAt': '2026-09-18T10:00:20Z',
+          },
+        },
+      }),
+    );
+    await flushAsync();
+
+    final ActiveRideSeparationUpdated updated = events
+        .whereType<ActiveRideSeparationUpdated>()
+        .single;
+    expect(
+      updated.separation.phase,
+      ConvoySeparationPhase.separatedAttention,
+    );
+    expect(updated.separation.isolatedRiderIds, <String>['rider-3']);
+    expect(
+      updated.separation.sweeperComponentRiderIds,
+      <String>['leader', 'sweeper'],
+    );
 
     await subscription.cancel();
     await client.disconnect();
