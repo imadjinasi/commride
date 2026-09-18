@@ -100,10 +100,10 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
       null || '' => null,
       final String value when value.length <= 240 => value,
       _ => throw ArgumentError.value(
-          reason,
-          'reason',
-          'Quick action reason must be at most 240 characters.',
-        ),
+        reason,
+        'reason',
+        'Quick action reason must be at most 240 characters.',
+      ),
     };
 
     socket.send(
