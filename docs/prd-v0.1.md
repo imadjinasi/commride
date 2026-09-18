@@ -78,6 +78,9 @@ The initial product flow is:
 - Select participating Riders.
 - Assign Leader and Sweeper.
 - Ride status: Draft, Published, Active, Completed, Cancelled.
+- Leader may cancel a Ride only before it becomes Active (Draft or Published).
+- Cancellation is idempotent; an already Cancelled Ride remains Cancelled.
+- An Active Ride must be ended to become Completed rather than cancelled, preserving the operational record of a Ride that actually started.
 
 #### Route planning
 - Origin/destination search.
