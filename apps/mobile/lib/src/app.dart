@@ -13,7 +13,8 @@ class CommRideApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'CommRide',
-      debugShowCheckedModeBanner: config.environment != AppEnvironment.production,
+      debugShowCheckedModeBanner:
+          config.environment != AppEnvironment.production,
       theme: CommRideTheme.light(),
       home: AppShell(config: config),
     );
