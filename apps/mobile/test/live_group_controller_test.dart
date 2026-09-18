@@ -317,13 +317,24 @@ void main() {
     await realtime.close();
   });
 
-  test('Ride end marks group ended and disconnected', () async {
+  test('Ride end marks group ended, disconnected, and Offline', () async {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final ActiveRideGroupController controller = ActiveRideGroupController(
       rideId: 'ride-1',
       realtimeClient: realtime,
     )..start();
 
+    final DateTime observedAt = DateTime.utc(2026, 9, 18, 10, 59, 59);
+    realtime.controller.add(
+      ActiveRidePresenceUpdated(
+        presence: presence(
+          riderId: 'rider-1',
+          displayName: 'Rider One',
+          role: RideRole.member,
+          observedAt: observedAt,
+        ),
+      ),
+    );
     realtime.controller.add(
       const ActiveRideConnectionChanged(
         ActiveRideRealtimeConnectionState.connected,
@@ -337,6 +348,11 @@ void main() {
       controller.state.connectionState,
       ActiveRideRealtimeConnectionState.disconnected,
     );
+    expect(
+      controller.state.presences.single.freshness,
+      LivePresenceFreshness.offline,
+    );
+    expect(controller.state.presences.single.observedAt, observedAt);
 
     controller.dispose();
     await realtime.close();
