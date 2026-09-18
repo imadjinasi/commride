@@ -208,6 +208,13 @@ class ActiveRideGroupController extends ChangeNotifier {
         _state.copyWith(
           endedAt: event.endedAt,
           connectionState: ActiveRideRealtimeConnectionState.disconnected,
+          presences: _state.presences
+              .map(
+                (LiveRiderPresence presence) => presence.copyWith(
+                  freshness: LivePresenceFreshness.offline,
+                ),
+              )
+              .toList(growable: false),
         ),
       );
       return;
