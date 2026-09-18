@@ -7,7 +7,7 @@ import {
   type ConnectionAttachment,
   parseClientEvent,
   presenceView,
-  quickActionPresenceContext,
+  quickActionRaisedPayload,
   shouldAcceptPresence,
   type StoredPresence,
 } from './active-ride/protocol';
@@ -432,21 +432,10 @@ export class ActiveRideRoom {
     const raisedAt = new Date();
 
     this.broadcast(
-      serverEvent('quick_action.raised', {
-        eventId: event.eventId,
-        rider: {
-          riderId: attachment.riderId,
-          displayName: attachment.displayName,
-          role: attachment.role,
-        },
-        kind: event.payload.kind,
-        reason: event.payload.reason,
-        raisedAt: raisedAt.toISOString(),
-        presence: quickActionPresenceContext(
-          attachment.lastPresence,
-          raisedAt,
-        ),
-      }),
+      serverEvent(
+        'quick_action.raised',
+        quickActionRaisedPayload(attachment, event, raisedAt),
+      ),
     );
   }
 
