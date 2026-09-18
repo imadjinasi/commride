@@ -15,15 +15,18 @@ Implemented:
 - Firebase ID-token verification boundary;
 - authenticated `GET /v1/me` and `PUT /v1/me`;
 - D1 Rider profile repository;
+- provider-neutral route/place boundary;
+- Google Routes + Places (New) web-service adapter;
+- authenticated route/place planning endpoints;
 - a deliberately non-functional `ActiveRideRoom` placeholder;
-- unit tests for the HTTP router and Rider profile behavior.
+- unit tests for the HTTP router, Rider profile, and map-provider behavior.
 
 Not implemented:
 
 - production Cloudflare resources;
 - production Firebase configuration;
 - Active Ride WebSockets;
-- Google Maps/Routes/Places;
+- production Google Maps Platform configuration;
 - notifications;
 - deployment.
 
@@ -49,6 +52,13 @@ The Rider profile endpoints require verified runtime bindings:
 
 - `FIREBASE_PROJECT_ID`
 - `DB` (D1)
+
+The route/place endpoints additionally require:
+
+- `GOOGLE_MAPS_PLATFORM_API_KEY` — server-side secret/configuration only.
+
+The repository does not contain a production key. CI uses fake providers and
+mocked HTTP calls.
 
 The Firebase project ID is configuration, not a private credential. No Firebase
 service-account private key is required solely for ID-token verification.
@@ -197,3 +207,44 @@ The Ride list requires an active Club membership. It may return a null Ride
 membership when the Rider belongs to the Club but has not joined that Ride.
 These read endpoints are intended to support the authenticated mobile shell,
 not public social discovery.
+
+
+## Route and place API
+
+All endpoints require an authenticated Rider with a completed Rider profile.
+
+- `POST /v1/maps/autocomplete`
+- `POST /v1/maps/resolve-place`
+- `POST /v1/maps/routes`
+- `POST /v1/maps/search-along-route`
+
+The API returns CommRide DTOs rather than raw Google payloads.
+
+### Route request guards
+
+The MVP accepts at most 10 intermediate stops per route request. Current Google
+Routes documentation allows more, but 11-25 intermediate waypoints are billed
+at a higher tier, so CommRide deliberately stays below that boundary.
+
+Alternative routes are requested only before intermediate stops are present.
+After Add Stop, the selected route is recomputed rather than pretending that
+the provider can return the same alternatives behavior with intermediates.
+
+### Search Along Route
+
+Search Along Route is on-demand and capped at 10 results per request. The
+adapter requests routing summaries so CommRide can compare the total route via
+a candidate place when Google returns both route legs.
+
+Current provider limitation: Google Places Search Along Route does not support
+`TWO_WHEELER`. CommRide returns
+`search_along_route_mode_not_supported` rather than silently substituting
+DRIVE results for motorcycle routing.
+
+### Provider cost discipline
+
+- no wildcard field masks in production adapter calls;
+- no continuous Places query while panning a map;
+- no web-service API key in the mobile app;
+- no repeated per-Rider provider query for shared Ride planning state;
+- quotas and billing alerts remain deployment prerequisites.
