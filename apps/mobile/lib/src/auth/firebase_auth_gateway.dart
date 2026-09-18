@@ -13,10 +13,7 @@ class FirebaseAuthGateway implements AuthGateway {
   }
 
   @override
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     await _firebaseAuth.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -59,9 +56,6 @@ class FirebaseAuthGateway implements AuthGateway {
       return null;
     }
 
-    return AuthUser(
-      id: user.uid,
-      email: user.email,
-    );
+    return AuthUser(id: user.uid, email: user.email);
   }
 }
