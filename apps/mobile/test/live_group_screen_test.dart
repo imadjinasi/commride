@@ -217,35 +217,36 @@ void main() {
     await cleanup(tester, controller, realtime);
   });
 
-  testWidgets('confirmed separation does not claim recovery with insufficient data', (
-    WidgetTester tester,
-  ) async {
-    final DateTime now = DateTime.utc(2026, 9, 18, 10, 0, 30);
-    final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final ActiveRideGroupController controller = ActiveRideGroupController(
-      rideId: 'ride-1',
-      realtimeClient: realtime,
-    );
+  testWidgets(
+    'confirmed separation does not claim recovery with insufficient data',
+    (WidgetTester tester) async {
+      final DateTime now = DateTime.utc(2026, 9, 18, 10, 0, 30);
+      final FakeRealtimeClient realtime = FakeRealtimeClient();
+      final ActiveRideGroupController controller = ActiveRideGroupController(
+        rideId: 'ride-1',
+        realtimeClient: realtime,
+      );
 
-    await tester.pumpWidget(buildScreen(controller: controller, now: now));
-    realtime.controller.add(
-      ActiveRideSeparationUpdated(
-        separation: separation(
-          phase: ConvoySeparationPhase.separatedAttention,
-          dataSufficient: false,
+      await tester.pumpWidget(buildScreen(controller: controller, now: now));
+      realtime.controller.add(
+        ActiveRideSeparationUpdated(
+          separation: separation(
+            phase: ConvoySeparationPhase.separatedAttention,
+            dataSufficient: false,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(
-      find.text('Perhatian rombongan belum dapat diverifikasi ulang'),
-      findsOneWidget,
-    );
-    expect(find.text('Rombongan terhubung'), findsNothing);
+      expect(
+        find.text('Perhatian rombongan belum dapat diverifikasi ulang'),
+        findsOneWidget,
+      );
+      expect(find.text('Rombongan terhubung'), findsNothing);
 
-    await cleanup(tester, controller, realtime);
-  });
+      await cleanup(tester, controller, realtime);
+    },
+  );
 
   testWidgets('shows structured quick action as attention state', (
     WidgetTester tester,
