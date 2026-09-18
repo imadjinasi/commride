@@ -1,6 +1,8 @@
+import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/config/app_config.dart';
+import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/rider_profile.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:commride_mobile/src/navigation/app_shell.dart';
@@ -96,13 +98,83 @@ class FakeVehicleApi implements VehicleApi {
   }
 }
 
-Widget buildShell({VehicleApi? vehicleApi}) {
+class FakeClubRideApi implements ClubRideApi {
+  FakeClubRideApi({List<ClubListItem>? clubs, Map<String, List<RideListItem>>? rides})
+    : clubs = clubs ?? <ClubListItem>[],
+      rides = rides ?? <String, List<RideListItem>>{};
+
+  final List<ClubListItem> clubs;
+  final Map<String, List<RideListItem>> rides;
+
+  @override
+  Future<Club> createClub(ClubInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Ride> createRide(String clubId, RideInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Ride> endRide(String rideId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> inviteClubMember({
+    required String clubId,
+    required String riderId,
+    required ClubRole role,
+  }) async {}
+
+  @override
+  Future<void> inviteRideMember({
+    required String rideId,
+    required String riderId,
+    required RideRole role,
+  }) async {}
+
+  @override
+  Future<void> joinClub(String clubId) async {}
+
+  @override
+  Future<void> joinRide(String rideId) async {}
+
+  @override
+  Future<List<ClubListItem>> listClubs() async {
+    return List<ClubListItem>.unmodifiable(clubs);
+  }
+
+  @override
+  Future<List<RideListItem>> listRides(String clubId) async {
+    return List<RideListItem>.unmodifiable(
+      rides[clubId] ?? const <RideListItem>[],
+    );
+  }
+
+  @override
+  Future<Ride> publishRide(String rideId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Ride> startRide(String rideId) {
+    throw UnimplementedError();
+  }
+}
+
+Widget buildShell({
+  VehicleApi? vehicleApi,
+  ClubRideApi? clubRideApi,
+}) {
   return MaterialApp(
     theme: CommRideTheme.light(),
     home: AppShell(
       config: testConfig,
       riderProfile: testRider,
       vehicleApi: vehicleApi ?? FakeVehicleApi(),
+      clubRideApi: clubRideApi ?? FakeClubRideApi(),
       authGateway: FakeAuthGateway(),
     ),
   );
@@ -121,7 +193,7 @@ void main() {
     expect(find.text('Profile'), findsOneWidget);
   });
 
-  testWidgets('can switch to Ride without requesting permissions', (
+  testWidgets('Ride tab loads persistent Club/Ride state', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(buildShell());
@@ -130,12 +202,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text(
-        'Plan, join, and review Rides here. Route planning, Add Stop, '
-        'Search Along Route, and the Active Ride command center come next.',
-      ),
+      find.textContaining('Gabung atau buat Club dulu'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Clubs tab exposes Club creation', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildShell());
+
+    await tester.tap(find.byIcon(Icons.groups_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Buat Club'), findsOneWidget);
+    expect(find.text('Belum ada Club'), findsOneWidget);
   });
 
   testWidgets('Profile shows Rider Vehicle planning metadata', (
