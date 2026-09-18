@@ -85,7 +85,6 @@ class FakeVehicleApi implements VehicleApi {
   }
 }
 
-
 class FakeClubRideApi implements ClubRideApi {
   @override
   Future<Ride> cancelRide(String rideId) {
