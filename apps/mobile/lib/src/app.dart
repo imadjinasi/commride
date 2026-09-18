@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api/club_ride_api.dart';
 import 'api/rider_profile_api.dart';
+import 'api/ride_briefing_api.dart';
 import 'api/route_planner_api.dart';
 import 'api/vehicle_api.dart';
 import 'auth/auth_gateway.dart';
@@ -18,6 +19,7 @@ class CommRideApp extends StatelessWidget {
     required this.vehicleApi,
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     super.key,
   });
 
@@ -27,6 +29,7 @@ class CommRideApp extends StatelessWidget {
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +45,7 @@ class CommRideApp extends StatelessWidget {
         vehicleApi: vehicleApi,
         clubRideApi: clubRideApi,
         routePlannerApi: routePlannerApi,
+        rideBriefingApi: rideBriefingApi,
       ),
     );
   }
