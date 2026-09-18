@@ -171,17 +171,22 @@ Rider profile.
 - `POST /v1/rides/:rideId/publish` — `draft -> published`.
 - `POST /v1/rides/:rideId/start` — `published -> active`.
 - `POST /v1/rides/:rideId/end` — `active -> completed`.
+- `POST /v1/rides/:rideId/cancel` — Leader-only `draft|published -> cancelled`; repeating cancellation is idempotent.
 
-Publishing, starting, and ending a Ride are Leader-only commands. Repeating a
-successful transition command after the Ride is already in that target state is
-idempotent.
+Publishing, starting, ending, and cancelling a Ride are Leader-only commands.
+Repeating a successful transition command after the Ride is already in that
+target state is idempotent.
+
+Cancellation is intentionally limited to Draft or Published Rides. Once a Ride
+is Active it must be ended as Completed instead of cancelled so the operational
+record reflects that the Ride actually started.
 
 Club roles and Ride roles are separate. A Club admin who creates a Ride becomes
 Leader of that Ride; a different Club owner does not automatically gain Leader
 authority over it.
 
-The initial API does not yet implement role transfer, cancellation, route
-planning, checkpoints, location, chat, or social feed behavior.
+The initial API does not yet implement role transfer, route planning,
+checkpoints, location, chat, or social feed behavior.
 
 
 ### Read-model privacy
