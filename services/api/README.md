@@ -157,12 +157,14 @@ Rider profile.
 
 ### Club
 
+- `GET /v1/clubs` — list Clubs where the authenticated Rider has an invited or active membership.
 - `POST /v1/clubs` — create a Club; creator becomes active `owner`.
 - `POST /v1/clubs/:clubId/members/invite` — active owner/admin invites a Rider as `admin` or `member`.
 - `POST /v1/clubs/:clubId/join` — authenticated invited Rider accepts the invitation.
 
 ### Ride
 
+- `GET /v1/clubs/:clubId/rides` — list Club Rides for an active Club member, including the authenticated Rider's Ride membership when one exists.
 - `POST /v1/clubs/:clubId/rides` — active Club owner/admin creates a Ride and becomes its `leader`.
 - `POST /v1/rides/:rideId/members/invite` — Ride Leader invites a Rider as `member`, `sweeper`, or `navigator`.
 - `POST /v1/rides/:rideId/join` — authenticated invited Rider joins.
@@ -180,3 +182,13 @@ authority over it.
 
 The initial API does not yet implement role transfer, cancellation, route
 planning, checkpoints, location, chat, or social feed behavior.
+
+
+### Read-model privacy
+
+The Club list is membership-scoped; it is not a public Club directory.
+
+The Ride list requires an active Club membership. It may return a null Ride
+membership when the Rider belongs to the Club but has not joined that Ride.
+These read endpoints are intended to support the authenticated mobile shell,
+not public social discovery.
