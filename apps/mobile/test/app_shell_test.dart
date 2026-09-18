@@ -99,6 +99,11 @@ class FakeVehicleApi implements VehicleApi {
 }
 
 class FakeClubRideApi implements ClubRideApi {
+  @override
+  Future<Ride> cancelRide(String rideId) {
+    throw UnimplementedError();
+  }
+
   FakeClubRideApi({List<ClubListItem>? clubs, Map<String, List<RideListItem>>? rides})
     : clubs = clubs ?? <ClubListItem>[],
       rides = rides ?? <String, List<RideListItem>>{};
