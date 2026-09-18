@@ -13,6 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeRealtimeClient implements ActiveRideRealtimeClient {
   final StreamController<ActiveRideRealtimeEvent> controller =
       StreamController<ActiveRideRealtimeEvent>.broadcast(sync: true);
+  final List<LiveQuickActionKind> sentKinds = <LiveQuickActionKind>[];
+  final List<String?> sentReasons = <String?>[];
+  bool failQuickAction = false;
 
   @override
   Stream<ActiveRideRealtimeEvent> get events => controller.stream;
@@ -30,7 +33,13 @@ class FakeRealtimeClient implements ActiveRideRealtimeClient {
   Future<void> sendQuickAction(
     LiveQuickActionKind kind, {
     String? reason,
-  }) async {}
+  }) async {
+    if (failQuickAction) {
+      throw StateError('offline');
+    }
+    sentKinds.add(kind);
+    sentReasons.add(reason);
+  }
 
   Future<void> close() => controller.close();
 }
@@ -170,6 +179,11 @@ void main() {
           kind: LiveQuickActionKind.leftBehind,
           reason: 'Terpisah di lampu merah.',
           raisedAt: now.subtract(const Duration(seconds: 20)),
+          presence: presence(
+            riderId: 'rider-2',
+            displayName: 'Rider Two',
+            observedAt: now.subtract(const Duration(seconds: 45)),
+          ),
         ),
       ),
     );
@@ -179,6 +193,121 @@ void main() {
     expect(find.text('Saya Tertinggal'), findsOneWidget);
     expect(find.textContaining('Rider Two'), findsOneWidget);
     expect(find.text('Terpisah di lampu merah.'), findsOneWidget);
+    expect(
+      find.text('Lokasi Stale · observasi 45 dtk lalu'),
+      findsOneWidget,
+    );
+
+    await cleanup(tester, controller, realtime);
+  });
+
+  testWidgets('one-tap Quick Action sends without location claim', (
+    WidgetTester tester,
+  ) async {
+    final DateTime now = DateTime.utc(2026, 9, 18, 10);
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await tester.pumpWidget(buildScreen(controller: controller, now: now));
+    await tester.tap(find.text('Quick Actions'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Saya Berhenti'));
+    await tester.pumpAndSettle();
+
+    expect(realtime.sentKinds, <LiveQuickActionKind>[
+      LiveQuickActionKind.stopping,
+    ]);
+    expect(realtime.sentReasons, <String?>[null]);
+    expect(find.text('Saya Berhenti terkirim.'), findsOneWidget);
+
+    await cleanup(tester, controller, realtime);
+  });
+
+  testWidgets('canceling optional Quick Action reason does not send', (
+    WidgetTester tester,
+  ) async {
+    final DateTime now = DateTime.utc(2026, 9, 18, 10);
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await tester.pumpWidget(buildScreen(controller: controller, now: now));
+    await tester.tap(find.text('Quick Actions'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip('Kirim Saya Tertinggal dengan alasan'),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Lampu merah');
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+
+    expect(realtime.sentKinds, isEmpty);
+    expect(find.text('Quick Actions'), findsOneWidget);
+
+    await cleanup(tester, controller, realtime);
+  });
+
+  testWidgets('Quick Action can send an optional reason', (
+    WidgetTester tester,
+  ) async {
+    final DateTime now = DateTime.utc(2026, 9, 18, 10);
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await tester.pumpWidget(buildScreen(controller: controller, now: now));
+    await tester.tap(find.text('Quick Actions'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byTooltip('Kirim Butuh Bantuan dengan alasan'),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Ban bocor');
+    await tester.tap(find.text('Kirim'));
+    await tester.pumpAndSettle();
+
+    expect(realtime.sentKinds, <LiveQuickActionKind>[
+      LiveQuickActionKind.needHelp,
+    ]);
+    expect(realtime.sentReasons, <String?>['Ban bocor']);
+    expect(find.text('Butuh Bantuan terkirim.'), findsOneWidget);
+
+    await cleanup(tester, controller, realtime);
+  });
+
+  testWidgets('Quick Action failure stays explicit when realtime is down', (
+    WidgetTester tester,
+  ) async {
+    final DateTime now = DateTime.utc(2026, 9, 18, 10);
+    final FakeRealtimeClient realtime = FakeRealtimeClient()
+      ..failQuickAction = true;
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    );
+
+    await tester.pumpWidget(buildScreen(controller: controller, now: now));
+    await tester.tap(find.text('Quick Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Butuh Bantuan'));
+    await tester.pumpAndSettle();
+
+    expect(realtime.sentKinds, isEmpty);
+    expect(
+      find.text('Quick action belum terkirim. Periksa koneksi realtime.'),
+      findsOneWidget,
+    );
 
     await cleanup(tester, controller, realtime);
   });
