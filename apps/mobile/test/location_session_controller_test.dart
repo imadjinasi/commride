@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/location_provider.dart';
 import 'package:commride_mobile/src/active_ride/location_session_controller.dart';
 import 'package:commride_mobile/src/active_ride/realtime_client.dart';
