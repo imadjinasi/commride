@@ -142,6 +142,31 @@ export function quickActionPresenceContext(
   return presence == null ? null : presenceView(presence, now);
 }
 
+export function quickActionRaisedPayload(
+  attachment: Pick<
+    ConnectionAttachment,
+    'riderId' | 'displayName' | 'role' | 'lastPresence'
+  >,
+  event: QuickActionRaiseEvent,
+  raisedAt: Date,
+) {
+  return {
+    eventId: event.eventId,
+    rider: {
+      riderId: attachment.riderId,
+      displayName: attachment.displayName,
+      role: attachment.role,
+    },
+    kind: event.payload.kind,
+    reason: event.payload.reason,
+    raisedAt: raisedAt.toISOString(),
+    presence: quickActionPresenceContext(
+      attachment.lastPresence,
+      raisedAt,
+    ),
+  };
+}
+
 export function presenceView(
   presence: StoredPresence,
   now: Date,
