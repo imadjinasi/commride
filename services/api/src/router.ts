@@ -5,6 +5,14 @@ import {
   isClubRideRequestPath,
 } from './clubs-rides/handler';
 import {
+  handleClubRideReadRequest,
+  isClubRideReadPath,
+} from './clubs-rides/read-handler';
+import {
+  D1ClubRideReadRepository,
+  type ClubRideReadRepository,
+} from './clubs-rides/read-repository';
+import {
   D1ClubRideRepository,
   type ClubRideRepository,
 } from './clubs-rides/repository';
@@ -26,6 +34,7 @@ export interface RouterOverrides {
   readonly identityVerifier?: IdentityVerifier;
   readonly riderRepository?: RiderRepository;
   readonly clubRideRepository?: ClubRideRepository;
+  readonly clubRideReadRepository?: ClubRideReadRepository;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -80,6 +89,58 @@ export async function handleRequest(
         200,
         requestId,
       );
+    }
+
+    if (request.method === 'GET' && isClubRideReadPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const clubRideReadRepository =
+        overrides.clubRideReadRepository ??
+        (env.DB == null ? null : new D1ClubRideReadRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        clubRideReadRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Club and Ride read persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleClubRideReadRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          readRepository: clubRideReadRepository,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
     }
 
     if (isClubRideRequestPath(url.pathname)) {
