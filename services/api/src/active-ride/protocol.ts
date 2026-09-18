@@ -135,6 +135,13 @@ export function shouldAcceptPresence(
   return Date.parse(nextObservedAt) > Date.parse(current.observedAt);
 }
 
+export function quickActionPresenceContext(
+  presence: StoredPresence | undefined,
+  now: Date,
+): PresenceView | null {
+  return presence == null ? null : presenceView(presence, now);
+}
+
 export function presenceView(
   presence: StoredPresence,
   now: Date,
