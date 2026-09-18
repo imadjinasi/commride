@@ -17,6 +17,14 @@ import {
 } from './briefings/repository';
 import type { IdentityVerifier } from './auth/identity';
 import {
+  handleCheckpointRequest,
+  isCheckpointPath,
+} from './checkpoints/handler';
+import {
+  D1CheckpointRepository,
+  type CheckpointRepository,
+} from './checkpoints/repository';
+import {
   handleClubRideRequest,
   isClubRideRequestPath,
 } from './clubs-rides/handler';
@@ -65,6 +73,7 @@ export interface RouterOverrides {
   readonly routePlaceProvider?: RoutePlaceProvider;
   readonly routePlanRepository?: RoutePlanRepository;
   readonly rideBriefingRepository?: RideBriefingRepository;
+  readonly checkpointRepository?: CheckpointRepository;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
@@ -173,6 +182,64 @@ export async function handleRequest(
           riderRepository,
           clubRideRepository,
           activeRideGateway,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isCheckpointPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const routePlanRepository =
+        overrides.routePlanRepository ??
+        (env.DB == null ? null : new D1RoutePlanRepository(env.DB));
+      const checkpointRepository =
+        overrides.checkpointRepository ??
+        (env.DB == null ? null : new D1CheckpointRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        routePlanRepository == null ||
+        checkpointRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Checkpoint coordination persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleCheckpointRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          routePlanRepository,
+          checkpointRepository,
+          now: overrides.now,
         },
       );
 
