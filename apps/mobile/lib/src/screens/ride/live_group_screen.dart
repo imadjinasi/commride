@@ -581,6 +581,8 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String age = _formatAge(now.difference(action.raisedAt));
+    final LivePresenceFreshness? presenceFreshness = action.presence
+        ?.effectiveFreshness(now);
 
     return Card(
       child: Padding(
@@ -609,7 +611,7 @@ class _QuickActionCard extends StatelessWidget {
                   if (action.presence != null) ...<Widget>[
                     const SizedBox(height: 6),
                     Text(
-                      'Lokasi ${action.presence!.freshness.label} · '
+                      'Lokasi ${presenceFreshness!.label} · '
                       'observasi ${_formatAge(now.difference(action.presence!.observedAt))} lalu',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
