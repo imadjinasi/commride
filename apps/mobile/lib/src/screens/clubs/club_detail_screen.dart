@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../api/club_ride_api.dart';
+import '../../api/ride_briefing_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
 import '../ride/create_ride_screen.dart';
@@ -11,6 +12,7 @@ class ClubDetailScreen extends StatefulWidget {
     required this.item,
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     required this.onChanged,
     super.key,
   });
@@ -18,6 +20,7 @@ class ClubDetailScreen extends StatefulWidget {
   final ClubListItem item;
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
   final VoidCallback onChanged;
 
   @override
@@ -249,6 +252,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
           item: item,
           clubRideApi: widget.clubRideApi,
           routePlannerApi: widget.routePlannerApi,
+          rideBriefingApi: widget.rideBriefingApi,
           onChanged: () {
             widget.onChanged();
             _reloadRides();
