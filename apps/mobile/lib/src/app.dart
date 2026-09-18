@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'api/club_ride_api.dart';
 import 'api/rider_profile_api.dart';
 import 'api/vehicle_api.dart';
 import 'auth/auth_gateway.dart';
@@ -14,6 +15,7 @@ class CommRideApp extends StatelessWidget {
     required this.authGateway,
     required this.riderProfileApi,
     required this.vehicleApi,
+    required this.clubRideApi,
     super.key,
   });
 
@@ -21,6 +23,7 @@ class CommRideApp extends StatelessWidget {
   final AuthGateway authGateway;
   final RiderProfileApi riderProfileApi;
   final VehicleApi vehicleApi;
+  final ClubRideApi clubRideApi;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +37,7 @@ class CommRideApp extends StatelessWidget {
         authGateway: authGateway,
         riderProfileApi: riderProfileApi,
         vehicleApi: vehicleApi,
+        clubRideApi: clubRideApi,
       ),
     );
   }
