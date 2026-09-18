@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/route_planner_api.dart';
@@ -11,6 +12,7 @@ class ClubDetailScreen extends StatefulWidget {
   const ClubDetailScreen({
     required this.item,
     required this.clubRideApi,
+    required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
     required this.onChanged,
@@ -19,6 +21,7 @@ class ClubDetailScreen extends StatefulWidget {
 
   final ClubListItem item;
   final ClubRideApi clubRideApi;
+  final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
   final VoidCallback onChanged;
@@ -251,6 +254,7 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
         builder: (BuildContext context) => RideDetailScreen(
           item: item,
           clubRideApi: widget.clubRideApi,
+          checkpointApi: widget.checkpointApi,
           routePlannerApi: widget.routePlannerApi,
           rideBriefingApi: widget.rideBriefingApi,
           onChanged: () {
