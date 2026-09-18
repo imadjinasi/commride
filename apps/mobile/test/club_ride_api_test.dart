@@ -90,6 +90,34 @@ void main() {
     expect(ride.status, RideStatus.published);
   });
 
+  test('cancelRide uses explicit cancellation endpoint', () async {
+    final MockClient client = MockClient((http.Request request) async {
+      expect(request.method, 'POST');
+      expect(request.url.path, '/v1/rides/ride-1/cancel');
+
+      return http.Response(
+        '{"ride":{"id":"ride-1","clubId":"club-1",'
+        '"createdByRiderId":"rider-1","title":"Cancelled Ride",'
+        '"status":"cancelled","scheduledStartAt":null,'
+        '"actualStartAt":null,"endedAt":null,"notes":null,'
+        '"createdAt":"2026-09-18T00:00:00Z",'
+        '"updatedAt":"2026-09-18T00:00:00Z"}}',
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final HttpClubRideApi api = HttpClubRideApi(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(),
+      client: client,
+    );
+
+    final Ride ride = await api.cancelRide('ride-1');
+
+    expect(ride.status, RideStatus.cancelled);
+  });
+
   test('client refuses to invite a second Leader', () async {
     final HttpClubRideApi api = HttpClubRideApi(
       apiBaseUrl: Uri.parse('https://api.commride.invalid'),
