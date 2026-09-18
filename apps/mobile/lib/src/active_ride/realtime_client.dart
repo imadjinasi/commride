@@ -1,3 +1,4 @@
+import 'live_group_models.dart';
 import 'location_provider.dart';
 
 enum ActiveRideRealtimeConnectionState { disconnected, connecting, connected }
@@ -16,6 +17,28 @@ class ActiveRideEnded extends ActiveRideRealtimeEvent {
   const ActiveRideEnded({required this.endedAt});
 
   final DateTime endedAt;
+}
+
+class ActiveRideSnapshotReceived extends ActiveRideRealtimeEvent {
+  const ActiveRideSnapshotReceived({
+    required this.rideId,
+    required this.presences,
+  });
+
+  final String rideId;
+  final List<LiveRiderPresence> presences;
+}
+
+class ActiveRidePresenceUpdated extends ActiveRideRealtimeEvent {
+  const ActiveRidePresenceUpdated({required this.presence});
+
+  final LiveRiderPresence presence;
+}
+
+class ActiveRideQuickActionRaised extends ActiveRideRealtimeEvent {
+  const ActiveRideQuickActionRaised({required this.action});
+
+  final LiveQuickAction action;
 }
 
 class ActiveRideServerError extends ActiveRideRealtimeEvent {
