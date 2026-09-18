@@ -407,42 +407,14 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
       return;
     }
 
+    List<AlongRoutePlace>? results;
     await _runWorking(() async {
       try {
-        final List<AlongRoutePlace> results =
-            await widget.routePlannerApi.searchAlongRoute(
+        results = await widget.routePlannerApi.searchAlongRoute(
           textQuery: query.query,
           route: route,
           travelMode: _travelMode,
         );
-
-        if (!mounted) {
-          return;
-        }
-
-        final AlongRoutePlace? selected =
-            await showDialog<AlongRoutePlace>(
-          context: context,
-          builder: (BuildContext context) => _AlongRouteResultsDialog(
-            results: results,
-            currentRoute: route,
-          ),
-        );
-
-        if (selected?.location == null) {
-          return;
-        }
-
-        final PlanningStop stop = PlanningStop(
-          label: selected!.displayName,
-          formattedAddress: selected.formattedAddress,
-          location: selected.location!,
-          stopType: query.stopType,
-          checkpointType: null,
-          plannedDurationMinutes: null,
-        );
-
-        await _recomputeCandidate(<PlanningStop>[..._stops, stop]);
       } on RoutePlannerApiException catch (error) {
         if (error.code == 'search_along_route_mode_not_supported') {
           _showMessage(
@@ -454,6 +426,33 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         rethrow;
       }
     });
+
+    if (!mounted || results == null) {
+      return;
+    }
+
+    final AlongRoutePlace? selected = await showDialog<AlongRoutePlace>(
+      context: context,
+      builder: (BuildContext context) => _AlongRouteResultsDialog(
+        results: results!,
+        currentRoute: route,
+      ),
+    );
+
+    if (selected?.location == null) {
+      return;
+    }
+
+    final PlanningStop stop = PlanningStop(
+      label: selected!.displayName,
+      formattedAddress: selected.formattedAddress,
+      location: selected.location!,
+      stopType: query.stopType,
+      checkpointType: null,
+      plannedDurationMinutes: null,
+    );
+
+    await _recomputeCandidate(<PlanningStop>[..._stops, stop]);
   }
 
   Future<void> _reorderStops(int oldIndex, int newIndex) async {
