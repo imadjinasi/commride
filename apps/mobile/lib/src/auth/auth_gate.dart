@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
 import '../api/rider_profile_api.dart';
 import '../api/ride_briefing_api.dart';
@@ -19,6 +20,7 @@ class AuthGate extends StatelessWidget {
     required this.riderProfileApi,
     required this.vehicleApi,
     required this.clubRideApi,
+    required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
     super.key,
@@ -29,6 +31,7 @@ class AuthGate extends StatelessWidget {
   final RiderProfileApi riderProfileApi;
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
+  final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
 
@@ -60,6 +63,7 @@ class AuthGate extends StatelessWidget {
           riderProfileApi: riderProfileApi,
           vehicleApi: vehicleApi,
           clubRideApi: clubRideApi,
+          checkpointApi: checkpointApi,
           routePlannerApi: routePlannerApi,
           rideBriefingApi: rideBriefingApi,
         );
@@ -75,6 +79,7 @@ class _RiderProfileGate extends StatefulWidget {
     required this.riderProfileApi,
     required this.vehicleApi,
     required this.clubRideApi,
+    required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
     super.key,
@@ -85,6 +90,7 @@ class _RiderProfileGate extends StatefulWidget {
   final RiderProfileApi riderProfileApi;
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
+  final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
 
@@ -138,6 +144,7 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           riderProfile: profile,
           vehicleApi: widget.vehicleApi,
           clubRideApi: widget.clubRideApi,
+          checkpointApi: widget.checkpointApi,
           routePlannerApi: widget.routePlannerApi,
           rideBriefingApi: widget.rideBriefingApi,
           authGateway: widget.authGateway,
