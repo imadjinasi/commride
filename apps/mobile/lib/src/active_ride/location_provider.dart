@@ -1,15 +1,6 @@
-enum RideLocationPermission {
-  unknown,
-  denied,
-  deniedPermanently,
-  granted,
-}
+enum RideLocationPermission { unknown, denied, deniedPermanently, granted }
 
-enum RideMovementState {
-  moving,
-  stopped,
-  unknown,
-}
+enum RideMovementState { moving, stopped, unknown }
 
 class RideLocationSample {
   const RideLocationSample({
