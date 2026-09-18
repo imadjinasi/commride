@@ -17,12 +17,19 @@ export interface CheckpointParticipantRecord {
 export interface CheckpointRepository {
   listParticipants(rideId: string): Promise<readonly CheckpointParticipantRecord[]>;
 
-  listCheckIns(rideId: string): Promise<readonly CheckpointCheckIn[]>;
+  listCheckIns(
+    rideId: string,
+    routePlanId: string,
+  ): Promise<readonly CheckpointCheckIn[]>;
 
-  listReleases(rideId: string): Promise<readonly CheckpointRelease[]>;
+  listReleases(
+    rideId: string,
+    routePlanId: string,
+  ): Promise<readonly CheckpointRelease[]>;
 
   checkIn(
     rideId: string,
+    routePlanId: string,
     checkpointId: string,
     riderId: string,
     checkedInAt: string,
@@ -46,6 +53,7 @@ interface ParticipantRow {
 }
 
 interface CheckInRow {
+  readonly route_plan_id: string;
   readonly checkpoint_stop_id: string;
   readonly rider_id: string;
   readonly checked_in_at: string;
@@ -53,6 +61,7 @@ interface CheckInRow {
 }
 
 interface ReleaseRow {
+  readonly route_plan_id: string;
   readonly checkpoint_stop_id: string;
   readonly released_by_rider_id: string;
   readonly released_at: string;
@@ -101,20 +110,22 @@ export class D1CheckpointRepository implements CheckpointRepository {
 
   async listCheckIns(
     rideId: string,
+    routePlanId: string,
   ): Promise<readonly CheckpointCheckIn[]> {
     const rows = await this.database
       .prepare(
         `
-        SELECT checkpoint_stop_id, rider_id, checked_in_at, method
+        SELECT route_plan_id, checkpoint_stop_id, rider_id, checked_in_at, method
         FROM ride_checkpoint_checkins
-        WHERE ride_id = ?
+        WHERE ride_id = ? AND route_plan_id = ?
         ORDER BY checked_in_at ASC, rider_id ASC
         `,
       )
-      .bind(rideId)
+      .bind(rideId, routePlanId)
       .all<CheckInRow>();
 
     return rows.results.map((row) => ({
+      routePlanId: row.route_plan_id,
       checkpointId: row.checkpoint_stop_id,
       riderId: row.rider_id,
       checkedInAt: row.checked_in_at,
@@ -124,20 +135,22 @@ export class D1CheckpointRepository implements CheckpointRepository {
 
   async listReleases(
     rideId: string,
+    routePlanId: string,
   ): Promise<readonly CheckpointRelease[]> {
     const rows = await this.database
       .prepare(
         `
-        SELECT checkpoint_stop_id, released_by_rider_id, released_at
+        SELECT route_plan_id, checkpoint_stop_id, released_by_rider_id, released_at
         FROM ride_checkpoint_releases
-        WHERE ride_id = ?
+        WHERE ride_id = ? AND route_plan_id = ?
         ORDER BY released_at ASC, checkpoint_stop_id ASC
         `,
       )
-      .bind(rideId)
+      .bind(rideId, routePlanId)
       .all<ReleaseRow>();
 
     return rows.results.map((row) => ({
+      routePlanId: row.route_plan_id,
       checkpointId: row.checkpoint_stop_id,
       releasedByRiderId: row.released_by_rider_id,
       releasedAt: row.released_at,
@@ -146,6 +159,7 @@ export class D1CheckpointRepository implements CheckpointRepository {
 
   async checkIn(
     rideId: string,
+    routePlanId: string,
     checkpointId: string,
     riderId: string,
     checkedInAt: string,
@@ -155,15 +169,21 @@ export class D1CheckpointRepository implements CheckpointRepository {
         `
         INSERT INTO ride_checkpoint_checkins(
           ride_id,
+          route_plan_id,
           checkpoint_stop_id,
           rider_id,
           checked_in_at,
           method
-        ) VALUES (?, ?, ?, ?, 'manual')
-        ON CONFLICT(ride_id, checkpoint_stop_id, rider_id) DO NOTHING
+        ) VALUES (?, ?, ?, ?, ?, 'manual')
+        ON CONFLICT(
+          ride_id,
+          route_plan_id,
+          checkpoint_stop_id,
+          rider_id
+        ) DO NOTHING
         `,
       )
-      .bind(rideId, checkpointId, riderId, checkedInAt)
+      .bind(rideId, routePlanId, checkpointId, riderId, checkedInAt)
       .run();
   }
 
@@ -180,11 +200,12 @@ export class D1CheckpointRepository implements CheckpointRepository {
         `
         INSERT INTO ride_checkpoint_releases(
           ride_id,
+          route_plan_id,
           checkpoint_stop_id,
           released_by_rider_id,
           released_at
         )
-        SELECT ?, ?, ?, ?
+        SELECT ?, ?, ?, ?, ?
         WHERE NOT EXISTS (
           SELECT 1
           FROM route_stops AS earlier
@@ -197,20 +218,27 @@ export class D1CheckpointRepository implements CheckpointRepository {
               FROM ride_checkpoint_releases AS releases
               WHERE
                 releases.ride_id = ?
+                AND releases.route_plan_id = ?
                 AND releases.checkpoint_stop_id = earlier.id
             )
         )
-        ON CONFLICT(ride_id, checkpoint_stop_id) DO NOTHING
+        ON CONFLICT(
+          ride_id,
+          route_plan_id,
+          checkpoint_stop_id
+        ) DO NOTHING
         `,
       )
       .bind(
         rideId,
+        routePlanId,
         checkpointId,
         releasedByRiderId,
         releasedAt,
         routePlanId,
         checkpointSequence,
         rideId,
+        routePlanId,
       )
       .run();
 
@@ -219,11 +247,14 @@ export class D1CheckpointRepository implements CheckpointRepository {
         `
         SELECT 1
         FROM ride_checkpoint_releases
-        WHERE ride_id = ? AND checkpoint_stop_id = ?
+        WHERE
+          ride_id = ?
+          AND route_plan_id = ?
+          AND checkpoint_stop_id = ?
         LIMIT 1
         `,
       )
-      .bind(rideId, checkpointId)
+      .bind(rideId, routePlanId, checkpointId)
       .first<{ readonly '1': number }>();
 
     return existing != null;
