@@ -23,6 +23,12 @@ void main() {
     await tester.tap(find.byIcon(Icons.route_outlined));
     await tester.pumpAndSettle();
 
-    expect(find.text('Plan, join, and review Rides here. Route planning, Add Stop, Search Along Route, and the Active Ride command center come next.'), findsOneWidget);
+    expect(
+      find.text(
+        'Plan, join, and review Rides here. Route planning, Add Stop, '
+        'Search Along Route, and the Active Ride command center come next.',
+      ),
+      findsOneWidget,
+    );
   });
 }
