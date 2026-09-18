@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'src/api/http_checkpoint_api.dart';
 import 'src/api/http_club_ride_api.dart';
 import 'src/api/http_rider_profile_api.dart';
 import 'src/api/http_ride_briefing_api.dart';
@@ -47,6 +48,10 @@ Future<void> main() async {
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
     );
+    final HttpCheckpointApi checkpointApi = HttpCheckpointApi(
+      apiBaseUrl: apiBaseUrl,
+      authGateway: authGateway,
+    );
     final HttpRoutePlannerApi routePlannerApi = HttpRoutePlannerApi(
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
@@ -63,6 +68,7 @@ Future<void> main() async {
         riderProfileApi: riderProfileApi,
         vehicleApi: vehicleApi,
         clubRideApi: clubRideApi,
+        checkpointApi: checkpointApi,
         routePlannerApi: routePlannerApi,
         rideBriefingApi: rideBriefingApi,
       ),
