@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../api/club_ride_api.dart';
+import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
 import 'create_ride_screen.dart';
 import 'ride_detail_screen.dart';
 
 class RideScreen extends StatefulWidget {
-  const RideScreen({required this.clubRideApi, super.key});
+  const RideScreen({
+    required this.clubRideApi,
+    required this.routePlannerApi,
+    super.key,
+  });
 
   final ClubRideApi clubRideApi;
+  final RoutePlannerApi routePlannerApi;
 
   @override
   State<RideScreen> createState() => _RideScreenState();
@@ -123,6 +129,7 @@ class _RideScreenState extends State<RideScreen> {
         builder: (BuildContext context) => RideDetailScreen(
           item: item,
           clubRideApi: widget.clubRideApi,
+          routePlannerApi: widget.routePlannerApi,
           onChanged: _refresh,
         ),
       ),
@@ -271,8 +278,8 @@ class _CreateRideCard extends StatelessWidget {
             Text('Plan a Ride', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              'Route planner akan ditambahkan sesudah lifecycle Club/Ride '
-              'stabil.',
+              'Buat Ride lalu susun rute, Stop, dan Checkpoint dari '
+              'Route Planner.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 14),
