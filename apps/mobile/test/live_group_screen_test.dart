@@ -193,10 +193,7 @@ void main() {
     expect(find.text('Saya Tertinggal'), findsOneWidget);
     expect(find.textContaining('Rider Two'), findsOneWidget);
     expect(find.text('Terpisah di lampu merah.'), findsOneWidget);
-    expect(
-      find.text('Lokasi Stale · observasi 45 dtk lalu'),
-      findsOneWidget,
-    );
+    expect(find.text('Lokasi Stale · observasi 45 dtk lalu'), findsOneWidget);
 
     await cleanup(tester, controller, realtime);
   });
@@ -241,9 +238,7 @@ void main() {
     await tester.tap(find.text('Quick Actions'));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byTooltip('Kirim Saya Tertinggal dengan alasan'),
-    );
+    await tester.tap(find.byTooltip('Kirim Saya Tertinggal dengan alasan'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Lampu merah');
     await tester.tap(find.text('Batal'));
@@ -269,9 +264,7 @@ void main() {
     await tester.tap(find.text('Quick Actions'));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byTooltip('Kirim Butuh Bantuan dengan alasan'),
-    );
+    await tester.tap(find.byTooltip('Kirim Butuh Bantuan dengan alasan'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Ban bocor');
     await tester.tap(find.text('Kirim'));
