@@ -143,10 +143,7 @@ void main() {
   test('publishBriefing sends notes and maps a new revision', () async {
     final MockClient client = MockClient((http.Request request) async {
       expect(request.method, 'POST');
-      expect(
-        request.url.path,
-        '/v1/rides/ride-1/briefing/publish',
-      );
+      expect(request.url.path, '/v1/rides/ride-1/briefing/publish');
       expect(request.headers['authorization'], 'Bearer firebase-id-token');
       expect(request.body, contains('"notes":"Fuel before departure."'));
 
@@ -174,10 +171,7 @@ void main() {
   test('acknowledgeBriefing maps current Rider readiness', () async {
     final MockClient client = MockClient((http.Request request) async {
       expect(request.method, 'POST');
-      expect(
-        request.url.path,
-        '/v1/rides/ride-1/briefing/acknowledge',
-      );
+      expect(request.url.path, '/v1/rides/ride-1/briefing/acknowledge');
       expect(request.headers['authorization'], 'Bearer firebase-id-token');
 
       return http.Response(
@@ -193,8 +187,7 @@ void main() {
       client: client,
     );
 
-    final RideBriefingView view =
-        await api.acknowledgeBriefing('ride-1');
+    final RideBriefingView view = await api.acknowledgeBriefing('ride-1');
 
     expect(view.readiness.currentRiderAcknowledged, isTrue);
     expect(view.readiness.readyCount, 1);
