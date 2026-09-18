@@ -206,10 +206,7 @@ class ActiveRideGroupController extends ChangeNotifier {
 
     if (event is ActiveRideSeparationUpdated) {
       _setState(
-        _state.copyWith(
-          separation: event.separation,
-          clearLatestError: true,
-        ),
+        _state.copyWith(separation: event.separation, clearLatestError: true),
       );
       return;
     }
