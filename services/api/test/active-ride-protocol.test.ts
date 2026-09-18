@@ -4,6 +4,7 @@ import {
   parseClientEvent,
   presenceView,
   quickActionPresenceContext,
+  quickActionRaisedPayload,
   shouldAcceptPresence,
   type StoredPresence,
 } from '../src/active-ride/protocol';
@@ -170,6 +171,91 @@ describe('Active Ride protocol', () => {
     });
 
     expect(quickActionPresenceContext(undefined, now)).toBeNull();
+  });
+
+  it('builds quick-action broadcasts from trusted attachment identity', () => {
+    const event = parseClientEvent(
+      JSON.stringify({
+        v: 1,
+        type: 'quick_action.raise',
+        eventId: 'quick-trusted',
+        sentAt: '2026-09-18T10:00:00Z',
+        payload: {
+          kind: 'need_help',
+          reason: 'Mechanical problem',
+          riderId: 'spoofed-rider',
+          latitude: 1,
+          longitude: 2,
+        },
+      }),
+      now,
+    );
+
+    expect('code' in event).toBe(false);
+    if ('code' in event || event.type !== 'quick_action.raise') {
+      throw new Error('Expected parsed quick action.');
+    }
+
+    const payload = quickActionRaisedPayload(
+      {
+        riderId: 'rider-1',
+        displayName: 'Rider One',
+        role: 'sweeper',
+        lastPresence: storedPresence('2026-09-18T09:59:50Z'),
+      },
+      event,
+      now,
+    );
+
+    expect(payload).toMatchObject({
+      eventId: 'quick-trusted',
+      rider: {
+        riderId: 'rider-1',
+        displayName: 'Rider One',
+        role: 'sweeper',
+      },
+      kind: 'need_help',
+      reason: 'Mechanical problem',
+      raisedAt: '2026-09-18T10:00:00.000Z',
+      presence: {
+        riderId: 'rider-1',
+        observedAt: '2026-09-18T09:59:50Z',
+        freshness: 'live',
+      },
+    });
+  });
+
+  it('broadcasts quick actions even when no accepted presence exists', () => {
+    const event = parseClientEvent(
+      JSON.stringify({
+        v: 1,
+        type: 'quick_action.raise',
+        eventId: 'quick-no-location',
+        sentAt: '2026-09-18T10:00:00Z',
+        payload: {
+          kind: 'need_help',
+          reason: null,
+        },
+      }),
+      now,
+    );
+
+    expect('code' in event).toBe(false);
+    if ('code' in event || event.type !== 'quick_action.raise') {
+      throw new Error('Expected parsed quick action.');
+    }
+
+    expect(
+      quickActionRaisedPayload(
+        {
+          riderId: 'rider-1',
+          displayName: 'Rider One',
+          role: 'member',
+        },
+        event,
+        now,
+      ).presence,
+    ).toBeNull();
   });
 
   it('parses only the supported operational quick actions', () => {
