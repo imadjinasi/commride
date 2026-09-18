@@ -28,11 +28,11 @@ class RideLocationSessionState {
   });
 
   const RideLocationSessionState.inactive()
-      : phase = RideLocationSessionPhase.inactive,
-        connectionState = ActiveRideRealtimeConnectionState.disconnected,
-        lastSample = null,
-        pendingSample = null,
-        message = null;
+    : phase = RideLocationSessionPhase.inactive,
+      connectionState = ActiveRideRealtimeConnectionState.disconnected,
+      lastSample = null,
+      pendingSample = null,
+      message = null;
 
   final RideLocationSessionPhase phase;
   final ActiveRideRealtimeConnectionState connectionState;
@@ -76,8 +76,7 @@ class RideLocationSessionController extends ChangeNotifier {
   final RideLocationProvider _locationProvider;
   final ActiveRideRealtimeClient _realtimeClient;
 
-  RideLocationSessionState _state =
-      const RideLocationSessionState.inactive();
+  RideLocationSessionState _state = const RideLocationSessionState.inactive();
   StreamSubscription<RideLocationSample>? _sampleSubscription;
   StreamSubscription<ActiveRideRealtimeEvent>? _realtimeSubscription;
   String? _rideId;
@@ -191,10 +190,7 @@ class RideLocationSessionController extends ChangeNotifier {
   }
 
   Future<void> stopTracking() async {
-    await _stop(
-      finalPhase: RideLocationSessionPhase.inactive,
-      message: null,
-    );
+    await _stop(finalPhase: RideLocationSessionPhase.inactive, message: null);
   }
 
   Future<void> stopForRideEnd() async {
@@ -205,10 +201,7 @@ class RideLocationSessionController extends ChangeNotifier {
   }
 
   Future<void> stopForSignOut() async {
-    await _stop(
-      finalPhase: RideLocationSessionPhase.inactive,
-      message: null,
-    );
+    await _stop(finalPhase: RideLocationSessionPhase.inactive, message: null);
   }
 
   Future<void> _handleSample(RideLocationSample sample) async {
