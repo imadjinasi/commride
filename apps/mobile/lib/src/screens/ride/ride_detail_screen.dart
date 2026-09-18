@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../api/club_ride_api.dart';
+import '../../api/ride_briefing_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
+import 'ride_briefing_screen.dart';
 import 'route_planner_screen.dart';
 
 class RideDetailScreen extends StatefulWidget {
@@ -10,6 +12,7 @@ class RideDetailScreen extends StatefulWidget {
     required this.item,
     required this.clubRideApi,
     required this.routePlannerApi,
+    required this.rideBriefingApi,
     required this.onChanged,
     super.key,
   });
@@ -17,6 +20,7 @@ class RideDetailScreen extends StatefulWidget {
   final RideListItem item;
   final ClubRideApi clubRideApi;
   final RoutePlannerApi routePlannerApi;
+  final RideBriefingApi rideBriefingApi;
   final VoidCallback onChanged;
 
   @override
@@ -46,6 +50,10 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
         isLeader &&
         (ride.status == RideStatus.draft ||
             ride.status == RideStatus.published);
+    final bool canPublishBriefing = canEditRoute;
+    final bool canAcknowledgeBriefing =
+        ride.status == RideStatus.draft ||
+        ride.status == RideStatus.published;
 
     return Scaffold(
       appBar: AppBar(title: Text(ride.title)),
@@ -82,6 +90,17 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                     : () => _openRoutePlanner(canEdit: canEditRoute),
                 icon: const Icon(Icons.map_outlined),
                 label: Text(canEditRoute ? 'Plan Route' : 'Lihat RoutePlan'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _working
+                    ? null
+                    : () => _openBriefing(
+                          canPublish: canPublishBriefing,
+                          canAcknowledge: canAcknowledgeBriefing,
+                        ),
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Ride Briefing'),
               ),
               const SizedBox(height: 8),
             ],
@@ -140,6 +159,23 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
           rideId: _item.ride.id,
           routePlannerApi: widget.routePlannerApi,
           canEdit: canEdit,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openBriefing({
+    required bool canPublish,
+    required bool canAcknowledge,
+  }) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideBriefingScreen(
+          ride: _item.ride,
+          rideBriefingApi: widget.rideBriefingApi,
+          routePlannerApi: widget.routePlannerApi,
+          canPublish: canPublish,
+          canAcknowledge: canAcknowledge,
         ),
       ),
     );
