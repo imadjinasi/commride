@@ -59,6 +59,13 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Live Group')),
+      floatingActionButton: state.hasEnded
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showQuickActions,
+              icon: const Icon(Icons.bolt_outlined),
+              label: const Text('Quick Actions'),
+            ),
       body: SafeArea(
         minimum: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: ListView(
@@ -108,10 +115,169 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
     );
   }
 
+  Future<void> _showQuickActions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) {
+        return _QuickActionsSheet(
+          onSend: (LiveQuickActionKind kind, {String? reason}) =>
+              _sendQuickAction(sheetContext, kind, reason: reason),
+        );
+      },
+    );
+  }
+
+  Future<void> _sendQuickAction(
+    BuildContext sheetContext,
+    LiveQuickActionKind kind, {
+    String? reason,
+  }) async {
+    try {
+      await widget.controller.raiseQuickAction(kind, reason: reason);
+      if (!mounted) {
+        return;
+      }
+      if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
+        Navigator.of(sheetContext).pop();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${kind.label} terkirim.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Quick action belum terkirim. Periksa koneksi realtime.',
+          ),
+        ),
+      );
+    }
+  }
+
   void _onStateChanged() {
     if (mounted) {
       setState(() {});
     }
+  }
+}
+
+typedef _QuickActionSender =
+    Future<void> Function(
+      LiveQuickActionKind kind, {
+      String? reason,
+    });
+
+class _QuickActionsSheet extends StatelessWidget {
+  const _QuickActionsSheet({required this.onSend});
+
+  final _QuickActionSender onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Quick Actions',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Kirim kondisi penting ke semua Rider tanpa membuka chat.',
+          ),
+          const SizedBox(height: 12),
+          _QuickActionSendTile(
+            kind: LiveQuickActionKind.stopping,
+            subtitle: 'Berhenti sementara untuk BBM, istirahat, atau kendala.',
+            onSend: onSend,
+          ),
+          _QuickActionSendTile(
+            kind: LiveQuickActionKind.leftBehind,
+            subtitle: 'Beri tahu rombongan bahwa kamu tertinggal.',
+            onSend: onSend,
+          ),
+          _QuickActionSendTile(
+            kind: LiveQuickActionKind.needHelp,
+            subtitle: 'Minta bantuan rombongan. Ini bukan layanan SOS.',
+            onSend: onSend,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActionSendTile extends StatelessWidget {
+  const _QuickActionSendTile({
+    required this.kind,
+    required this.subtitle,
+    required this.onSend,
+  });
+
+  final LiveQuickActionKind kind;
+  final String subtitle;
+  final _QuickActionSender onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(_quickActionIcon(kind)),
+      title: Text(kind.label),
+      subtitle: Text(subtitle),
+      onTap: () => onSend(kind),
+      trailing: IconButton(
+        tooltip: 'Kirim ${kind.label} dengan alasan',
+        icon: const Icon(Icons.note_add_outlined),
+        onPressed: () => _sendWithReason(context),
+      ),
+    );
+  }
+
+  Future<void> _sendWithReason(BuildContext context) async {
+    final TextEditingController reasonController = TextEditingController();
+    final String? reason = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('${kind.label} — alasan'),
+          content: TextField(
+            controller: reasonController,
+            maxLength: 240,
+            minLines: 1,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Opsional, mis. isi BBM atau kendala mesin',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(
+                dialogContext,
+              ).pop(reasonController.text.trim()),
+              child: const Text('Kirim'),
+            ),
+          ],
+        );
+      },
+    );
+    reasonController.dispose();
+
+    if (reason == null) {
+      return;
+    }
+    await onSend(kind, reason: reason);
   }
 }
 
@@ -285,6 +451,16 @@ class _QuickActionCard extends StatelessWidget {
                   if (action.reason != null) ...<Widget>[
                     const SizedBox(height: 6),
                     Text(action.reason!),
+                  ],
+                  if (action.presence != null) ...<Widget>[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Lokasi ${action.presence!.effectiveFreshness(now).label}'
+                      ' · observasi '
+                      '${_formatAge(now.difference(action.presence!.observedAt))}'
+                      ' lalu',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ],
               ),
