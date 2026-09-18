@@ -72,12 +72,14 @@ class _VehicleEditorScreenState extends State<VehicleEditorScreen> {
                 labelText: 'Jenis kendaraan',
                 border: OutlineInputBorder(),
               ),
-              items: VehicleKind.values.map((VehicleKind kind) {
-                return DropdownMenuItem<VehicleKind>(
-                  value: kind,
-                  child: Text(kind.label),
-                );
-              }).toList(growable: false),
+              items: VehicleKind.values
+                  .map((VehicleKind kind) {
+                    return DropdownMenuItem<VehicleKind>(
+                      value: kind,
+                      child: Text(kind.label),
+                    );
+                  })
+                  .toList(growable: false),
               onChanged: _saving
                   ? null
                   : (VehicleKind? value) {
@@ -138,8 +140,9 @@ class _VehicleEditorScreenState extends State<VehicleEditorScreen> {
 
   Future<void> _save() async {
     final String rawSafeRange = _safeRangeController.text.trim();
-    final int? safeRangeKm =
-        rawSafeRange.isEmpty ? null : int.tryParse(rawSafeRange);
+    final int? safeRangeKm = rawSafeRange.isEmpty
+        ? null
+        : int.tryParse(rawSafeRange);
 
     if (rawSafeRange.isNotEmpty &&
         (safeRangeKm == null || safeRangeKm <= 0 || safeRangeKm > 2000)) {
