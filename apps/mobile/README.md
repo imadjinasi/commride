@@ -344,3 +344,38 @@ The initial labels are:
 This view intentionally does not show a stream of exact coordinates as normal
 product copy. Coordinates remain part of operational presence for future map
 rendering.
+
+
+## Rider Quick Actions
+
+Active Ride now has a typed low-friction send path for:
+
+- **Saya Berhenti**
+- **Saya Tertinggal**
+- **Butuh Bantuan**
+
+The basic action is one tap from Live Group. A Rider may optionally add a short
+reason (up to 240 characters) before sending.
+
+The mobile client sends only:
+
+- protocol version;
+- client event ID;
+- send timestamp;
+- quick-action kind;
+- optional reason.
+
+It deliberately does **not** send authoritative Rider ID or a second location
+claim for the action. The backend derives Rider identity from the authenticated
+socket and may attach the latest server-accepted RiderPresence context.
+
+Incoming quick actions may therefore include optional presence context. Live
+Group shows only its freshness and observation age, not raw coordinates as the
+primary action UI.
+
+If realtime is disconnected, sending fails explicitly in the UI. CommRide does
+not silently build an unbounded offline quick-action queue.
+
+**Butuh Bantuan** is a Rider-to-group coordination action, not SOS and not a
+claim that emergency services were contacted. It can be raised even when no
+GPS presence is available on the server.
