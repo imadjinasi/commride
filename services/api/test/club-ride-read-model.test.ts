@@ -90,7 +90,7 @@ class TestReadRepository implements ClubRideReadRepository {
   async listClubsForRider(
     _riderId: string,
   ): Promise<readonly ClubListItem[]> {
-    return <ClubListItem>[this.clubItem];
+    return [this.clubItem];
   }
 
   async listRidesForClub(
@@ -165,7 +165,7 @@ describe('Club/Ride read model', () => {
         clubRideRepository: commandRepository(membership),
         clubRideReadRepository: new TestReadRepository(
           { club, membership },
-          <RideListItem>[],
+          [],
         ),
       },
     );
@@ -196,7 +196,7 @@ describe('Club/Ride read model', () => {
         clubRideRepository: commandRepository(clubMembership),
         clubRideReadRepository: new TestReadRepository(
           { club, membership: clubMembership },
-          <RideListItem>[
+          [
             {
               ride,
               membership: rideMembership,
