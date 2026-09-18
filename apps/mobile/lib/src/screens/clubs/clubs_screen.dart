@@ -6,10 +6,7 @@ import 'club_detail_screen.dart';
 import 'create_club_screen.dart';
 
 class ClubsScreen extends StatefulWidget {
-  const ClubsScreen({
-    required this.clubRideApi,
-    super.key,
-  });
+  const ClubsScreen({required this.clubRideApi, super.key});
 
   final ClubRideApi clubRideApi;
 
@@ -51,46 +48,49 @@ class _ClubsScreenState extends State<ClubsScreen> {
             sliver: SliverToBoxAdapter(
               child: FutureBuilder<List<ClubListItem>>(
                 future: _clubsFuture,
-                builder: (
-                  BuildContext context,
-                  AsyncSnapshot<List<ClubListItem>> snapshot,
-                ) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 48),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<List<ClubListItem>> snapshot,
+                    ) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-                  if (snapshot.hasError) {
-                    return _LoadError(onRetry: _refresh);
-                  }
+                      if (snapshot.hasError) {
+                        return _LoadError(onRetry: _refresh);
+                      }
 
-                  final List<ClubListItem> clubs =
-                      snapshot.data ?? const <ClubListItem>[];
-                  if (clubs.isEmpty) {
-                    return const _EmptyClubs();
-                  }
+                      final List<ClubListItem> clubs =
+                          snapshot.data ?? const <ClubListItem>[];
+                      if (clubs.isEmpty) {
+                        return const _EmptyClubs();
+                      }
 
-                  return Column(
-                    children: clubs.map((ClubListItem item) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Card(
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              child: Icon(Icons.groups_outlined),
-                            ),
-                            title: Text(item.club.name),
-                            subtitle: Text(_subtitle(item)),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => _openClub(item),
-                          ),
-                        ),
+                      return Column(
+                        children: clubs
+                            .map((ClubListItem item) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Card(
+                                  child: ListTile(
+                                    leading: const CircleAvatar(
+                                      child: Icon(Icons.groups_outlined),
+                                    ),
+                                    title: Text(item.club.name),
+                                    subtitle: Text(_subtitle(item)),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: () => _openClub(item),
+                                  ),
+                                ),
+                              );
+                            })
+                            .toList(growable: false),
                       );
-                    }).toList(growable: false),
-                  );
-                },
+                    },
               ),
             ),
           ),
@@ -102,8 +102,7 @@ class _ClubsScreenState extends State<ClubsScreen> {
   String _subtitle(ClubListItem item) {
     final List<String> parts = <String>[
       item.membership.role.label,
-      if (item.membership.status == ClubMembershipStatus.invited)
-        'Undangan',
+      if (item.membership.status == ClubMembershipStatus.invited) 'Undangan',
       if (item.club.homeArea != null) item.club.homeArea!,
     ];
 
