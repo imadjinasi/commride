@@ -124,48 +124,48 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
 
     return FutureBuilder<List<RideListItem>>(
       future: future,
-      builder: (
-        BuildContext context,
-        AsyncSnapshot<List<RideListItem>> snapshot,
-      ) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
+      builder:
+          (BuildContext context, AsyncSnapshot<List<RideListItem>> snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-        if (snapshot.hasError) {
-          return _LoadError(onRetry: _reloadRides);
-        }
+            if (snapshot.hasError) {
+              return _LoadError(onRetry: _reloadRides);
+            }
 
-        final List<RideListItem> rides =
-            snapshot.data ?? const <RideListItem>[];
-        if (rides.isEmpty) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Text(
-                'Belum ada Ride di Club ini.',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-          );
-        }
+            final List<RideListItem> rides =
+                snapshot.data ?? const <RideListItem>[];
+            if (rides.isEmpty) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Text(
+                    'Belum ada Ride di Club ini.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
+              );
+            }
 
-        return Column(
-          children: rides.map((RideListItem item) {
-            return Card(
-              child: ListTile(
-                title: Text(item.ride.title),
-                subtitle: Text(_rideSubtitle(item)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _openRide(item),
-              ),
+            return Column(
+              children: rides
+                  .map((RideListItem item) {
+                    return Card(
+                      child: ListTile(
+                        title: Text(item.ride.title),
+                        subtitle: Text(_rideSubtitle(item)),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _openRide(item),
+                      ),
+                    );
+                  })
+                  .toList(growable: false),
             );
-          }).toList(growable: false),
-        );
-      },
+          },
     );
   }
 
@@ -275,9 +275,9 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
         role: input.role,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Undangan Club dikirim.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Undangan Club dikirim.')));
       }
     } catch (_) {
       if (mounted) {
@@ -293,9 +293,9 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -347,10 +347,7 @@ class _ClubInviteDialogState extends State<_ClubInviteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    const List<ClubRole> roles = <ClubRole>[
-      ClubRole.member,
-      ClubRole.admin,
-    ];
+    const List<ClubRole> roles = <ClubRole>[ClubRole.member, ClubRole.admin];
 
     return AlertDialog(
       title: const Text('Undang anggota Club'),
