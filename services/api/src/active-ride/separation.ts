@@ -186,6 +186,17 @@ export function evaluateConvoySeparation(
   };
 }
 
+export function separationStateMeaningfullyChanged(
+  previous: ConvoySeparationState | null,
+  next: ConvoySeparationState,
+): boolean {
+  if (previous == null) {
+    return true;
+  }
+
+  return separationSignature(previous) !== separationSignature(next);
+}
+
 export function haversineDistanceMeters(
   a: Pick<StoredPresence, 'latitude' | 'longitude'>,
   b: Pick<StoredPresence, 'latitude' | 'longitude'>,
@@ -323,6 +334,19 @@ function validatePolicy(policy: ConvoySeparationPolicy): void {
   ) {
     throw new Error('Invalid convoy separation policy.');
   }
+}
+
+function separationSignature(state: ConvoySeparationState): string {
+  return JSON.stringify({
+    phase: state.phase,
+    dataSufficient: state.dataSufficient,
+    components: state.components,
+    isolatedRiderIds: state.isolatedRiderIds,
+    sweeperComponentRiderIds: state.sweeperComponentRiderIds,
+    firstSplitObservedAt: state.firstSplitObservedAt,
+    confirmedAt: state.confirmedAt,
+    recoveryObservedAt: state.recoveryObservedAt,
+  });
 }
 
 function degreesToRadians(value: number): number {
