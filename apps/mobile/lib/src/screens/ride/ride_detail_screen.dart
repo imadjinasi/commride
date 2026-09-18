@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../api/club_ride_api.dart';
+import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
+import 'route_planner_screen.dart';
 
 class RideDetailScreen extends StatefulWidget {
   const RideDetailScreen({
     required this.item,
     required this.clubRideApi,
+    required this.routePlannerApi,
     required this.onChanged,
     super.key,
   });
 
   final RideListItem item;
   final ClubRideApi clubRideApi;
+  final RoutePlannerApi routePlannerApi;
   final VoidCallback onChanged;
 
   @override
@@ -34,6 +38,14 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     final Ride ride = _item.ride;
     final RideMembership? membership = _item.membership;
     final bool isLeader = membership?.role == RideRole.leader;
+    final bool canReadRoute =
+        membership != null &&
+        membership.status != RideMembershipStatus.invited &&
+        membership.status != RideMembershipStatus.left;
+    final bool canEditRoute =
+        isLeader &&
+        (ride.status == RideStatus.draft ||
+            ride.status == RideStatus.published);
 
     return Scaffold(
       appBar: AppBar(title: Text(ride.title)),
@@ -63,6 +75,16 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
               Text(ride.notes!),
             ],
             const SizedBox(height: 28),
+            if (canReadRoute) ...<Widget>[
+              OutlinedButton.icon(
+                onPressed: _working
+                    ? null
+                    : () => _openRoutePlanner(canEdit: canEditRoute),
+                icon: const Icon(Icons.map_outlined),
+                label: Text(canEditRoute ? 'Plan Route' : 'Lihat RoutePlan'),
+              ),
+              const SizedBox(height: 8),
+            ],
             if (membership?.status == RideMembershipStatus.invited)
               FilledButton(
                 onPressed: _working ? null : _joinRide,
@@ -101,11 +123,23 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
             ],
             const SizedBox(height: 20),
             Text(
-              'Route planning, checkpoint, dan Live Ride akan ditambahkan '
-              'pada fase berikutnya.',
+              'Live Ride map, realtime convoy, dan communication akan '
+              'ditambahkan pada fase berikutnya.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRoutePlanner({required bool canEdit}) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RoutePlannerScreen(
+          rideId: _item.ride.id,
+          routePlannerApi: widget.routePlannerApi,
+          canEdit: canEdit,
         ),
       ),
     );
