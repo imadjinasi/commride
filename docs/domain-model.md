@@ -146,7 +146,15 @@ Contains:
 
 A Ride can evolve through multiple route-plan revisions.
 
-The system should retain enough provenance to distinguish the active plan from a superseded plan.
+RoutePlan revision semantics:
+- each successful saved plan creates a new immutable revision;
+- exactly one revision is current for a Ride;
+- replacing the current plan never mutates the previous revision in place;
+- a failed provider recomputation must not replace the last valid current plan;
+- the initial MVP allows route-plan replacement only while the Ride is Draft or Published;
+- Active Ride replanning requires a future explicit operational command rather than silently changing the pre-Ride plan.
+
+The system retains provenance so the current plan can be distinguished from superseded revisions.
 
 ## 10. RouteAlternative
 
@@ -175,6 +183,10 @@ Types may include:
 - custom.
 
 A Stop becomes operationally significant when converted to a Checkpoint.
+
+Within one RoutePlan revision, Stops have stable IDs and a unique zero-based
+sequence. Reordering changes the next revision's sequence; it does not rewrite
+the prior revision.
 
 ## 12. Checkpoint
 
