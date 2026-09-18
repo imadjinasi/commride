@@ -27,7 +27,7 @@ export interface RideCommsHandlerDependencies {
   readonly now?: () => Date;
 }
 
-type RideCommsAction = 'list' | 'chat' | 'announcement';
+type RideCommsAction = 'messages' | 'announcement';
 
 interface RideCommsPathMatch {
   readonly rideId: string;
@@ -49,11 +49,16 @@ export async function handleRideCommsRequest(
     return null;
   }
 
-  const expectedMethod = path.action === 'list' ? 'GET' : 'POST';
-  if (request.method !== expectedMethod) {
+  const methodAllowed =
+    path.action === 'messages'
+      ? request.method === 'GET' || request.method === 'POST'
+      : request.method === 'POST';
+  if (!methodAllowed) {
     return errorResponse(
       'method_not_allowed',
-      `Only ${expectedMethod} is supported for this endpoint.`,
+      path.action === 'messages'
+        ? 'Only GET or POST is supported for this endpoint.'
+        : 'Only POST is supported for this endpoint.',
       405,
       requestId,
     );
@@ -101,7 +106,7 @@ export async function handleRideCommsRequest(
     );
   }
 
-  if (path.action === 'list') {
+  if (path.action === 'messages' && request.method === 'GET') {
     if (ride.status !== 'active' && ride.status !== 'completed') {
       return errorResponse(
         'ride_state_conflict',
@@ -356,7 +361,7 @@ function matchPath(pathname: string): RideCommsPathMatch | null {
   if (messages?.[1] != null) {
     return {
       rideId: decodeURIComponent(messages[1]),
-      action: 'list',
+      action: 'messages',
     };
   }
 
