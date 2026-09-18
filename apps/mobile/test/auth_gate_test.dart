@@ -1,8 +1,10 @@
 import 'package:commride_mobile/src/api/rider_profile_api.dart';
+import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/app.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/config/app_config.dart';
 import 'package:commride_mobile/src/models/rider_profile.dart';
+import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const AppConfig testConfig = AppConfig(
@@ -58,6 +60,29 @@ class FakeRiderProfileApi implements RiderProfileApi {
   }
 }
 
+class FakeVehicleApi implements VehicleApi {
+  @override
+  Future<VehicleProfile> createVehicle(VehicleProfileInput input) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteVehicle(String vehicleId) async {}
+
+  @override
+  Future<List<VehicleProfile>> listVehicles() async {
+    return const <VehicleProfile>[];
+  }
+
+  @override
+  Future<VehicleProfile> updateVehicle(
+    String vehicleId,
+    VehicleProfileInput input,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   testWidgets('signed-out user sees authentication screen', (
     WidgetTester tester,
@@ -67,6 +92,7 @@ void main() {
         config: testConfig,
         authGateway: FakeAuthGateway(null),
         riderProfileApi: FakeRiderProfileApi(null),
+        vehicleApi: FakeVehicleApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -86,6 +112,7 @@ void main() {
           const AuthUser(id: 'auth-user-1', email: 'rider@example.com'),
         ),
         riderProfileApi: FakeRiderProfileApi(null),
+        vehicleApi: FakeVehicleApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -112,6 +139,7 @@ void main() {
           const AuthUser(id: 'auth-user-1', email: 'rider@example.com'),
         ),
         riderProfileApi: FakeRiderProfileApi(profile),
+        vehicleApi: FakeVehicleApi(),
       ),
     );
     await tester.pumpAndSettle();
