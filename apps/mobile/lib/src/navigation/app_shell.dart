@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../api/vehicle_api.dart';
+import '../auth/auth_gateway.dart';
 import '../config/app_config.dart';
+import '../models/rider_profile.dart';
 import '../screens/clubs/clubs_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -8,9 +11,18 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/ride/ride_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({required this.config, super.key});
+  const AppShell({
+    required this.config,
+    required this.riderProfile,
+    required this.vehicleApi,
+    required this.authGateway,
+    super.key,
+  });
 
   final AppConfig config;
+  final RiderProfile riderProfile;
+  final VehicleApi vehicleApi;
+  final AuthGateway authGateway;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -19,19 +31,23 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _destinations = <Widget>[
-    HomeScreen(),
-    RideScreen(),
-    ExploreScreen(),
-    ClubsScreen(),
-    ProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final List<Widget> destinations = <Widget>[
+      const HomeScreen(),
+      const RideScreen(),
+      const ExploreScreen(),
+      const ClubsScreen(),
+      ProfileScreen(
+        riderProfile: widget.riderProfile,
+        vehicleApi: widget.vehicleApi,
+        authGateway: widget.authGateway,
+      ),
+    ];
+
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(index: _selectedIndex, children: _destinations),
+        child: IndexedStack(index: _selectedIndex, children: destinations),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
