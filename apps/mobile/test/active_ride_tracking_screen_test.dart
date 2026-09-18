@@ -101,10 +101,12 @@ Widget buildScreen({required RideLocationSessionController controller}) {
 }
 
 Future<void> closeFakes(
+  WidgetTester tester,
   RideLocationSessionController controller,
   FakeLocationProvider location,
   FakeRealtimeClient realtime,
 ) async {
+  await tester.pumpWidget(const SizedBox.shrink());
   await controller.stopForSignOut();
   controller.dispose();
   await location.close();
@@ -151,7 +153,7 @@ void main() {
     expect(location.requestCalls, 0);
     expect(realtime.connectCalls, 0);
 
-    await closeFakes(controller, location, realtime);
+    await closeFakes(tester, controller, location, realtime);
   });
 
   testWidgets('permission request happens only after contextual confirmation', (
@@ -180,7 +182,7 @@ void main() {
     expect(realtime.connectCalls, 1);
     expect(find.text('Tracking aktif'), findsOneWidget);
 
-    await closeFakes(controller, location, realtime);
+    await closeFakes(tester, controller, location, realtime);
   });
 
   testWidgets('dismissing explanation keeps permission untouched', (
@@ -205,7 +207,7 @@ void main() {
     expect(location.startCalls, 0);
     expect(realtime.connectCalls, 0);
 
-    await closeFakes(controller, location, realtime);
+    await closeFakes(tester, controller, location, realtime);
   });
 
   testWidgets('denied permission stays recoverable and explicit', (
@@ -233,7 +235,7 @@ void main() {
     expect(location.requestCalls, 1);
     expect(location.startCalls, 0);
 
-    await closeFakes(controller, location, realtime);
+    await closeFakes(tester, controller, location, realtime);
   });
 
   testWidgets('server Ride end visibly stops tracking', (
@@ -266,6 +268,6 @@ void main() {
     expect(location.stopCalls, 1);
     expect(realtime.disconnectCalls, 1);
 
-    await closeFakes(controller, location, realtime);
+    await closeFakes(tester, controller, location, realtime);
   });
 }
