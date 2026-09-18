@@ -34,6 +34,20 @@ iOS later uses APNs through an appropriate integration.
 
 SMS OTP is intentionally not required for MVP due to cost and operational complexity.
 
+For the custom Cloudflare Worker API, the mobile client sends its Firebase ID
+token as a Bearer token over HTTPS. The Worker verifies the token signature
+against Firebase's published public signing certificates and validates the
+Firebase project audience/issuer plus token timing and subject claims.
+
+The initial verification path uses an edge-compatible JWT library rather than
+requiring the Firebase Admin SDK or a service-account private key solely for
+ID-token verification. The Firebase project ID is configuration; no production
+Firebase project is assumed to exist from repository code alone.
+
+Standard ID-token verification does not by itself prove token revocation. A
+revocation/account-disable strategy must be addressed before production policy
+requires immediate session invalidation.
+
 ### Backend edge/API
 **Cloudflare Workers**
 
