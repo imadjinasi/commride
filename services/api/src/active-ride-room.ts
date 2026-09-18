@@ -155,6 +155,10 @@ export class ActiveRideRoom {
     _reason: string,
     _wasClean: boolean,
   ): Promise<void> {
+    if (await this.state.storage.get<string>(ENDED_AT_KEY)) {
+      return;
+    }
+
     const attachment = readAttachment(socket);
     if (attachment?.lastPresence == null) {
       return;
@@ -395,10 +399,6 @@ export class ActiveRideRoom {
       lastPresence: next,
     } satisfies ConnectionAttachment);
 
-    await this.state.storage.delete(
-      offlinePresenceKey(attachment.riderId),
-    );
-
     this.broadcast(
       serverEvent('presence.updated', {
         eventId: event.eventId,
@@ -571,7 +571,7 @@ function readAttachment(
 
 function serverEvent(
   type: string,
-  payload: Record<string, unknown>,
+  payload: unknown,
 ): string {
   return JSON.stringify({
     v: ACTIVE_RIDE_PROTOCOL_VERSION,
