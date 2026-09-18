@@ -32,6 +32,14 @@ class MemoryRiderRepository implements RiderRepository {
     return this.profile;
   }
 
+  async findById(riderId: string): Promise<RiderProfile | null> {
+    if (this.profile?.id !== riderId) {
+      return null;
+    }
+
+    return this.profile;
+  }
+
   async upsertProfile(
     input: UpsertRiderProfileInput,
   ): Promise<RiderProfile> {
