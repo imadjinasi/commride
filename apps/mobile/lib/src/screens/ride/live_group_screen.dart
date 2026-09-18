@@ -80,7 +80,8 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
             const SizedBox(height: 14),
             _GroupSummary(counts: counts),
             if (state.separation != null &&
-                state.separation!.phase != ConvoySeparationPhase.normal) ...<Widget>[
+                state.separation!.phase !=
+                    ConvoySeparationPhase.normal) ...<Widget>[
               const SizedBox(height: 12),
               _SeparationCard(separation: state.separation!),
             ],
