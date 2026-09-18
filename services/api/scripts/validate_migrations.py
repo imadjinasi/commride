@@ -35,6 +35,8 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "route_stops",
         "ride_briefings",
         "ride_briefing_acknowledgements",
+        "ride_checkpoint_checkins",
+        "ride_checkpoint_releases",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -369,6 +371,154 @@ def assert_briefing_invariants(connection: sqlite3.Connection) -> None:
         raise AssertionError("Duplicate briefing acknowledgement was accepted")
 
 
+
+def assert_checkpoint_invariants(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        UPDATE route_stops
+        SET checkpoint_type = 'fuel'
+        WHERE id = 'stop-1'
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO route_stops(
+          id,
+          route_plan_id,
+          sequence,
+          label,
+          latitude,
+          longitude,
+          stop_type,
+          checkpoint_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "stop-checkpoint-2",
+            "plan-2",
+            1,
+            "Regroup",
+            -6.9,
+            107.8,
+            "rest",
+            "regroup",
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO ride_checkpoint_checkins(
+          ride_id,
+          route_plan_id,
+          checkpoint_stop_id,
+          rider_id,
+          checked_in_at,
+          method
+        ) VALUES (?, ?, ?, ?, ?, 'manual')
+        """,
+        (
+            "ride-1",
+            "plan-2",
+            "stop-1",
+            "rider-1",
+            "2026-09-18T10:00:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_checkpoint_checkins(
+              ride_id,
+              route_plan_id,
+              checkpoint_stop_id,
+              rider_id,
+              checked_in_at,
+              method
+            ) VALUES (?, ?, ?, ?, ?, 'manual')
+            """,
+            (
+                "ride-1",
+                "plan-2",
+                "stop-1",
+                "rider-1",
+                "2026-09-18T10:01:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate checkpoint check-in was accepted")
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_checkpoint_checkins(
+              ride_id,
+              route_plan_id,
+              checkpoint_stop_id,
+              rider_id,
+              checked_in_at,
+              method
+            ) VALUES (?, ?, ?, ?, ?, 'gps')
+            """,
+            (
+                "ride-1",
+                "plan-2",
+                "stop-checkpoint-2",
+                "rider-1",
+                "2026-09-18T10:02:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Unsupported checkpoint check-in method was accepted")
+
+    connection.execute(
+        """
+        INSERT INTO ride_checkpoint_releases(
+          ride_id,
+          route_plan_id,
+          checkpoint_stop_id,
+          released_by_rider_id,
+          released_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "ride-1",
+            "plan-2",
+            "stop-1",
+            "rider-1",
+            "2026-09-18T10:05:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_checkpoint_releases(
+              ride_id,
+              route_plan_id,
+              checkpoint_stop_id,
+              released_by_rider_id,
+              released_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "ride-1",
+                "plan-2",
+                "stop-1",
+                "rider-1",
+                "2026-09-18T10:06:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate checkpoint release was accepted")
+
+
 def main() -> None:
     connection = sqlite3.connect(":memory:")
     connection.execute("PRAGMA foreign_keys = ON")
@@ -378,6 +528,7 @@ def main() -> None:
     assert_membership_invariants(connection)
     assert_route_plan_invariants(connection)
     assert_briefing_invariants(connection)
+    assert_checkpoint_invariants(connection)
     assert_foreign_keys(connection)
 
     print("migration-validation-ok")
