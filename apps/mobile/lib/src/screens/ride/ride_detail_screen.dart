@@ -52,8 +52,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
             ride.status == RideStatus.published);
     final bool canPublishBriefing = canEditRoute;
     final bool canAcknowledgeBriefing =
-        ride.status == RideStatus.draft ||
-        ride.status == RideStatus.published;
+        ride.status == RideStatus.draft || ride.status == RideStatus.published;
 
     return Scaffold(
       appBar: AppBar(title: Text(ride.title)),
@@ -96,9 +95,9 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                 onPressed: _working
                     ? null
                     : () => _openBriefing(
-                          canPublish: canPublishBriefing,
-                          canAcknowledge: canAcknowledgeBriefing,
-                        ),
+                        canPublish: canPublishBriefing,
+                        canAcknowledge: canAcknowledgeBriefing,
+                      ),
                 icon: const Icon(Icons.fact_check_outlined),
                 label: const Text('Ride Briefing'),
               ),
