@@ -17,6 +17,8 @@ Implemented foundation:
 - Route Planner flow with place search, route alternatives, Add Stop, Search Along Route, reorder/remove, Checkpoint metadata, and RoutePlan revision save;
 - Ride Briefing publish/read/readiness flow tied to immutable RoutePlan revisions;
 - Active Ride location-session core with explicit contextual permission and realtime lifecycle contracts;
+- authenticated Active Ride WebSocket protocol-v1 client;
+- non-map Live Group presence/attention state for Live, Stale, and Offline Riders;
 - explicit setup screen when Firebase or API configuration is absent.
 
 Not implemented yet:
@@ -293,3 +295,50 @@ scope. No browser/Web transport is implied by this implementation.
 This still does not make device GPS operational by itself. A verified native
 `RideLocationProvider` implementation and generated Android/iOS platform
 configuration remain required before live Ride tracking works on a real device.
+
+
+## Live Group
+
+The mobile Active Ride layer now consumes group coordination events from the
+backend protocol without requiring a native map canvas.
+
+Handled server events:
+
+- `ride.snapshot`
+- `presence.updated`
+- `quick_action.raised`
+- `ride.ended`
+- structured `error`
+
+The group controller keeps only one latest operational presence per Rider.
+An observation older than the current Rider observation is ignored. An equal
+observation may still update freshness, for example Live -> Offline after the
+socket closes.
+
+Freshness behavior:
+
+- server Live is shown as Live only while its observation remains inside the
+  documented 30-second freshness window;
+- local time may age Live -> Stale;
+- server Stale and Offline are never promoted back to Live without a new
+  presence event;
+- last-known observation age stays visible for Stale/Offline positions;
+- the list does not animate, extrapolate, or score Rider movement.
+
+The initial non-map **Live Group** screen shows:
+
+- realtime connection/end state;
+- Live / Stale / Offline counts;
+- recent structured attention actions;
+- Rider role, movement state, freshness, and observation age.
+
+Recent quick actions are deduplicated by event ID and kept in a bounded list.
+The initial labels are:
+
+- `stopping` -> **Saya Berhenti**
+- `left_behind` -> **Saya Tertinggal**
+- `need_help` -> **Butuh Bantuan**
+
+This view intentionally does not show a stream of exact coordinates as normal
+product copy. Coordinates remain part of operational presence for future map
+rendering.
