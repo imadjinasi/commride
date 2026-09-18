@@ -6,10 +6,7 @@ import 'create_ride_screen.dart';
 import 'ride_detail_screen.dart';
 
 class RideScreen extends StatefulWidget {
-  const RideScreen({
-    required this.clubRideApi,
-    super.key,
-  });
+  const RideScreen({required this.clubRideApi, super.key});
 
   final ClubRideApi clubRideApi;
 
@@ -46,30 +43,31 @@ class _RideScreenState extends State<RideScreen> {
             sliver: SliverToBoxAdapter(
               child: FutureBuilder<_RideOverview>(
                 future: _overviewFuture,
-                builder: (
-                  BuildContext context,
-                  AsyncSnapshot<_RideOverview> snapshot,
-                ) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 48),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<_RideOverview> snapshot,
+                    ) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-                  if (snapshot.hasError) {
-                    return _RideLoadError(onRetry: _refresh);
-                  }
+                      if (snapshot.hasError) {
+                        return _RideLoadError(onRetry: _refresh);
+                      }
 
-                  final _RideOverview overview =
-                      snapshot.data ?? const _RideOverview.empty();
+                      final _RideOverview overview =
+                          snapshot.data ?? const _RideOverview.empty();
 
-                  return _RideOverviewContent(
-                    overview: overview,
-                    onCreateRide: _openCreateRide,
-                    onOpenRide: _openRide,
-                  );
-                },
+                      return _RideOverviewContent(
+                        overview: overview,
+                        onCreateRide: _openCreateRide,
+                        onOpenRide: _openRide,
+                      );
+                    },
               ),
             ),
           ),
@@ -97,8 +95,9 @@ class _RideScreenState extends State<RideScreen> {
 
     final List<_ClubRides> groups = await Future.wait(
       activeClubs.map((ClubListItem clubItem) async {
-        final List<RideListItem> rides =
-            await widget.clubRideApi.listRides(clubItem.club.id);
+        final List<RideListItem> rides = await widget.clubRideApi.listRides(
+          clubItem.club.id,
+        );
         return _ClubRides(clubItem: clubItem, rides: rides);
       }),
     );
@@ -155,10 +154,8 @@ class _RideOverviewContent extends StatelessWidget {
     final List<_RideWithClub> all = overview.groups
         .expand(
           (_ClubRides group) => group.rides.map(
-            (RideListItem item) => _RideWithClub(
-              clubItem: group.clubItem,
-              rideItem: item,
-            ),
+            (RideListItem item) =>
+                _RideWithClub(clubItem: group.clubItem, rideItem: item),
           ),
         )
         .toList(growable: false);
@@ -176,10 +173,7 @@ class _RideOverviewContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         if (manageableClubs.isNotEmpty)
-          _CreateRideCard(
-            clubs: manageableClubs,
-            onCreateRide: onCreateRide,
-          ),
+          _CreateRideCard(clubs: manageableClubs, onCreateRide: onCreateRide),
         if (manageableClubs.isNotEmpty) const SizedBox(height: 20),
         if (all.isEmpty)
           const _EmptyRides(
@@ -193,10 +187,7 @@ class _RideOverviewContent extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildSections(
-    BuildContext context,
-    List<_RideWithClub> all,
-  ) {
+  List<Widget> _buildSections(BuildContext context, List<_RideWithClub> all) {
     const List<RideStatus> order = <RideStatus>[
       RideStatus.active,
       RideStatus.published,
@@ -264,10 +255,7 @@ class _RideOverviewContent extends StatelessWidget {
 }
 
 class _CreateRideCard extends StatelessWidget {
-  const _CreateRideCard({
-    required this.clubs,
-    required this.onCreateRide,
-  });
+  const _CreateRideCard({required this.clubs, required this.onCreateRide});
 
   final List<ClubListItem> clubs;
   final ValueChanged<ClubListItem> onCreateRide;
@@ -280,10 +268,7 @@ class _CreateRideCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'Plan a Ride',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Plan a Ride', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
               'Route planner akan ditambahkan sesudah lifecycle Club/Ride '
@@ -409,20 +394,14 @@ class _RideOverview {
 }
 
 class _ClubRides {
-  const _ClubRides({
-    required this.clubItem,
-    required this.rides,
-  });
+  const _ClubRides({required this.clubItem, required this.rides});
 
   final ClubListItem clubItem;
   final List<RideListItem> rides;
 }
 
 class _RideWithClub {
-  const _RideWithClub({
-    required this.clubItem,
-    required this.rideItem,
-  });
+  const _RideWithClub({required this.clubItem, required this.rideItem});
 
   final ClubListItem clubItem;
   final RideListItem rideItem;
