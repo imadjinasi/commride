@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'src/api/http_club_ride_api.dart';
 import 'src/api/http_rider_profile_api.dart';
 import 'src/api/http_vehicle_api.dart';
 import 'src/app.dart';
@@ -40,6 +41,10 @@ Future<void> main() async {
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
     );
+    final HttpClubRideApi clubRideApi = HttpClubRideApi(
+      apiBaseUrl: apiBaseUrl,
+      authGateway: authGateway,
+    );
 
     runApp(
       CommRideApp(
@@ -47,6 +52,7 @@ Future<void> main() async {
         authGateway: authGateway,
         riderProfileApi: riderProfileApi,
         vehicleApi: vehicleApi,
+        clubRideApi: clubRideApi,
       ),
     );
   } catch (_) {
