@@ -287,12 +287,29 @@ Sampling/retention should control cost and privacy exposure.
 
 ## 17. Message
 
-A communication event in a Ride.
+An immutable private communication record inside one Ride.
 
 Initial types:
 - text message;
-- Leader announcement;
-- quick-action status.
+- Leader announcement.
+
+Message identity and visibility are scoped to Ride participation. Public Club
+or social follow state never grants access to private Ride communication.
+
+Initial lifecycle semantics:
+- Active Ride participants may read and send text chat;
+- only the Ride Leader may publish a Leader announcement;
+- Completed Ride participants may read retained history but may not send;
+- Draft/Published Ride chat is not part of the initial operational slice;
+- sender Rider identity and Ride role are derived server-side;
+- a client-generated message ID is an idempotency key, not an authority claim.
+
+A Message stores communication content and sender/role snapshots. It does not
+store Rider location. Realtime delivery is an optimization after authoritative
+persistence; history is rebuilt from durable Ride records.
+
+QuickAction, Checkpoint, separation, Ride End, SOS, and other operational state
+remain typed domain events rather than being encoded as ordinary chat text.
 
 Future:
 - voice note;
