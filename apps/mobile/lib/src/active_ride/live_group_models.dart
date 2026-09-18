@@ -49,6 +49,22 @@ class LiveRiderPresence {
   final RideMovementState movement;
   final LivePresenceFreshness freshness;
 
+  LiveRiderPresence copyWith({
+    LivePresenceFreshness? freshness,
+  }) {
+    return LiveRiderPresence(
+      riderId: riderId,
+      displayName: displayName,
+      role: role,
+      latitude: latitude,
+      longitude: longitude,
+      observedAt: observedAt,
+      receivedAt: receivedAt,
+      movement: movement,
+      freshness: freshness ?? this.freshness,
+    );
+  }
+
   LivePresenceFreshness effectiveFreshness(
     DateTime now, {
     Duration liveWindow = livePresenceFreshnessWindow,
