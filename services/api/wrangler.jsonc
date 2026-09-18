@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "commride-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-18"
+
+  // Bindings are intentionally not configured until actual Cloudflare
+  // resources are created. Do not invent production resource identifiers.
+  //
+  // D1 example:
+  // "d1_databases": [
+  //   {
+  //     "binding": "DB",
+  //     "database_name": "commride",
+  //     "database_id": "<real-database-id>"
+  //   }
+  // ]
+  //
+  // Durable Object example (requires a real binding + migration):
+  // "durable_objects": {
+  //   "bindings": [
+  //     {
+  //       "name": "ACTIVE_RIDE_ROOM",
+  //       "class_name": "ActiveRideRoom"
+  //     }
+  //   ]
+  // }
+}
