@@ -45,7 +45,7 @@ class FakeAuthGateway implements AuthGateway {
 
 class FakeVehicleApi implements VehicleApi {
   FakeVehicleApi([List<VehicleProfile>? vehicles])
-      : vehicles = vehicles ?? <VehicleProfile>[];
+    : vehicles = vehicles ?? <VehicleProfile>[];
 
   final List<VehicleProfile> vehicles;
 
