@@ -318,9 +318,7 @@ void main() {
 
     realtime.controller.add(
       ActiveRideSeparationUpdated(
-        separation: separation(
-          ConvoySeparationPhase.separatedAttention,
-        ),
+        separation: separation(ConvoySeparationPhase.separatedAttention),
       ),
     );
 
@@ -328,10 +326,7 @@ void main() {
       controller.state.separation?.phase,
       ConvoySeparationPhase.separatedAttention,
     );
-    expect(
-      controller.state.separation?.isolatedRiderIds,
-      <String>['member'],
-    );
+    expect(controller.state.separation?.isolatedRiderIds, <String>['member']);
 
     controller.dispose();
     await realtime.close();
@@ -451,9 +446,7 @@ void main() {
     );
     realtime.controller.add(
       ActiveRideSeparationUpdated(
-        separation: separation(
-          ConvoySeparationPhase.separatedAttention,
-        ),
+        separation: separation(ConvoySeparationPhase.separatedAttention),
       ),
     );
     final DateTime endedAt = DateTime.utc(2026, 9, 18, 11);
