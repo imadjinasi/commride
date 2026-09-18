@@ -450,7 +450,7 @@ class _RouteSummary extends StatelessWidget {
                 : ' · ${stop.checkpointType!.label}';
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text('${entry.key + 1}. ${stop.label}${checkpoint}'),
+              child: Text('${entry.key + 1}. ${stop.label}$checkpoint'),
             );
           }),
         ],
