@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseClientEvent,
   presenceView,
+  quickActionPresenceContext,
   shouldAcceptPresence,
   type StoredPresence,
 } from '../src/active-ride/protocol';
@@ -143,6 +144,32 @@ describe('Active Ride protocol', () => {
         now,
       ).freshness,
     ).toBe('offline');
+  });
+
+  it('attaches only server-accepted latest presence to quick actions', () => {
+    expect(
+      quickActionPresenceContext(
+        storedPresence('2026-09-18T09:59:50Z'),
+        now,
+      ),
+    ).toMatchObject({
+      riderId: 'rider-1',
+      observedAt: '2026-09-18T09:59:50Z',
+      freshness: 'live',
+    });
+
+    expect(
+      quickActionPresenceContext(
+        storedPresence('2026-09-18T09:59:00Z'),
+        now,
+      ),
+    ).toMatchObject({
+      riderId: 'rider-1',
+      observedAt: '2026-09-18T09:59:00Z',
+      freshness: 'stale',
+    });
+
+    expect(quickActionPresenceContext(undefined, now)).toBeNull();
   });
 
   it('parses only the supported operational quick actions', () => {
