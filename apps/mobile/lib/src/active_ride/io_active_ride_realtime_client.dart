@@ -87,6 +87,40 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
   }
 
   @override
+  Future<void> sendQuickAction(
+    LiveQuickActionKind kind, {
+    String? reason,
+  }) async {
+    final ActiveRideSocket? socket = _socket;
+    if (socket == null) {
+      throw StateError('Active Ride realtime is not connected.');
+    }
+
+    final String? normalizedReason = switch (reason?.trim()) {
+      null || '' => null,
+      final String value when value.length <= 240 => value,
+      _ => throw ArgumentError.value(
+          reason,
+          'reason',
+          'Quick action reason must be at most 240 characters.',
+        ),
+    };
+
+    socket.send(
+      jsonEncode(<String, Object?>{
+        'v': protocolVersion,
+        'type': 'quick_action.raise',
+        'eventId': _eventIdFactory(),
+        'sentAt': _now().toUtc().toIso8601String(),
+        'payload': <String, Object?>{
+          'kind': kind.wireValue,
+          'reason': normalizedReason,
+        },
+      }),
+    );
+  }
+
+  @override
   Future<void> sendPresence(RideLocationSample sample) async {
     final ActiveRideSocket? socket = _socket;
     if (socket == null) {
