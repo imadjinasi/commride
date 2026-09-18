@@ -210,15 +210,18 @@ Start Ride must be idempotent.
 1. App foregrounds Overview
 2. Rider sees next checkpoint
 3. Rider can open Map
-4. background location updates
+4. background location updates where the platform session permits
 5. Leader sees group state
 6. checkpoint approaches
-7. Riders arrive/check in
-8. if Regroup:
-   - Leader sees arrival count
+7. Rider may explicitly tap **Saya sudah tiba**
+8. the manual check-in is shown as a Rider claim, not GPS verification
+9. if Regroup:
+   - Leader sees arrived / missing counts
    - waits as needed
-9. Leader releases group
-10. next Segment becomes active
+   - may still release with Riders missing after explicit confirmation
+10. Leader releases the current Checkpoint
+11. the next Checkpoint becomes current
+12. late check-ins to a released Checkpoint remain visible without reopening it
 
 ## 13. I'm Stopping
 
@@ -275,16 +278,18 @@ Do not claim emergency services were contacted unless they actually were.
 
 ## 17. Mandatory Regroup
 
-1. Riders approach checkpoint
-2. arrival states update
+1. Riders approach Checkpoint
+2. Riders manually check in with **Saya sudah tiba**
 3. Leader sees:
-   - arrived;
-   - en route;
-   - stale/offline.
-4. Ride status shows **Regrouping**
-5. when appropriate, Leader taps **Release Group**
-6. next Segment becomes active
-7. Riders notified
+   - checked in;
+   - missing;
+   - Live/Stale/Offline presence separately when available.
+4. Manual check-in is never labeled GPS-verified.
+5. when appropriate, Leader taps **Lepas Checkpoint**
+6. if Riders are still missing, the UI requires confirmation and names the missing count
+7. release remains an explicit Leader decision
+8. next Checkpoint becomes current
+9. late manual check-ins remain historical
 
 ## 18. Rider goes offline
 
