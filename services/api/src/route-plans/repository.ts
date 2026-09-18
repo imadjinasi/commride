@@ -7,6 +7,8 @@ import type {
 export interface RoutePlanRepository {
   findCurrent(rideId: string): Promise<RoutePlan | null>;
 
+  findById(routePlanId: string): Promise<RoutePlan | null>;
+
   replaceCurrent(input: SaveRoutePlanInput): Promise<RoutePlan>;
 }
 
@@ -87,6 +89,63 @@ export class D1RoutePlanRepository implements RoutePlanRepository {
         `,
       )
       .bind(rideId)
+      .first<RoutePlanRow>();
+
+    if (row == null) {
+      return null;
+    }
+
+    const stops = await this.database
+      .prepare(
+        `
+        SELECT
+          id,
+          sequence,
+          label,
+          formatted_address,
+          latitude,
+          longitude,
+          stop_type,
+          checkpoint_type,
+          planned_duration_minutes
+        FROM route_stops
+        WHERE route_plan_id = ?
+        ORDER BY sequence ASC
+        `,
+      )
+      .bind(row.id)
+      .all<RouteStopRow>();
+
+    return mapRoutePlan(row, stops.results);
+  }
+
+  async findById(routePlanId: string): Promise<RoutePlan | null> {
+    const row = await this.database
+      .prepare(
+        `
+        SELECT
+          id,
+          ride_id,
+          revision,
+          created_by_rider_id,
+          travel_mode,
+          origin_label,
+          origin_latitude,
+          origin_longitude,
+          destination_label,
+          destination_latitude,
+          destination_longitude,
+          distance_meters,
+          duration_seconds,
+          encoded_polyline,
+          is_current,
+          created_at
+        FROM route_plans
+        WHERE id = ?
+        LIMIT 1
+        `,
+      )
+      .bind(routePlanId)
       .first<RoutePlanRow>();
 
     if (row == null) {
