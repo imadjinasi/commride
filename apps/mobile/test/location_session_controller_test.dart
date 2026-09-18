@@ -13,17 +13,15 @@ Ride ride(RideStatus status) {
     title: 'Sunday Ride',
     status: status,
     scheduledStartAt: null,
-    actualStartAt:
-        status == RideStatus.active ? DateTime.utc(2026, 9, 18, 9) : null,
+    actualStartAt: status == RideStatus.active
+        ? DateTime.utc(2026, 9, 18, 9)
+        : null,
     endedAt: null,
     notes: null,
   );
 }
 
-RideLocationSample sample(
-  int second, {
-  double latitude = -6.732,
-}) {
+RideLocationSample sample(int second, {double latitude = -6.732}) {
   return RideLocationSample(
     latitude: latitude,
     longitude: 108.552,
@@ -119,8 +117,7 @@ void main() {
   test('does not request location or connect for a non-Active Ride', () async {
     final FakeLocationProvider location = FakeLocationProvider();
     final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
+    final RideLocationSessionController session = RideLocationSessionController(
       locationProvider: location,
       realtimeClient: realtime,
     );
@@ -138,32 +135,35 @@ void main() {
     await realtime.close();
   });
 
-  test('requests permission only when Active Ride tracking is started', () async {
-    final FakeLocationProvider location = FakeLocationProvider(
-      permission: RideLocationPermission.denied,
-      requestedPermission: RideLocationPermission.denied,
-    );
-    final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+  test(
+    'requests permission only when Active Ride tracking is started',
+    () async {
+      final FakeLocationProvider location = FakeLocationProvider(
+        permission: RideLocationPermission.denied,
+        requestedPermission: RideLocationPermission.denied,
+      );
+      final FakeRealtimeClient realtime = FakeRealtimeClient();
+      final RideLocationSessionController session =
+          RideLocationSessionController(
+            locationProvider: location,
+            realtimeClient: realtime,
+          );
 
-    expect(location.requestCalls, 0);
+      expect(location.requestCalls, 0);
 
-    await session.startTracking(ride(RideStatus.active));
+      await session.startTracking(ride(RideStatus.active));
 
-    expect(location.checkCalls, 1);
-    expect(location.requestCalls, 1);
-    expect(session.state.phase, RideLocationSessionPhase.denied);
-    expect(location.startCalls, 0);
-    expect(realtime.connectCalls, 0);
+      expect(location.checkCalls, 1);
+      expect(location.requestCalls, 1);
+      expect(session.state.phase, RideLocationSessionPhase.denied);
+      expect(location.startCalls, 0);
+      expect(realtime.connectCalls, 0);
 
-    session.dispose();
-    await location.close();
-    await realtime.close();
-  });
+      session.dispose();
+      await location.close();
+      await realtime.close();
+    },
+  );
 
   test('starts provider and realtime only after granted permission', () async {
     final FakeLocationProvider location = FakeLocationProvider(
@@ -171,8 +171,7 @@ void main() {
       requestedPermission: RideLocationPermission.granted,
     );
     final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
+    final RideLocationSessionController session = RideLocationSessionController(
       locationProvider: location,
       realtimeClient: realtime,
     );
@@ -194,35 +193,37 @@ void main() {
     await realtime.close();
   });
 
-  test('publishes a location sample with its original observation time', () async {
-    final FakeLocationProvider location = FakeLocationProvider();
-    final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+  test(
+    'publishes a location sample with its original observation time',
+    () async {
+      final FakeLocationProvider location = FakeLocationProvider();
+      final FakeRealtimeClient realtime = FakeRealtimeClient();
+      final RideLocationSessionController session =
+          RideLocationSessionController(
+            locationProvider: location,
+            realtimeClient: realtime,
+          );
 
-    await session.startTracking(ride(RideStatus.active));
-    final RideLocationSample observed = sample(7);
-    location.controller.add(observed);
-    await flushAsync();
+      await session.startTracking(ride(RideStatus.active));
+      final RideLocationSample observed = sample(7);
+      location.controller.add(observed);
+      await flushAsync();
 
-    expect(realtime.sent, hasLength(1));
-    expect(realtime.sent.single.observedAt, observed.observedAt);
-    expect(session.state.lastSample?.observedAt, observed.observedAt);
+      expect(realtime.sent, hasLength(1));
+      expect(realtime.sent.single.observedAt, observed.observedAt);
+      expect(session.state.lastSample?.observedAt, observed.observedAt);
 
-    session.dispose();
-    await flushAsync();
-    await location.close();
-    await realtime.close();
-  });
+      session.dispose();
+      await flushAsync();
+      await location.close();
+      await realtime.close();
+    },
+  );
 
   test('keeps only the newest unsent presence while degraded', () async {
     final FakeLocationProvider location = FakeLocationProvider();
     final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
+    final RideLocationSessionController session = RideLocationSessionController(
       locationProvider: location,
       realtimeClient: realtime,
     );
@@ -258,43 +259,42 @@ void main() {
     await realtime.close();
   });
 
-  test('server ride.ended stops local provider and realtime publishing', () async {
-    final FakeLocationProvider location = FakeLocationProvider();
-    final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-    );
+  test(
+    'server ride.ended stops local provider and realtime publishing',
+    () async {
+      final FakeLocationProvider location = FakeLocationProvider();
+      final FakeRealtimeClient realtime = FakeRealtimeClient();
+      final RideLocationSessionController session =
+          RideLocationSessionController(
+            locationProvider: location,
+            realtimeClient: realtime,
+          );
 
-    await session.startTracking(ride(RideStatus.active));
-    realtime.controller.add(
-      ActiveRideEnded(endedAt: DateTime.utc(2026, 9, 18, 11)),
-    );
-    await flushAsync();
+      await session.startTracking(ride(RideStatus.active));
+      realtime.controller.add(
+        ActiveRideEnded(endedAt: DateTime.utc(2026, 9, 18, 11)),
+      );
+      await flushAsync();
 
-    expect(
-      session.state.phase,
-      RideLocationSessionPhase.stoppedByRideEnd,
-    );
-    expect(location.stopCalls, 1);
-    expect(realtime.disconnectCalls, 1);
+      expect(session.state.phase, RideLocationSessionPhase.stoppedByRideEnd);
+      expect(location.stopCalls, 1);
+      expect(realtime.disconnectCalls, 1);
 
-    location.controller.add(sample(10));
-    await flushAsync();
-    expect(realtime.sent, isEmpty);
+      location.controller.add(sample(10));
+      await flushAsync();
+      expect(realtime.sent, isEmpty);
 
-    session.dispose();
-    await flushAsync();
-    await location.close();
-    await realtime.close();
-  });
+      session.dispose();
+      await flushAsync();
+      await location.close();
+      await realtime.close();
+    },
+  );
 
   test('sign-out stop tears down provider and realtime session', () async {
     final FakeLocationProvider location = FakeLocationProvider();
     final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session =
-        RideLocationSessionController(
+    final RideLocationSessionController session = RideLocationSessionController(
       locationProvider: location,
       realtimeClient: realtime,
     );
