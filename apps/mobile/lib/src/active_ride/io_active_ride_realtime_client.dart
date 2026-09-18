@@ -114,27 +114,17 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
 
   Future<void> _openSocket(int generation) async {
     final String? rideId = _rideId;
-    if (
-      !_shouldReconnect ||
-      rideId == null ||
-      generation != _generation
-    ) {
+    if (!_shouldReconnect || rideId == null || generation != _generation) {
       return;
     }
 
     final String token = await _authGateway.idToken();
     final ActiveRideSocket socket = await _socketConnector.connect(
       _liveUri(rideId),
-      headers: <String, String>{
-        'authorization': 'Bearer $token',
-      },
+      headers: <String, String>{'authorization': '***'},
     );
 
-    if (
-      !_shouldReconnect ||
-      generation != _generation ||
-      rideId != _rideId
-    ) {
+    if (!_shouldReconnect || generation != _generation || rideId != _rideId) {
       await socket.close(1000, 'Connection no longer needed');
       return;
     }
@@ -215,12 +205,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
       final Object? code = rawPayload['code'];
       final Object? message = rawPayload['message'];
       if (code is String && message is String) {
-        _events.add(
-          ActiveRideServerError(
-            code: code,
-            message: message,
-          ),
-        );
+        _events.add(ActiveRideServerError(code: code, message: message));
       }
     }
   }
@@ -237,12 +222,10 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
   }
 
   void _scheduleReconnect(int generation) {
-    if (
-      _reconnectScheduled ||
-      !_shouldReconnect ||
-      generation != _generation ||
-      _rideId == null
-    ) {
+    if (_reconnectScheduled ||
+        !_shouldReconnect ||
+        generation != _generation ||
+        _rideId == null) {
       return;
     }
 
@@ -252,11 +235,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
 
     unawaited(() async {
       await _reconnectDelay(delay);
-      if (
-        !_shouldReconnect ||
-        generation != _generation ||
-        _rideId == null
-      ) {
+      if (!_shouldReconnect || generation != _generation || _rideId == null) {
         _reconnectScheduled = false;
         return;
       }
@@ -273,9 +252,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
     }());
   }
 
-  Future<void> _disconnectCurrent({
-    required bool emitEvent,
-  }) async {
+  Future<void> _disconnectCurrent({required bool emitEvent}) async {
     final StreamSubscription<Object?>? subscription = _socketSubscription;
     _socketSubscription = null;
     await subscription?.cancel();
@@ -301,8 +278,8 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
       'http' => 'ws',
       'wss' || 'ws' => httpUri.scheme,
       _ => throw StateError(
-          'CommRide API base URL must use http, https, ws, or wss.',
-        ),
+        'CommRide API base URL must use http, https, ws, or wss.',
+      ),
     };
 
     return httpUri.replace(
