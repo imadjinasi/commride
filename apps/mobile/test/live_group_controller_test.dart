@@ -98,7 +98,9 @@ void main() {
     );
 
     expect(
-      controller.state.presences.map((LiveRiderPresence value) => value.riderId),
+      controller.state.presences.map(
+        (LiveRiderPresence value) => value.riderId,
+      ),
       <String>['leader', 'sweeper', 'member'],
     );
 
@@ -305,7 +307,9 @@ void main() {
     );
 
     expect(
-      controller.state.quickActions.map((LiveQuickAction value) => value.eventId),
+      controller.state.quickActions.map(
+        (LiveQuickAction value) => value.eventId,
+      ),
       <String>['three', 'two'],
     );
 
