@@ -109,8 +109,6 @@ Future<void> closeFakes(
   await tester.pumpWidget(const SizedBox.shrink());
   await controller.stopForSignOut();
   controller.dispose();
-  await location.close();
-  await realtime.close();
 }
 
 Future<void> pumpUntilPhase(
