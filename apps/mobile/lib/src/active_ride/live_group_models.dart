@@ -49,9 +49,7 @@ class LiveRiderPresence {
   final RideMovementState movement;
   final LivePresenceFreshness freshness;
 
-  LiveRiderPresence copyWith({
-    LivePresenceFreshness? freshness,
-  }) {
+  LiveRiderPresence copyWith({LivePresenceFreshness? freshness}) {
     return LiveRiderPresence(
       riderId: riderId,
       displayName: displayName,
