@@ -203,17 +203,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Publish Briefing'), findsOneWidget);
-    await tester.drag(
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pumpAndSettle();
     expect(find.text('Fuel One'), findsOneWidget);
 
-    await tester.drag(
-      find.byType(ListView),
-      const Offset(0, 300),
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Publish Briefing'));
     await tester.pumpAndSettle();
