@@ -323,6 +323,8 @@ Freshness behavior:
 - server Stale and Offline are never promoted back to Live without a new
   presence event;
 - last-known observation age stays visible for Stale/Offline positions;
+- Ride end downgrades all retained last-known Rider presence to Offline while
+  preserving the last observation timestamp;
 - the list does not animate, extrapolate, or score Rider movement.
 
 The initial non-map **Live Group** screen shows:
