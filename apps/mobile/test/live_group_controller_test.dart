@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:commride_mobile/src/active_ride/convoy_separation.dart';
 import 'package:commride_mobile/src/active_ride/live_group_controller.dart';
 import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/location_provider.dart';
@@ -57,6 +58,28 @@ LiveRiderPresence presence({
   );
 }
 
+LiveConvoySeparation separation(
+  ConvoySeparationPhase phase, {
+  bool dataSufficient = true,
+}) {
+  return LiveConvoySeparation(
+    phase: phase,
+    dataSufficient: dataSufficient,
+    components: const <List<String>>[
+      <String>['leader', 'sweeper'],
+      <String>['member'],
+    ],
+    isolatedRiderIds: const <String>['member'],
+    sweeperComponentRiderIds: const <String>['leader', 'sweeper'],
+    firstSplitObservedAt: DateTime.utc(2026, 9, 18, 10),
+    confirmedAt: phase == ConvoySeparationPhase.separatedAttention
+        ? DateTime.utc(2026, 9, 18, 10, 0, 20)
+        : null,
+    recoveryObservedAt: null,
+    lastUpdatedAt: DateTime.utc(2026, 9, 18, 10, 0, 20),
+  );
+}
+
 LiveQuickAction quickAction({
   required String eventId,
   required DateTime raisedAt,
@@ -85,6 +108,7 @@ void main() {
     realtime.controller.add(
       ActiveRideSnapshotReceived(
         rideId: 'ride-1',
+        separation: separation(ConvoySeparationPhase.splitCandidate),
         presences: <LiveRiderPresence>[
           presence(
             riderId: 'member',
@@ -113,6 +137,10 @@ void main() {
         (LiveRiderPresence value) => value.riderId,
       ),
       <String>['leader', 'sweeper', 'member'],
+    );
+    expect(
+      controller.state.separation?.phase,
+      ConvoySeparationPhase.splitCandidate,
     );
 
     realtime.controller.add(
@@ -281,6 +309,34 @@ void main() {
     await realtime.close();
   });
 
+  test('separation updates replace the server-derived convoy state', () async {
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final ActiveRideGroupController controller = ActiveRideGroupController(
+      rideId: 'ride-1',
+      realtimeClient: realtime,
+    )..start();
+
+    realtime.controller.add(
+      ActiveRideSeparationUpdated(
+        separation: separation(
+          ConvoySeparationPhase.separatedAttention,
+        ),
+      ),
+    );
+
+    expect(
+      controller.state.separation?.phase,
+      ConvoySeparationPhase.separatedAttention,
+    );
+    expect(
+      controller.state.separation?.isolatedRiderIds,
+      <String>['member'],
+    );
+
+    controller.dispose();
+    await realtime.close();
+  });
+
   test('quick actions are idempotent and bounded', () async {
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final ActiveRideGroupController controller = ActiveRideGroupController(
@@ -393,6 +449,13 @@ void main() {
         ActiveRideRealtimeConnectionState.connected,
       ),
     );
+    realtime.controller.add(
+      ActiveRideSeparationUpdated(
+        separation: separation(
+          ConvoySeparationPhase.separatedAttention,
+        ),
+      ),
+    );
     final DateTime endedAt = DateTime.utc(2026, 9, 18, 11);
     realtime.controller.add(ActiveRideEnded(endedAt: endedAt));
 
@@ -406,6 +469,7 @@ void main() {
       LivePresenceFreshness.offline,
     );
     expect(controller.state.presences.single.observedAt, observedAt);
+    expect(controller.state.separation, isNull);
 
     controller.dispose();
     await realtime.close();
