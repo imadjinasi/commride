@@ -222,9 +222,16 @@ export async function handleRideCommsRequest(
     );
   }
 
-  await broadcastBestEffort(path.rideId, persisted, dependencies);
+  const createdNow = persisted.id === messageInput.id;
+  if (createdNow) {
+    await broadcastBestEffort(path.rideId, persisted, dependencies);
+  }
 
-  return jsonResponse({ message: persisted }, 201, requestId);
+  return jsonResponse(
+    { message: persisted },
+    createdNow ? 201 : 200,
+    requestId,
+  );
 }
 
 async function broadcastBestEffort(
