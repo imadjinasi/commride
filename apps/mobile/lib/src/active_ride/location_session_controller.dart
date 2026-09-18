@@ -248,6 +248,10 @@ class RideLocationSessionController extends ChangeNotifier {
 
   void _handleRealtimeEvent(ActiveRideRealtimeEvent event) {
     if (event is ActiveRideEnded) {
+      final StreamSubscription<ActiveRideRealtimeEvent>? subscription =
+          _realtimeSubscription;
+      _realtimeSubscription = null;
+      unawaited(subscription?.cancel());
       unawaited(stopForRideEnd());
       return;
     }
