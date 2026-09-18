@@ -202,6 +202,17 @@ Types:
 - Finish
 - Custom
 
+Initial operational semantics:
+- Checkpoint identity is the stable RouteStop ID inside one immutable RoutePlan revision;
+- the Active Ride uses the current RoutePlan revision, which cannot be replaced while the Ride is Active;
+- operational state is derived as **current**, **upcoming**, or **released**;
+- only the Ride Leader may release a Checkpoint;
+- releases advance in route sequence and never regress operational history;
+- release is explicit even when all Riders already checked in;
+- the Leader may release with Riders still missing, but the missing count remains explicit;
+- a late manual check-in after release remains historical and does not revert the Checkpoint to current;
+- manual check-in is a Rider claim of arrival, not GPS verification.
+
 Possible attributes:
 - expected arrival;
 - planned duration;
@@ -339,10 +350,17 @@ SOS is not equivalent to contacting public emergency services unless such an int
 
 Connects Rider and Checkpoint with arrival data.
 
-Candidate fields:
-- arrived_at;
-- method;
-- optional location confirmation.
+Initial MVP behavior:
+- a participating Rider may check in only themselves;
+- check-in is idempotent for Rider + Checkpoint;
+- the server records the receipt timestamp;
+- the initial method is `manual`;
+- no device location is required for manual check-in;
+- CheckIn remains visible after a Checkpoint is released.
+
+Candidate future fields:
+- optional device observation timestamp;
+- optional location confirmation method.
 
 The Leader can see arrival counts without needing to infer solely from GPS.
 
