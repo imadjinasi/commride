@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'src/api/http_rider_profile_api.dart';
+import 'src/api/http_vehicle_api.dart';
 import 'src/app.dart';
 import 'src/auth/firebase_auth_gateway.dart';
 import 'src/config/app_config.dart';
@@ -35,12 +36,17 @@ Future<void> main() async {
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
     );
+    final HttpVehicleApi vehicleApi = HttpVehicleApi(
+      apiBaseUrl: apiBaseUrl,
+      authGateway: authGateway,
+    );
 
     runApp(
       CommRideApp(
         config: config,
         authGateway: authGateway,
         riderProfileApi: riderProfileApi,
+        vehicleApi: vehicleApi,
       ),
     );
   } catch (_) {
