@@ -121,7 +121,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
     final String token = await _authGateway.idToken();
     final ActiveRideSocket socket = await _socketConnector.connect(
       _liveUri(rideId),
-      headers: <String, String>{'authorization': 'Bearer ' + token},
+      headers: <String, String>{'authorization': <String>['Bearer', token].join(' ')},
     );
 
     if (!_shouldReconnect || generation != _generation || rideId != _rideId) {
