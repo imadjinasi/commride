@@ -12,12 +12,14 @@ export interface CheckpointParticipant {
 }
 
 export interface CheckpointRelease {
+  readonly routePlanId: string;
   readonly checkpointId: string;
   readonly releasedByRiderId: string;
   readonly releasedAt: string;
 }
 
 export interface CheckpointCheckIn {
+  readonly routePlanId: string;
   readonly checkpointId: string;
   readonly riderId: string;
   readonly checkedInAt: string;
