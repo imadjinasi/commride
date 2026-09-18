@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'api/checkpoint_api.dart';
 import 'api/club_ride_api.dart';
 import 'api/rider_profile_api.dart';
 import 'api/ride_briefing_api.dart';
@@ -18,6 +19,7 @@ class CommRideApp extends StatelessWidget {
     required this.riderProfileApi,
     required this.vehicleApi,
     required this.clubRideApi,
+    required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
     super.key,
@@ -28,6 +30,7 @@ class CommRideApp extends StatelessWidget {
   final RiderProfileApi riderProfileApi;
   final VehicleApi vehicleApi;
   final ClubRideApi clubRideApi;
+  final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
 
@@ -44,6 +47,7 @@ class CommRideApp extends StatelessWidget {
         riderProfileApi: riderProfileApi,
         vehicleApi: vehicleApi,
         clubRideApi: clubRideApi,
+        checkpointApi: checkpointApi,
         routePlannerApi: routePlannerApi,
         rideBriefingApi: rideBriefingApi,
       ),
