@@ -265,3 +265,31 @@ The intended minimum-permission direction is:
 
 The native adapter must be tested on real Android/iOS lifecycle transitions
 before #30 can be considered fully closed.
+
+
+## Active Ride realtime mobile client
+
+The mobile code now includes an Android/iOS-oriented Dart IO WebSocket adapter
+for the backend Active Ride protocol v1.
+
+Behavior:
+
+- converts the configured CommRide API base URL from `https/http` to
+  `wss/ws`;
+- connects to `/v1/rides/:rideId/live?v=1`;
+- obtains a fresh Firebase ID token for each initial/reconnect attempt;
+- sends the token only as an Authorization Bearer header;
+- never sends authoritative Rider ID in `presence.update` payloads;
+- preserves each device sample's original `observedAt` timestamp;
+- emits structured connection-state events to the location-session controller;
+- parses server `ride.ended` and stops reconnect intent;
+- exposes structured protocol errors without fabricating disconnects;
+- reconnects after unexpected socket loss with bounded backoff of 1s, 2s, 5s,
+  then 10s.
+
+The adapter uses `dart:io`, matching the current Android/iOS-first product
+scope. No browser/Web transport is implied by this implementation.
+
+This still does not make device GPS operational by itself. A verified native
+`RideLocationProvider` implementation and generated Android/iOS platform
+configuration remain required before live Ride tracking works on a real device.
