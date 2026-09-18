@@ -35,17 +35,14 @@ abstract final class CommRideTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: CommRideColors.roadWhite,
         indicatorColor: CommRideColors.signalOrange.withValues(alpha: 0.14),
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
-          (Set<WidgetState> states) {
-            final FontWeight weight = states.contains(WidgetState.selected)
-                ? FontWeight.w700
-                : FontWeight.w500;
-            return TextStyle(
-              color: CommRideColors.commBlack,
-              fontWeight: weight,
-            );
-          },
-        ),
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((
+          Set<WidgetState> states,
+        ) {
+          final FontWeight weight = states.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500;
+          return TextStyle(color: CommRideColors.commBlack, fontWeight: weight);
+        }),
       ),
       textTheme: const TextTheme(
         headlineSmall: TextStyle(
