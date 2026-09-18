@@ -194,10 +194,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
             })
             .toList(growable: false);
         _events.add(
-          ActiveRideSnapshotReceived(
-            rideId: rawRideId,
-            presences: presences,
-          ),
+          ActiveRideSnapshotReceived(rideId: rawRideId, presences: presences),
         );
       } on FormatException {
         return;
