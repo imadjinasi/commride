@@ -142,6 +142,13 @@ export async function handleClubRideRequest(
         'active',
         'completed',
       );
+    case 'cancel_ride':
+      return cancelRide(
+        requestId,
+        route.rideId,
+        rider,
+        dependencies,
+      );
   }
 }
 
@@ -468,6 +475,78 @@ async function joinRide(
   }
 
   return jsonResponse({ membership }, 200, requestId);
+}
+
+async function cancelRide(
+  requestId: string,
+  rideId: string,
+  rider: RiderProfile,
+  dependencies: ClubRideHandlerDependencies,
+): Promise<Response> {
+  const leaderAuthorization = await requireRideLeader(
+    rideId,
+    rider.id,
+    dependencies.clubRideRepository,
+  );
+  if (leaderAuthorization != null) {
+    return errorResponse(
+      leaderAuthorization.code,
+      leaderAuthorization.message,
+      leaderAuthorization.status,
+      requestId,
+    );
+  }
+
+  const current = await dependencies.clubRideRepository.findRide(rideId);
+  if (current == null) {
+    return errorResponse(
+      'ride_not_found',
+      'The Ride does not exist.',
+      404,
+      requestId,
+    );
+  }
+
+  if (current.status === 'cancelled') {
+    return jsonResponse({ ride: current }, 200, requestId);
+  }
+
+  if (current.status !== 'draft' && current.status !== 'published') {
+    return errorResponse(
+      'ride_state_conflict',
+      'Only Draft or Published Rides can be cancelled.',
+      409,
+      requestId,
+    );
+  }
+
+  const timestamp = (dependencies.now?.() ?? new Date()).toISOString();
+  const updated = await dependencies.clubRideRepository.transitionRideStatus(
+    rideId,
+    current.status,
+    'cancelled',
+    timestamp,
+  );
+
+  if (updated == null) {
+    return errorResponse(
+      'ride_not_found',
+      'The Ride does not exist.',
+      404,
+      requestId,
+    );
+  }
+
+  if (updated.status !== 'cancelled') {
+    return errorResponse(
+      'ride_state_conflict',
+      'The Ride changed state before cancellation completed.',
+      409,
+      requestId,
+    );
+  }
+
+  return jsonResponse({ ride: updated }, 200, requestId);
 }
 
 async function transitionRide(
@@ -806,7 +885,8 @@ type MatchedRoute =
   | { readonly kind: 'join_ride'; readonly rideId: string }
   | { readonly kind: 'publish_ride'; readonly rideId: string }
   | { readonly kind: 'start_ride'; readonly rideId: string }
-  | { readonly kind: 'end_ride'; readonly rideId: string };
+  | { readonly kind: 'end_ride'; readonly rideId: string }
+  | { readonly kind: 'cancel_ride'; readonly rideId: string };
 
 function matchRoute(pathname: string): MatchedRoute | null {
   if (pathname === '/v1/clubs') {
@@ -849,7 +929,8 @@ function matchRoute(pathname: string): MatchedRoute | null {
     };
   }
 
-  const rideAction = /^\/v1\/rides\/([^/]+)\/(join|publish|start|end)$/.exec(
+  const rideAction =
+    /^\/v1\/rides\/([^/]+)\/(join|publish|start|end|cancel)$/.exec(
     pathname,
   );
   if (rideAction?.[1] == null || rideAction[2] == null) {
@@ -866,6 +947,8 @@ function matchRoute(pathname: string): MatchedRoute | null {
       return { kind: 'start_ride', rideId };
     case 'end':
       return { kind: 'end_ride', rideId };
+    case 'cancel':
+      return { kind: 'cancel_ride', rideId };
     default:
       return null;
   }
