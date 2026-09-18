@@ -1,3 +1,4 @@
+import type { ActiveRideGateway } from '../active-ride/gateway';
 import { authenticateRider } from '../auth/authenticated-rider';
 import type { IdentityVerifier } from '../auth/identity';
 import { errorResponse, jsonResponse } from '../http/json';
@@ -16,6 +17,7 @@ export interface ClubRideHandlerDependencies {
   readonly identityVerifier: IdentityVerifier;
   readonly riderRepository: RiderRepository;
   readonly clubRideRepository: ClubRideRepository;
+  readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -582,6 +584,13 @@ async function transitionRide(
   }
 
   if (current.status === nextStatus) {
+    if (nextStatus === 'completed') {
+      await endActiveRideRoomBestEffort(
+        rideId,
+        current.endedAt ?? (dependencies.now?.() ?? new Date()).toISOString(),
+        dependencies,
+      );
+    }
     return jsonResponse({ ride: current }, 200, requestId);
   }
 
@@ -620,7 +629,32 @@ async function transitionRide(
     );
   }
 
+  if (nextStatus === 'completed') {
+    await endActiveRideRoomBestEffort(
+      rideId,
+      updated.endedAt ?? timestamp,
+      dependencies,
+    );
+  }
+
   return jsonResponse({ ride: updated }, 200, requestId);
+}
+
+async function endActiveRideRoomBestEffort(
+  rideId: string,
+  endedAt: string,
+  dependencies: ClubRideHandlerDependencies,
+): Promise<void> {
+  if (dependencies.activeRideGateway == null) {
+    return;
+  }
+
+  try {
+    await dependencies.activeRideGateway.endRide(rideId, endedAt);
+  } catch {
+    // D1 Ride state remains authoritative. A repeated idempotent End Ride
+    // command retries room termination, and new room connections are rejected.
+  }
 }
 
 type AuthorizationFailure = {
