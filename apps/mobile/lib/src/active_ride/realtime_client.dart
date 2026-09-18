@@ -1,6 +1,7 @@
 import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'location_provider.dart';
+import '../models/ride_message.dart';
 
 enum ActiveRideRealtimeConnectionState { disconnected, connecting, connected }
 
@@ -48,6 +49,12 @@ class ActiveRideQuickActionRaised extends ActiveRideRealtimeEvent {
   const ActiveRideQuickActionRaised({required this.action});
 
   final LiveQuickAction action;
+}
+
+class ActiveRideMessageCreated extends ActiveRideRealtimeEvent {
+  const ActiveRideMessageCreated({required this.message});
+
+  final RideMessage message;
 }
 
 class ActiveRideServerError extends ActiveRideRealtimeEvent {
