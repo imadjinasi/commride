@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SetupRequiredScreen extends StatelessWidget {
-  const SetupRequiredScreen({
-    required this.message,
-    super.key,
-  });
+  const SetupRequiredScreen({required this.message, super.key});
 
   final String message;
 
