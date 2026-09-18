@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:commride_mobile/src/active_ride/io_active_ride_realtime_client.dart';
+import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/location_provider.dart';
 import 'package:commride_mobile/src/active_ride/realtime_client.dart';
 import 'package:commride_mobile/src/active_ride/socket.dart';
@@ -293,4 +294,193 @@ void main() {
     await client.disconnect();
     await socket.closeIncoming();
   });
+
+  test('ride.snapshot maps the initial Live Group presence list', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+    );
+    final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
+
+    await client.connect('ride-1');
+    socket.controller.add(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'type': 'ride.snapshot',
+        'sentAt': '2026-09-18T10:00:00Z',
+        'payload': <String, Object?>{
+          'rideId': 'ride-1',
+          'protocolVersion': 1,
+          'presences': <Object?>[
+            <String, Object?>{
+              'riderId': 'rider-1',
+              'displayName': 'Rider One',
+              'role': 'sweeper',
+              'latitude': -6.732,
+              'longitude': 108.552,
+              'observedAt': '2026-09-18T09:59:55Z',
+              'receivedAt': '2026-09-18T09:59:56Z',
+              'movement': 'moving',
+              'connected': true,
+              'freshness': 'live',
+            },
+          ],
+        },
+      }),
+    );
+    await flushAsync();
+
+    final ActiveRideSnapshotReceived snapshot = events
+        .whereType<ActiveRideSnapshotReceived>()
+        .single;
+    expect(snapshot.rideId, 'ride-1');
+    expect(snapshot.presences, hasLength(1));
+    expect(snapshot.presences.single.displayName, 'Rider One');
+    expect(snapshot.presences.single.freshness, LivePresenceFreshness.live);
+
+    await subscription.cancel();
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
+  test('presence.updated maps Stale and Offline-safe presence state', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+    );
+    final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
+
+    await client.connect('ride-1');
+    socket.controller.add(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'type': 'presence.updated',
+        'sentAt': '2026-09-18T10:00:00Z',
+        'payload': <String, Object?>{
+          'presence': <String, Object?>{
+            'riderId': 'rider-2',
+            'displayName': 'Rider Two',
+            'role': 'member',
+            'latitude': -6.733,
+            'longitude': 108.553,
+            'observedAt': '2026-09-18T09:59:00Z',
+            'receivedAt': '2026-09-18T10:00:00Z',
+            'movement': 'stopped',
+            'connected': true,
+            'freshness': 'stale',
+          },
+        },
+      }),
+    );
+    await flushAsync();
+
+    final ActiveRidePresenceUpdated updated = events
+        .whereType<ActiveRidePresenceUpdated>()
+        .single;
+    expect(updated.presence.riderId, 'rider-2');
+    expect(updated.presence.freshness, LivePresenceFreshness.stale);
+    expect(updated.presence.movement, RideMovementState.stopped);
+
+    await subscription.cancel();
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
+  test('quick_action.raised maps structured Rider attention', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+    );
+    final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
+
+    await client.connect('ride-1');
+    socket.controller.add(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'type': 'quick_action.raised',
+        'sentAt': '2026-09-18T10:00:00Z',
+        'payload': <String, Object?>{
+          'eventId': 'quick-1',
+          'rider': <String, Object?>{
+            'riderId': 'rider-2',
+            'displayName': 'Rider Two',
+            'role': 'member',
+          },
+          'kind': 'left_behind',
+          'reason': 'Lampu merah memisahkan rombongan.',
+          'raisedAt': '2026-09-18T10:00:00Z',
+        },
+      }),
+    );
+    await flushAsync();
+
+    final ActiveRideQuickActionRaised raised = events
+        .whereType<ActiveRideQuickActionRaised>()
+        .single;
+    expect(raised.action.eventId, 'quick-1');
+    expect(raised.action.kind, LiveQuickActionKind.leftBehind);
+    expect(raised.action.displayName, 'Rider Two');
+
+    await subscription.cancel();
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
+  test('malformed Live Group event does not fabricate state', () async {
+    final FakeSocket socket = FakeSocket();
+    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(<String>['token-1']),
+      socketConnector: RecordingConnector(<FakeSocket>[socket]),
+    );
+    final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
+
+    await client.connect('ride-1');
+    socket.controller.add(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'type': 'presence.updated',
+        'sentAt': '2026-09-18T10:00:00Z',
+        'payload': <String, Object?>{
+          'presence': <String, Object?>{
+            'riderId': 'rider-2',
+            'displayName': 'Rider Two',
+            'role': 'member',
+            'latitude': 999,
+            'longitude': 108.553,
+            'observedAt': '2026-09-18T09:59:00Z',
+            'receivedAt': '2026-09-18T10:00:00Z',
+            'movement': 'moving',
+            'freshness': 'live',
+          },
+        },
+      }),
+    );
+    await flushAsync();
+
+    expect(events.whereType<ActiveRidePresenceUpdated>(), isEmpty);
+
+    await subscription.cancel();
+    await client.disconnect();
+    await socket.closeIncoming();
+  });
+
 }
