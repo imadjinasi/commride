@@ -1,13 +1,7 @@
-enum AppEnvironment {
-  development,
-  production,
-}
+enum AppEnvironment { development, production }
 
 class AppConfig {
-  const AppConfig({
-    required this.environment,
-    required this.apiBaseUrl,
-  });
+  const AppConfig({required this.environment, required this.apiBaseUrl});
 
   final AppEnvironment environment;
   final Uri? apiBaseUrl;
