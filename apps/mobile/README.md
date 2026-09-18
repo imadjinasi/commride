@@ -15,6 +15,7 @@ Implemented foundation:
 - Rider Vehicle profile management;
 - Club/Ride lifecycle;
 - Route Planner flow with place search, route alternatives, Add Stop, Search Along Route, reorder/remove, Checkpoint metadata, and RoutePlan revision save;
+- Ride Briefing publish/read/readiness flow tied to immutable RoutePlan revisions;
 - explicit setup screen when Firebase or API configuration is absent.
 
 Not implemented yet:
@@ -182,3 +183,34 @@ The planner remains functional as a list/summary flow against the CommRide API.
 
 Route planning does **not** request foreground or background location
 permission. Live Ride tracking remains a separate contextual permission flow.
+
+
+## Ride Briefing and readiness
+
+Joined Ride participants can open **Ride Briefing** from Ride detail.
+
+Leader behavior while Draft/Published:
+
+- preview the current saved RoutePlan when no Briefing exists;
+- add/edit operational notes;
+- publish an immutable Briefing revision;
+- publish a new revision when RoutePlan or notes change;
+- see current Ready/expected Rider counts.
+
+Rider behavior while Draft/Published:
+
+- read the current Briefing;
+- see departure, Leader/Sweeper, route summary, Stops/Checkpoints, and notes;
+- confirm **Ready · Sudah dibaca** for the exact Briefing revision.
+
+If RoutePlan changes after Briefing publication, the UI keeps the previous
+Briefing visible but marks it stale. Ready is disabled until the Leader
+publishes a new Briefing revision.
+
+A newer Briefing revision does not inherit readiness from an older revision.
+
+Readiness is advisory in the MVP. The mobile UI does not treat incomplete
+readiness as a hard block for Start Ride.
+
+This mobile flow depends on the backend Briefing API in PR #26. It does not
+request location permission and does not assume push notification delivery.
