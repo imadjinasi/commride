@@ -177,40 +177,43 @@ void main() {
     },
   );
 
-  test('sendQuickAction emits typed protocol payload without Rider identity', () async {
-    final FakeSocket socket = FakeSocket();
-    final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: TokenAuthGateway(<String>['token-1']),
-      socketConnector: RecordingConnector(<FakeSocket>[socket]),
-      now: () => DateTime.utc(2026, 9, 18, 10, 0, 10),
-      eventIdFactory: () => 'quick-event-1',
-    );
+  test(
+    'sendQuickAction emits typed protocol payload without Rider identity',
+    () async {
+      final FakeSocket socket = FakeSocket();
+      final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: TokenAuthGateway(<String>['token-1']),
+        socketConnector: RecordingConnector(<FakeSocket>[socket]),
+        now: () => DateTime.utc(2026, 9, 18, 10, 0, 10),
+        eventIdFactory: () => 'quick-event-1',
+      );
 
-    await client.connect('ride-1');
-    await client.sendQuickAction(
-      LiveQuickActionKind.leftBehind,
-      reason: 'Lampu merah',
-    );
+      await client.connect('ride-1');
+      await client.sendQuickAction(
+        LiveQuickActionKind.leftBehind,
+        reason: 'Lampu merah',
+      );
 
-    final Map<String, Object?> event =
-        jsonDecode(socket.sent.single) as Map<String, Object?>;
-    final Map<String, Object?> payload =
-        event['payload']! as Map<String, Object?>;
+      final Map<String, Object?> event =
+          jsonDecode(socket.sent.single) as Map<String, Object?>;
+      final Map<String, Object?> payload =
+          event['payload']! as Map<String, Object?>;
 
-    expect(event['v'], 1);
-    expect(event['type'], 'quick_action.raise');
-    expect(event['eventId'], 'quick-event-1');
-    expect(event['sentAt'], '2026-09-18T10:00:10.000Z');
-    expect(payload['kind'], 'left_behind');
-    expect(payload['reason'], 'Lampu merah');
-    expect(payload.containsKey('riderId'), isFalse);
-    expect(payload.containsKey('latitude'), isFalse);
-    expect(payload.containsKey('longitude'), isFalse);
+      expect(event['v'], 1);
+      expect(event['type'], 'quick_action.raise');
+      expect(event['eventId'], 'quick-event-1');
+      expect(event['sentAt'], '2026-09-18T10:00:10.000Z');
+      expect(payload['kind'], 'left_behind');
+      expect(payload['reason'], 'Lampu merah');
+      expect(payload.containsKey('riderId'), isFalse);
+      expect(payload.containsKey('latitude'), isFalse);
+      expect(payload.containsKey('longitude'), isFalse);
 
-    await client.disconnect();
-    await socket.closeIncoming();
-  });
+      await client.disconnect();
+      await socket.closeIncoming();
+    },
+  );
 
   test('sendQuickAction fails explicitly while disconnected', () async {
     final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
@@ -496,10 +499,7 @@ void main() {
     expect(raised.action.kind, LiveQuickActionKind.leftBehind);
     expect(raised.action.displayName, 'Rider Two');
     expect(raised.action.presence, isNotNull);
-    expect(
-      raised.action.presence!.freshness,
-      LivePresenceFreshness.stale,
-    );
+    expect(raised.action.presence!.freshness, LivePresenceFreshness.stale);
     expect(
       raised.action.presence!.observedAt.toUtc(),
       DateTime.utc(2026, 9, 18, 9, 59),
