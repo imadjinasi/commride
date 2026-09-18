@@ -14,10 +14,7 @@ abstract interface class VehicleApi {
 }
 
 class VehicleApiException implements Exception {
-  const VehicleApiException({
-    required this.statusCode,
-    required this.message,
-  });
+  const VehicleApiException({required this.statusCode, required this.message});
 
   final int statusCode;
   final String message;
