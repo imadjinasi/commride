@@ -176,6 +176,11 @@ class HttpClubRideApi implements ClubRideApi {
     return _transition(rideId, 'end');
   }
 
+  @override
+  Future<Ride> cancelRide(String rideId) {
+    return _transition(rideId, 'cancel');
+  }
+
   Future<Ride> _transition(String rideId, String action) async {
     final http.Response response = await _post(
       '/v1/rides/${Uri.encodeComponent(rideId)}/$action',
