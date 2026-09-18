@@ -19,10 +19,7 @@ class ActiveRideEnded extends ActiveRideRealtimeEvent {
 }
 
 class ActiveRideServerError extends ActiveRideRealtimeEvent {
-  const ActiveRideServerError({
-    required this.code,
-    required this.message,
-  });
+  const ActiveRideServerError({required this.code, required this.message});
 
   final String code;
   final String message;
