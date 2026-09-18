@@ -379,3 +379,31 @@ not silently build an unbounded offline quick-action queue.
 **Butuh Bantuan** is a Rider-to-group coordination action, not SOS and not a
 claim that emergency services were contacted. It can be raised even when no
 GPS presence is available on the server.
+
+
+## Checkpoint coordination
+
+The mobile Ride detail now exposes **Checkpoints** for participating Riders
+when a Ride is Active or Completed.
+
+The screen consumes the persisted Checkpoint API rather than inferring arrival
+from RiderPresence.
+
+Active Ride behavior:
+
+- ordered current / upcoming / released Checkpoints;
+- explicit expected / arrived / missing counts;
+- Rider **Saya sudah tiba** manual check-in;
+- manual check-in is clearly labeled as **not GPS verification**;
+- late manual check-in remains available for a released Checkpoint while the
+  Ride is still Active;
+- Leader-only **Lepas Checkpoint** for the current Checkpoint;
+- when Riders are still missing, release requires explicit confirmation that
+  shows the missing count;
+- API response becomes the new authoritative local view after every mutation.
+
+Completed Ride behavior is read-only. It keeps release and check-in history
+visible but removes mutation actions.
+
+This slice does not request location permission, use geofencing, or call a map
+provider.
