@@ -44,27 +44,25 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
         minimum: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: FutureBuilder<_BriefingState>(
           future: _stateFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<_BriefingState> snapshot,
-          ) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          builder:
+              (BuildContext context, AsyncSnapshot<_BriefingState> snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            if (snapshot.hasError) {
-              return _ErrorState(onRetry: _refresh);
-            }
+                if (snapshot.hasError) {
+                  return _ErrorState(onRetry: _refresh);
+                }
 
-            final _BriefingState state =
-                snapshot.data ?? const _BriefingState();
-            final RideBriefingView? view = state.view;
-            if (view == null) {
-              return _buildUnpublished(state.currentPlan);
-            }
+                final _BriefingState state =
+                    snapshot.data ?? const _BriefingState();
+                final RideBriefingView? view = state.view;
+                if (view == null) {
+                  return _buildUnpublished(state.currentPlan);
+                }
 
-            return _buildPublished(view);
-          },
+                return _buildPublished(view);
+              },
         ),
       ),
     );
@@ -118,9 +116,7 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
         FilledButton.icon(
           onPressed: _working
               ? null
-              : () => _publishBriefing(
-                    currentNotes: widget.ride.notes,
-                  ),
+              : () => _publishBriefing(currentNotes: widget.ride.notes),
           icon: const Icon(Icons.campaign_outlined),
           label: Text(_working ? 'Mempublikasikan…' : 'Publish Briefing'),
         ),
@@ -181,14 +177,9 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
               label: 'Berangkat',
               value: briefing.scheduledStartAt == null
                   ? 'Belum dijadwalkan'
-                  : _formatDateTime(
-                      briefing.scheduledStartAt!.toLocal(),
-                    ),
+                  : _formatDateTime(briefing.scheduledStartAt!.toLocal()),
             ),
-            _InfoRow(
-              label: 'Leader',
-              value: briefing.leader.displayName,
-            ),
+            _InfoRow(label: 'Leader', value: briefing.leader.displayName),
             _InfoRow(
               label: 'Sweeper',
               value: briefing.sweeper?.displayName ?? 'Belum ditetapkan',
@@ -246,9 +237,7 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
           OutlinedButton.icon(
             onPressed: _working
                 ? null
-                : () => _publishBriefing(
-                      currentNotes: briefing.notes,
-                    ),
+                : () => _publishBriefing(currentNotes: briefing.notes),
             icon: const Icon(Icons.refresh),
             label: Text(
               view.routePlanIsCurrent
@@ -270,8 +259,9 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
   }
 
   Future<_BriefingState> _loadState() async {
-    final RideBriefingView? view =
-        await widget.rideBriefingApi.fetchBriefing(widget.ride.id);
+    final RideBriefingView? view = await widget.rideBriefingApi.fetchBriefing(
+      widget.ride.id,
+    );
     if (view != null) {
       return _BriefingState(view: view);
     }
@@ -280,20 +270,16 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
       return const _BriefingState();
     }
 
-    final SavedRoutePlan? currentPlan =
-        await widget.routePlannerApi.fetchRoutePlan(widget.ride.id);
+    final SavedRoutePlan? currentPlan = await widget.routePlannerApi
+        .fetchRoutePlan(widget.ride.id);
     return _BriefingState(currentPlan: currentPlan);
   }
 
-  Future<void> _publishBriefing({
-    required String? currentNotes,
-  }) async {
-    final _BriefingNotesResult? result =
-        await showDialog<_BriefingNotesResult>(
+  Future<void> _publishBriefing({required String? currentNotes}) async {
+    final _BriefingNotesResult? result = await showDialog<_BriefingNotesResult>(
       context: context,
-      builder: (BuildContext context) => _BriefingNotesDialog(
-        initialNotes: currentNotes,
-      ),
+      builder: (BuildContext context) =>
+          _BriefingNotesDialog(initialNotes: currentNotes),
     );
 
     if (!mounted || result == null) {
@@ -301,11 +287,8 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
     }
 
     await _run(() async {
-      final RideBriefingView view =
-          await widget.rideBriefingApi.publishBriefing(
-        rideId: widget.ride.id,
-        notes: result.notes,
-      );
+      final RideBriefingView view = await widget.rideBriefingApi
+          .publishBriefing(rideId: widget.ride.id, notes: result.notes);
       _replaceState(view);
       _showMessage('Briefing v${view.briefing.revision} dipublikasikan.');
     });
@@ -313,10 +296,8 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
 
   Future<void> _acknowledge() async {
     await _run(() async {
-      final RideBriefingView view =
-          await widget.rideBriefingApi.acknowledgeBriefing(
-        widget.ride.id,
-      );
+      final RideBriefingView view = await widget.rideBriefingApi
+          .acknowledgeBriefing(widget.ride.id);
       _replaceState(view);
       _showMessage('Readiness tersimpan untuk Briefing ini.');
     });
@@ -364,16 +345,14 @@ class _RideBriefingScreenState extends State<RideBriefingScreen> {
     }
 
     setState(() {
-      _stateFuture = Future<_BriefingState>.value(
-        _BriefingState(view: view),
-      );
+      _stateFuture = Future<_BriefingState>.value(_BriefingState(view: view));
     });
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -429,9 +408,9 @@ class _BriefingNotesDialogState extends State<_BriefingNotesDialog> {
         FilledButton(
           onPressed: () {
             final String value = _controller.text.trim();
-            Navigator.of(context).pop(
-              _BriefingNotesResult(value.isEmpty ? null : value),
-            );
+            Navigator.of(
+              context,
+            ).pop(_BriefingNotesResult(value.isEmpty ? null : value));
           },
           child: const Text('Publish'),
         ),
@@ -462,20 +441,18 @@ class _RouteSummary extends StatelessWidget {
         ),
         if (routePlan.stops.isNotEmpty) ...<Widget>[
           const SizedBox(height: 16),
-          ...routePlan.stops.asMap().entries.map(
-            (MapEntry<int, PlanningStop> entry) {
-              final PlanningStop stop = entry.value;
-              final String checkpoint = stop.checkpointType == null
-                  ? ''
-                  : ' · ${stop.checkpointType!.label}';
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  '${entry.key + 1}. ${stop.label}${checkpoint}',
-                ),
-              );
-            },
-          ),
+          ...routePlan.stops.asMap().entries.map((
+            MapEntry<int, PlanningStop> entry,
+          ) {
+            final PlanningStop stop = entry.value;
+            final String checkpoint = stop.checkpointType == null
+                ? ''
+                : ' · ${stop.checkpointType!.label}';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('${entry.key + 1}. ${stop.label}${checkpoint}'),
+            );
+          }),
         ],
       ],
     );
@@ -483,10 +460,7 @@ class _RouteSummary extends StatelessWidget {
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.title,
-    required this.children,
-  });
+  const _InfoCard({required this.title, required this.children});
 
   final String title;
   final List<Widget> children;
@@ -510,10 +484,7 @@ class _InfoCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -527,10 +498,7 @@ class _InfoRow extends StatelessWidget {
         children: <Widget>[
           SizedBox(
             width: 92,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+            child: Text(label, style: Theme.of(context).textTheme.labelLarge),
           ),
           Expanded(child: Text(value)),
         ],
@@ -555,10 +523,7 @@ class _ErrorState extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: onRetry,
-            child: const Text('Coba lagi'),
-          ),
+          OutlinedButton(onPressed: onRetry, child: const Text('Coba lagi')),
         ],
       ),
     );
@@ -566,10 +531,7 @@ class _ErrorState extends StatelessWidget {
 }
 
 class _BriefingState {
-  const _BriefingState({
-    this.view,
-    this.currentPlan,
-  });
+  const _BriefingState({this.view, this.currentPlan});
 
   final RideBriefingView? view;
   final SavedRoutePlan? currentPlan;
