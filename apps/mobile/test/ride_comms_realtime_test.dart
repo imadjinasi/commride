@@ -76,8 +76,9 @@ void main() {
       socketConnector: FakeConnector(socket),
     );
     final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
-    final StreamSubscription<ActiveRideRealtimeEvent> subscription =
-        client.events.listen(events.add);
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
 
     await client.connect('ride-1');
     socket.incoming.add(
@@ -100,8 +101,9 @@ void main() {
     );
     await flushAsync();
 
-    final ActiveRideMessageCreated created =
-        events.whereType<ActiveRideMessageCreated>().single;
+    final ActiveRideMessageCreated created = events
+        .whereType<ActiveRideMessageCreated>()
+        .single;
     expect(created.message.id, 'message-1');
     expect(created.message.kind, RideMessageKind.chat);
     expect(created.message.senderDisplayName, 'Rider Two');
@@ -120,8 +122,9 @@ void main() {
       socketConnector: FakeConnector(socket),
     );
     final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
-    final StreamSubscription<ActiveRideRealtimeEvent> subscription =
-        client.events.listen(events.add);
+    final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+        .events
+        .listen(events.add);
 
     await client.connect('ride-1');
     socket.incoming.add(
