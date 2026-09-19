@@ -142,8 +142,7 @@ void main() {
   });
 
   test('realtime SOS update replaces HTTP state by incident id', () async {
-    final FakeRideSosApi api = FakeRideSosApi()
-      ..items = <RideSos>[sos()];
+    final FakeRideSosApi api = FakeRideSosApi()..items = <RideSos>[sos()];
     final FakeRealtimeClient realtime = FakeRealtimeClient();
     final RideSosController controller = RideSosController(
       rideId: 'ride-1',
