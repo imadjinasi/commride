@@ -47,6 +47,16 @@ import { handleMapsRequest, isMapsPath } from './maps/handler';
 import type { RoutePlaceProvider } from './maps/provider';
 import { resolveRequestId } from './request-id';
 import {
+  handlePushTokenRequest,
+  isPushTokenPath,
+} from './push/handler';
+import type { RidePushNotifier } from './push/notifier';
+import {
+  D1PushRepository,
+  type PushRepository,
+} from './push/repository';
+import { resolveRidePushNotifier } from './push/runtime';
+import {
   handleRideCommsRequest,
   isRideCommsPath,
 } from './ride-comms/handler';
@@ -98,6 +108,8 @@ export interface RouterOverrides {
   readonly rideMessageRepository?: RideMessageRepository;
   readonly rideSosRepository?: RideSosRepository;
   readonly rideRecapRepository?: RideRecapRepository;
+  readonly pushRepository?: PushRepository;
+  readonly ridePushNotifier?: RidePushNotifier;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
@@ -316,6 +328,10 @@ export async function handleRequest(
           clubRideRepository,
           routePlanRepository,
           checkpointRepository,
+          pushNotifier:
+            overrides.ridePushNotifier ??
+            resolveRidePushNotifier(env) ??
+            undefined,
           now: overrides.now,
         },
       );
@@ -372,6 +388,10 @@ export async function handleRequest(
           activeRideGateway:
             overrides.activeRideGateway ??
             resolveActiveRideGateway(env) ??
+            undefined,
+          pushNotifier:
+            overrides.ridePushNotifier ??
+            resolveRidePushNotifier(env) ??
             undefined,
           idFactory: overrides.idFactory,
           now: overrides.now,
@@ -430,6 +450,10 @@ export async function handleRequest(
           activeRideGateway:
             overrides.activeRideGateway ??
             resolveActiveRideGateway(env) ??
+            undefined,
+          pushNotifier:
+            overrides.ridePushNotifier ??
+            resolveRidePushNotifier(env) ??
             undefined,
           idFactory: overrides.idFactory,
           now: overrides.now,
@@ -490,6 +514,10 @@ export async function handleRequest(
           clubRideRepository,
           routePlanRepository,
           rideBriefingRepository,
+          pushNotifier:
+            overrides.ridePushNotifier ??
+            resolveRidePushNotifier(env) ??
+            undefined,
           idFactory: overrides.idFactory,
           now: overrides.now,
         },
@@ -705,6 +733,43 @@ export async function handleRequest(
       if (response != null) {
         return response;
       }
+    }
+
+    if (isPushTokenPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const pushRepository =
+        overrides.pushRepository ??
+        (env.DB == null ? null : new D1PushRepository(env.DB));
+
+      if (riderRepository == null || pushRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Push-token persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      return handlePushTokenRequest(request, requestId, {
+        identityVerifier,
+        riderRepository,
+        pushRepository,
+        idFactory: overrides.idFactory,
+        now: overrides.now,
+      });
     }
 
     if (url.pathname === '/v1/me') {
