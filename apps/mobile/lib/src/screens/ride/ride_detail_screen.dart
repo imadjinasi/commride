@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../active_ride/active_ride_runtime.dart';
 import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
@@ -9,6 +10,7 @@ import '../../api/route_planner_api.dart';
 import '../../active_ride/ride_comms_controller.dart';
 import '../../active_ride/ride_sos_controller.dart';
 import '../../models/club_ride.dart';
+import 'active_ride_command_center_screen.dart';
 import 'checkpoints_screen.dart';
 import 'ride_briefing_screen.dart';
 import 'ride_comms_screen.dart';
@@ -24,6 +26,8 @@ class RideDetailScreen extends StatefulWidget {
     required this.rideBriefingApi,
     required this.rideCommsApi,
     required this.rideSosApi,
+    this.activeRideRuntimeManager,
+    this.mapsEnabled = false,
     required this.onChanged,
     super.key,
   });
@@ -35,6 +39,8 @@ class RideDetailScreen extends StatefulWidget {
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
+  final ActiveRideRuntimeManager? activeRideRuntimeManager;
+  final bool mapsEnabled;
   final VoidCallback onChanged;
 
   @override
@@ -116,6 +122,15 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                 label: const Text('Ride Briefing'),
               ),
               const SizedBox(height: 8),
+              if (ride.status == RideStatus.active &&
+                  widget.activeRideRuntimeManager != null) ...<Widget>[
+                FilledButton.tonalIcon(
+                  onPressed: _working ? null : _openActiveRide,
+                  icon: const Icon(Icons.radar_outlined),
+                  label: const Text('Active Ride'),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (ride.status == RideStatus.active ||
                   ride.status == RideStatus.completed) ...<Widget>[
                 OutlinedButton.icon(
@@ -174,13 +189,33 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                 label: const Text('Undang Rider'),
               ),
             ],
-            const SizedBox(height: 20),
-            Text(
-              'Live Ride map dan convoy visualization akan '
-              'ditambahkan pada fase berikutnya.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            if (ride.status == RideStatus.active &&
+                widget.activeRideRuntimeManager == null) ...<Widget>[
+              const SizedBox(height: 20),
+              Text(
+                'Active Ride runtime belum tersedia pada konfigurasi build ini.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openActiveRide() async {
+    final ActiveRideRuntimeManager? runtimeManager =
+        widget.activeRideRuntimeManager;
+    if (runtimeManager == null || _item.ride.status != RideStatus.active) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => ActiveRideCommandCenterScreen(
+          ride: _item.ride,
+          runtimeManager: runtimeManager,
+          mapsEnabled: widget.mapsEnabled,
         ),
       ),
     );
@@ -308,8 +343,13 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     return _transition(widget.clubRideApi.startRide);
   }
 
-  Future<void> _endRide() {
-    return _transition(widget.clubRideApi.endRide);
+  Future<void> _endRide() async {
+    final String rideId = _item.ride.id;
+    await _run(() async {
+      final Ride updated = await widget.clubRideApi.endRide(rideId);
+      await widget.activeRideRuntimeManager?.stopForRideEnd(rideId);
+      _item = RideListItem(ride: updated, membership: _item.membership);
+    });
   }
 
   Future<void> _confirmCancelRide() async {
