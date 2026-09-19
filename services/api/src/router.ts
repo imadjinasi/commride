@@ -46,6 +46,11 @@ import {
   D1RideMessageRepository,
   type RideMessageRepository,
 } from './ride-comms/repository';
+import { handleRideSosRequest, isRideSosPath } from './ride-sos/handler';
+import {
+  D1RideSosRepository,
+  type RideSosRepository,
+} from './ride-sos/repository';
 import { handleRiderProfile } from './riders/profile-handler';
 import {
   handleRoutePlanRequest,
@@ -74,6 +79,7 @@ export interface RouterOverrides {
   readonly routePlanRepository?: RoutePlanRepository;
   readonly rideBriefingRepository?: RideBriefingRepository;
   readonly rideMessageRepository?: RideMessageRepository;
+  readonly rideSosRepository?: RideSosRepository;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
@@ -182,6 +188,64 @@ export async function handleRequest(
           riderRepository,
           clubRideRepository,
           activeRideGateway,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isRideSosPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const rideSosRepository =
+        overrides.rideSosRepository ??
+        (env.DB == null ? null : new D1RideSosRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        rideSosRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Ride SOS persistence is not configured.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleRideSosRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          rideSosRepository,
+          activeRideGateway:
+            overrides.activeRideGateway ??
+            resolveActiveRideGateway(env) ??
+            undefined,
+          idFactory: overrides.idFactory,
+          now: overrides.now,
         },
       );
 
@@ -501,6 +565,9 @@ export async function handleRequest(
           clubRideRepository,
           activeRideGateway:
             overrides.activeRideGateway ?? resolveActiveRideGateway(env) ?? undefined,
+          rideSosRepository:
+            overrides.rideSosRepository ??
+            (env.DB == null ? undefined : new D1RideSosRepository(env.DB)),
           idFactory: overrides.idFactory,
           now: overrides.now,
         },
