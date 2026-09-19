@@ -4,12 +4,15 @@ import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/ride_comms_api.dart';
+import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../active_ride/ride_comms_controller.dart';
+import '../../active_ride/ride_sos_controller.dart';
 import '../../models/club_ride.dart';
 import 'checkpoints_screen.dart';
 import 'ride_briefing_screen.dart';
 import 'ride_comms_screen.dart';
+import 'ride_sos_screen.dart';
 import 'route_planner_screen.dart';
 
 class RideDetailScreen extends StatefulWidget {
@@ -20,6 +23,7 @@ class RideDetailScreen extends StatefulWidget {
     required this.routePlannerApi,
     required this.rideBriefingApi,
     required this.rideCommsApi,
+    required this.rideSosApi,
     required this.onChanged,
     super.key,
   });
@@ -30,6 +34,7 @@ class RideDetailScreen extends StatefulWidget {
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
+  final RideSosApi rideSosApi;
   final VoidCallback onChanged;
 
   @override
@@ -125,6 +130,12 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                   label: const Text('Comms'),
                 ),
                 const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _working ? null : _openSos,
+                  icon: const Icon(Icons.sos_outlined),
+                  label: const Text('SOS'),
+                ),
+                const SizedBox(height: 8),
               ],
             ],
             if (membership?.status == RideMembershipStatus.invited)
@@ -192,6 +203,31 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (BuildContext context) => RideCommsScreen(
+          ride: _item.ride,
+          membership: membership,
+          controller: controller,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSos() async {
+    final RideMembership? membership = _item.membership;
+    if (membership == null ||
+        membership.status == RideMembershipStatus.invited ||
+        membership.status == RideMembershipStatus.left) {
+      return;
+    }
+
+    final RideSosController controller = RideSosController(
+      rideId: _item.ride.id,
+      api: widget.rideSosApi,
+      readOnly: _item.ride.status == RideStatus.completed,
+    );
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideSosScreen(
           ride: _item.ride,
           membership: membership,
           controller: controller,
