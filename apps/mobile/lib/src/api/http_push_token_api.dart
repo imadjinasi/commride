@@ -23,11 +23,7 @@ class HttpPushTokenApi implements PushTokenApi {
     required String token,
     required RidePushPlatform platform,
   }) {
-    return _write(
-      'POST',
-      token: token,
-      platform: platform,
-    );
+    return _write('POST', token: token, platform: platform);
   }
 
   @override
@@ -35,11 +31,7 @@ class HttpPushTokenApi implements PushTokenApi {
     required String token,
     required RidePushPlatform platform,
   }) {
-    return _write(
-      'DELETE',
-      token: token,
-      platform: platform,
-    );
+    return _write('DELETE', token: token, platform: platform);
   }
 
   Future<void> _write(
@@ -48,18 +40,16 @@ class HttpPushTokenApi implements PushTokenApi {
     required RidePushPlatform platform,
   }) async {
     final String authToken = await _authGateway.idToken();
-    final http.Request request = http.Request(
-      method,
-      _apiBaseUrl.resolve('/v1/me/push-tokens'),
-    )
-      ..headers.addAll(<String, String>{
-        'authorization': 'Bearer $authToken',
-        'content-type': 'application/json',
-      })
-      ..body = jsonEncode(<String, Object?>{
-        'token': token,
-        'platform': platform.wireValue,
-      });
+    final http.Request request =
+        http.Request(method, _apiBaseUrl.resolve('/v1/me/push-tokens'))
+          ..headers.addAll(<String, String>{
+            'authorization': 'Bearer $authToken',
+            'content-type': 'application/json',
+          })
+          ..body = jsonEncode(<String, Object?>{
+            'token': token,
+            'platform': platform.wireValue,
+          });
 
     final http.StreamedResponse streamed = await _client.send(request);
     final http.Response response = await http.Response.fromStream(streamed);
