@@ -4,6 +4,7 @@ import type { IdentityVerifier } from '../auth/identity';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderRepository } from '../riders/rider-repository';
+import type { RidePushNotifier } from '../push/notifier';
 import type {
   CreateRideSosInput,
   RideSos,
@@ -20,6 +21,7 @@ export interface RideSosHandlerDependencies {
   readonly clubRideRepository: ClubRideRepository;
   readonly rideSosRepository: RideSosRepository;
   readonly activeRideGateway?: ActiveRideGateway;
+  readonly pushNotifier?: RidePushNotifier;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -195,6 +197,11 @@ export async function handleRideSosRequest(
         persisted,
         dependencies,
       );
+      await notifySosBestEffort(
+        'raised',
+        persisted,
+        dependencies,
+      );
     }
 
     return jsonResponse(
@@ -263,6 +270,7 @@ export async function handleRideSosRequest(
       cancelled,
       dependencies,
     );
+    await notifySosBestEffort('cancelled', cancelled, dependencies);
     return jsonResponse({ sos: cancelled }, 200, requestId);
   }
 
@@ -312,7 +320,52 @@ export async function handleRideSosRequest(
     resolved,
     dependencies,
   );
+  await notifySosBestEffort('resolved', resolved, dependencies);
   return jsonResponse({ sos: resolved }, 200, requestId);
+}
+
+async function notifySosBestEffort(
+  action: 'raised' | 'cancelled' | 'resolved',
+  sos: RideSos,
+  dependencies: RideSosHandlerDependencies,
+): Promise<void> {
+  const notifier = dependencies.pushNotifier;
+  if (notifier == null) {
+    return;
+  }
+
+  const copy = action === 'raised'
+    ? {
+        title: `SOS · ${sos.riderDisplayName}`,
+        body: sos.reason ?? 'Rider membutuhkan bantuan pada Ride aktif.',
+      }
+    : action === 'resolved'
+    ? {
+        title: 'SOS selesai',
+        body: `SOS ${sos.riderDisplayName} telah ditandai selesai.`,
+      }
+    : {
+        title: 'SOS dibatalkan',
+        body: `SOS ${sos.riderDisplayName} telah dibatalkan.`,
+      };
+
+  try {
+    await notifier.notify({
+      eventKey: `sos:${sos.id}:${action}`,
+      rideId: sos.rideId,
+      kind: `sos_${action}`,
+      title: copy.title,
+      body: copy.body,
+      data: {
+        type: `ride.sos_${action}`,
+        rideId: sos.rideId,
+        sosId: sos.id,
+      },
+      excludeRiderId: action === 'raised' ? sos.riderId : undefined,
+    });
+  } catch {
+    // Push never changes authoritative SOS state.
+  }
 }
 
 async function trustedPresenceBestEffort(
