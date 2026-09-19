@@ -271,6 +271,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
           rideBriefingApi: widget.rideBriefingApi,
           rideCommsApi: widget.rideCommsApi,
           rideSosApi: widget.rideSosApi,
+          activeRideRuntimeManager: widget.activeRideRuntimeManager,
+          mapsEnabled: widget.mapsEnabled,
           onChanged: () {
             widget.onChanged();
             _reloadRides();
