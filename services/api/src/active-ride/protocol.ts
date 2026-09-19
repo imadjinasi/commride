@@ -16,6 +16,8 @@ export interface ConnectionAttachment {
   readonly role: RideRole;
   readonly sessionId: string;
   readonly joinedAt: string;
+  readonly lastPresenceAcceptedAt?: string;
+  readonly lastQuickActionAcceptedAt?: string;
   readonly lastPresence?: StoredPresence;
 }
 
