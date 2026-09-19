@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../active_ride/active_ride_runtime.dart';
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
 import '../api/ride_briefing_api.dart';
@@ -48,6 +49,25 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
+  ActiveRideRuntimeManager? _activeRideRuntimeManager;
+
+  @override
+  void initState() {
+    super.initState();
+    final Uri? apiBaseUrl = widget.config.apiBaseUrl;
+    if (apiBaseUrl != null) {
+      _activeRideRuntimeManager = ActiveRideRuntimeManager(
+        apiBaseUrl: apiBaseUrl,
+        authGateway: widget.authGateway,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _activeRideRuntimeManager?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +80,8 @@ class _AppShellState extends State<AppShell> {
         rideBriefingApi: widget.rideBriefingApi,
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
+        activeRideRuntimeManager: _activeRideRuntimeManager,
+        mapsEnabled: widget.config.mapsEnabled,
       ),
       const ExploreScreen(),
       ClubsScreen(
@@ -69,6 +91,8 @@ class _AppShellState extends State<AppShell> {
         rideBriefingApi: widget.rideBriefingApi,
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
+        activeRideRuntimeManager: _activeRideRuntimeManager,
+        mapsEnabled: widget.config.mapsEnabled,
       ),
       ProfileScreen(
         riderProfile: widget.riderProfile,
