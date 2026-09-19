@@ -2,6 +2,7 @@ import 'package:commride_mobile/src/api/checkpoint_api.dart';
 import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/ride_briefing_api.dart';
 import 'package:commride_mobile/src/api/ride_comms_api.dart';
+import 'package:commride_mobile/src/api/ride_sos_api.dart';
 import 'package:commride_mobile/src/api/route_planner_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
@@ -11,6 +12,7 @@ import 'package:commride_mobile/src/models/rider_profile.dart';
 import 'package:commride_mobile/src/models/ride_checkpoint.dart';
 import 'package:commride_mobile/src/models/ride_briefing.dart';
 import 'package:commride_mobile/src/models/ride_message.dart';
+import 'package:commride_mobile/src/models/ride_sos.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:commride_mobile/src/navigation/app_shell.dart';
@@ -302,12 +304,43 @@ class FakeRideCommsApi implements RideCommsApi {
   }
 }
 
+class FakeRideSosApi implements RideSosApi {
+  @override
+  Future<List<RideSos>> fetchSos(String rideId) async => const <RideSos>[];
+
+  @override
+  Future<RideSos> raiseSos({
+    required String rideId,
+    required String clientCommandId,
+    required String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RideSos> cancelSos({
+    required String rideId,
+    required String sosId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RideSos> resolveSos({
+    required String rideId,
+    required String sosId,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
 Widget buildShell({
   VehicleApi? vehicleApi,
   ClubRideApi? clubRideApi,
   RoutePlannerApi? routePlannerApi,
   RideBriefingApi? rideBriefingApi,
   RideCommsApi? rideCommsApi,
+  RideSosApi? rideSosApi,
   CheckpointApi? checkpointApi,
 }) {
   return MaterialApp(
@@ -321,6 +354,7 @@ Widget buildShell({
       routePlannerApi: routePlannerApi ?? FakeRoutePlannerApi(),
       rideBriefingApi: rideBriefingApi ?? FakeRideBriefingApi(),
       rideCommsApi: rideCommsApi ?? FakeRideCommsApi(),
+      rideSosApi: rideSosApi ?? FakeRideSosApi(),
       authGateway: FakeAuthGateway(),
     ),
   );
