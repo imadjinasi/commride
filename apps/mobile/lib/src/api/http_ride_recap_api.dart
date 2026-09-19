@@ -22,9 +22,7 @@ class HttpRideRecapApi implements RideRecapApi {
   @override
   Future<RideRecap> fetchRecap(String rideId) async {
     final http.Response response = await _client.get(
-      _apiBaseUrl.resolve(
-        '/v1/rides/${Uri.encodeComponent(rideId)}/recap',
-      ),
+      _apiBaseUrl.resolve('/v1/rides/${Uri.encodeComponent(rideId)}/recap'),
       headers: <String, String>{
         'authorization': 'Bearer ${await _authGateway.idToken()}',
       },
