@@ -118,7 +118,8 @@ class RideLocationSessionController extends ChangeNotifier {
     RideLocationPermission permission;
     try {
       permission = await _locationProvider.checkPermission();
-      if (permission != RideLocationPermission.granted) {
+      if (permission != RideLocationPermission.granted &&
+          permission != RideLocationPermission.deniedPermanently) {
         permission = await _locationProvider.requestPermission();
       }
     } catch (_) {
