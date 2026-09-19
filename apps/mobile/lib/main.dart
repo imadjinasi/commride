@@ -1,9 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'src/api/http_checkpoint_api.dart';
 import 'src/api/http_club_ride_api.dart';
+import 'src/api/http_push_token_api.dart';
 import 'src/api/http_rider_profile_api.dart';
 import 'src/api/http_ride_briefing_api.dart';
 import 'src/api/http_ride_comms_api.dart';
@@ -13,6 +16,8 @@ import 'src/api/http_route_planner_api.dart';
 import 'src/api/http_vehicle_api.dart';
 import 'src/app.dart';
 import 'src/auth/firebase_auth_gateway.dart';
+import 'src/api/push_token_api.dart';
+import 'src/push/firebase_ride_push_messaging.dart';
 import 'src/config/app_config.dart';
 
 Future<void> main() async {
@@ -39,6 +44,17 @@ Future<void> main() async {
     final FirebaseAuthGateway authGateway = FirebaseAuthGateway(
       FirebaseAuth.instance,
     );
+    final RidePushPlatform? pushPlatform = switch (defaultTargetPlatform) {
+      TargetPlatform.android => RidePushPlatform.android,
+      TargetPlatform.iOS => RidePushPlatform.ios,
+      _ => null,
+    };
+    final HttpPushTokenApi pushTokenApi = HttpPushTokenApi(
+      apiBaseUrl: apiBaseUrl,
+      authGateway: authGateway,
+    );
+    final FirebaseRidePushMessaging pushMessaging =
+        FirebaseRidePushMessaging(FirebaseMessaging.instance);
     final HttpRiderProfileApi riderProfileApi = HttpRiderProfileApi(
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
@@ -89,6 +105,9 @@ Future<void> main() async {
         rideCommsApi: rideCommsApi,
         rideSosApi: rideSosApi,
         rideRecapApi: rideRecapApi,
+        pushTokenApi: pushPlatform == null ? null : pushTokenApi,
+        pushMessaging: pushPlatform == null ? null : pushMessaging,
+        pushPlatform: pushPlatform,
       ),
     );
   } catch (_) {
