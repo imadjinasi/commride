@@ -47,10 +47,7 @@ class RideMessage {
     return RideMessage(
       id: _requiredString(json['id'], 'id'),
       rideId: _requiredString(json['rideId'], 'rideId'),
-      senderRiderId: _requiredString(
-        json['senderRiderId'],
-        'senderRiderId',
-      ),
+      senderRiderId: _requiredString(json['senderRiderId'], 'senderRiderId'),
       senderDisplayName: _requiredString(
         json['senderDisplayName'],
         'senderDisplayName',
@@ -72,10 +69,7 @@ class RideMessage {
 }
 
 class RideMessagePage {
-  const RideMessagePage({
-    required this.messages,
-    required this.nextCursor,
-  });
+  const RideMessagePage({required this.messages, required this.nextCursor});
 
   final List<RideMessage> messages;
   final String? nextCursor;
@@ -87,12 +81,14 @@ class RideMessagePage {
     }
 
     return RideMessagePage(
-      messages: rawMessages.map((Object? value) {
-        if (value is! Map<String, Object?>) {
-          throw const FormatException('Ride message entry is invalid.');
-        }
-        return RideMessage.fromJson(value);
-      }).toList(growable: false),
+      messages: rawMessages
+          .map((Object? value) {
+            if (value is! Map<String, Object?>) {
+              throw const FormatException('Ride message entry is invalid.');
+            }
+            return RideMessage.fromJson(value);
+          })
+          .toList(growable: false),
       nextCursor: _optionalString(json['nextCursor']),
     );
   }
