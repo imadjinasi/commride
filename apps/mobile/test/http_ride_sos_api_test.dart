@@ -30,10 +30,7 @@ class FakeAuthGateway implements AuthGateway {
   Future<void> signOut() async {}
 }
 
-Map<String, Object?> sosJson({
-  String state = 'active',
-  Object? presence,
-}) {
+Map<String, Object?> sosJson({String state = 'active', Object? presence}) {
   return <String, Object?>{
     'id': 'sos-1',
     'rideId': 'ride-1',
@@ -86,36 +83,39 @@ void main() {
     expect(result.single.presence?.latitude, -6.732);
   });
 
-  test('raiseSos sends idempotency key without client identity/location', () async {
-    late http.Request captured;
-    final MockClient client = MockClient((http.Request request) async {
-      captured = request;
-      return http.Response(
-        jsonEncode(<String, Object?>{'sos': sosJson(presence: null)}),
-        201,
+  test(
+    'raiseSos sends idempotency key without client identity/location',
+    () async {
+      late http.Request captured;
+      final MockClient client = MockClient((http.Request request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode(<String, Object?>{'sos': sosJson(presence: null)}),
+          201,
+        );
+      });
+      final HttpRideSosApi api = HttpRideSosApi(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: FakeAuthGateway(),
+        client: client,
       );
-    });
-    final HttpRideSosApi api = HttpRideSosApi(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: FakeAuthGateway(),
-      client: client,
-    );
 
-    await api.raiseSos(
-      rideId: 'ride-1',
-      clientCommandId: 'client-sos-1',
-      reason: 'Ban bocor',
-    );
+      await api.raiseSos(
+        rideId: 'ride-1',
+        clientCommandId: 'client-sos-1',
+        reason: 'Ban bocor',
+      );
 
-    expect(captured.method, 'POST');
-    expect(captured.url.path, '/v1/rides/ride-1/sos');
-    final Map<String, Object?> body =
-        jsonDecode(captured.body) as Map<String, Object?>;
-    expect(body['clientCommandId'], 'client-sos-1');
-    expect(body['reason'], 'Ban bocor');
-    expect(body.containsKey('riderId'), isFalse);
-    expect(body.containsKey('latitude'), isFalse);
-  });
+      expect(captured.method, 'POST');
+      expect(captured.url.path, '/v1/rides/ride-1/sos');
+      final Map<String, Object?> body =
+          jsonDecode(captured.body) as Map<String, Object?>;
+      expect(body['clientCommandId'], 'client-sos-1');
+      expect(body['reason'], 'Ban bocor');
+      expect(body.containsKey('riderId'), isFalse);
+      expect(body.containsKey('latitude'), isFalse);
+    },
+  );
 
   test('cancelSos uses dedicated incident endpoint', () async {
     late http.Request captured;
