@@ -68,10 +68,7 @@ class _RideSosScreenState extends State<RideSosScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            Text(
-              'SOS aktif',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('SOS aktif', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             if (state.loading && state.items.isEmpty)
               const Padding(
@@ -103,10 +100,7 @@ class _RideSosScreenState extends State<RideSosScreen> {
               ),
             ],
             const SizedBox(height: 28),
-            Text(
-              'Riwayat SOS',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Riwayat SOS', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             if (state.items.where((RideSos item) {
               return item.status != RideSosStatus.active;
@@ -117,9 +111,7 @@ class _RideSosScreenState extends State<RideSosScreen> {
               )
             else
               ...state.items
-                  .where(
-                    (RideSos item) => item.status != RideSosStatus.active,
-                  )
+                  .where((RideSos item) => item.status != RideSosStatus.active)
                   .map(
                     (RideSos item) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -282,8 +274,7 @@ class _RaiseSosDialogState extends State<_RaiseSosDialog> {
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_cancelledDialogValue),
+          onPressed: () => Navigator.of(context).pop(_cancelledDialogValue),
           child: const Text('Batal'),
         ),
         FilledButton.icon(
