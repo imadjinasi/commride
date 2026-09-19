@@ -39,6 +39,7 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "ride_checkpoint_releases",
         "ride_messages",
         "ride_sos",
+        "ride_location_samples",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -523,6 +524,93 @@ def assert_checkpoint_invariants(connection: sqlite3.Connection) -> None:
 
 
 
+def assert_location_sample_invariants(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT INTO ride_location_samples(
+          id,
+          ride_id,
+          rider_id,
+          latitude,
+          longitude,
+          observed_at,
+          received_at,
+          movement
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "sample-1",
+            "ride-1",
+            "rider-1",
+            -6.732,
+            108.552,
+            "2026-09-18T10:00:00Z",
+            "2026-09-18T10:00:01Z",
+            "moving",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_location_samples(
+              id,
+              ride_id,
+              rider_id,
+              latitude,
+              longitude,
+              observed_at,
+              received_at,
+              movement
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "sample-duplicate",
+                "ride-1",
+                "rider-1",
+                -6.733,
+                108.553,
+                "2026-09-18T10:00:00Z",
+                "2026-09-18T10:00:02Z",
+                "moving",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate Rider journey observation was accepted")
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_location_samples(
+              id,
+              ride_id,
+              rider_id,
+              latitude,
+              longitude,
+              observed_at,
+              received_at,
+              movement
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "sample-invalid",
+                "ride-1",
+                "rider-1",
+                91.0,
+                108.553,
+                "2026-09-18T10:01:00Z",
+                "2026-09-18T10:01:01Z",
+                "moving",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Out-of-range journey coordinate was accepted")
+
+
 def assert_ride_message_invariants(connection: sqlite3.Connection) -> None:
     connection.execute(
         """
@@ -688,6 +776,7 @@ def main() -> None:
     assert_route_plan_invariants(connection)
     assert_briefing_invariants(connection)
     assert_checkpoint_invariants(connection)
+    assert_location_sample_invariants(connection)
     assert_ride_message_invariants(connection)
     assert_ride_sos_invariants(connection)
     assert_foreign_keys(connection)
