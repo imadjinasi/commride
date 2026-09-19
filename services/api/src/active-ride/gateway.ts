@@ -1,6 +1,7 @@
 import { ACTIVE_RIDE_PROTOCOL_VERSION } from './protocol';
 import type { RideRole } from '../clubs-rides/models';
 import type { RideMessage } from '../ride-comms/models';
+import type { RideSos, TrustedRidePresenceSnapshot } from '../ride-sos/models';
 
 export interface ActiveRideParticipant {
   readonly riderId: string;
@@ -20,6 +21,17 @@ export interface ActiveRideGateway {
   messageCreated?(
     rideId: string,
     message: RideMessage,
+  ): Promise<void>;
+
+  trustedPresence?(
+    rideId: string,
+    riderId: string,
+  ): Promise<TrustedRidePresenceSnapshot | null>;
+
+  sosChanged?(
+    rideId: string,
+    type: 'ride.sos_raised' | 'ride.sos_cancelled' | 'ride.sos_resolved',
+    sos: RideSos,
   ): Promise<void>;
 }
 
@@ -79,6 +91,73 @@ export class DurableObjectActiveRideGateway
     }
   }
 
+  async trustedPresence(
+    rideId: string,
+    riderId: string,
+  ): Promise<TrustedRidePresenceSnapshot | null> {
+    const stub = this.namespace.get(
+      this.namespace.idFromName(rideId),
+    );
+
+    const response = await stub.fetch(
+      new Request('https://active-ride.internal/presence-context', {
+        method: 'GET',
+        headers: {
+          'x-commride-ride-id': rideId,
+          'x-commride-rider-id': riderId,
+        },
+      }),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        'Active Ride room did not return trusted Rider presence.',
+      );
+    }
+
+    const decoded: unknown = await response.json();
+    if (!isRecord(decoded)) {
+      throw new Error('Active Ride room returned invalid presence context.');
+    }
+
+    if (decoded.presence == null) {
+      return null;
+    }
+
+    const presence = parseTrustedPresence(decoded.presence);
+    if (presence == null) {
+      throw new Error('Active Ride room returned invalid presence context.');
+    }
+    return presence;
+  }
+
+  async sosChanged(
+    rideId: string,
+    type: 'ride.sos_raised' | 'ride.sos_cancelled' | 'ride.sos_resolved',
+    sos: RideSos,
+  ): Promise<void> {
+    const stub = this.namespace.get(
+      this.namespace.idFromName(rideId),
+    );
+
+    const response = await stub.fetch(
+      new Request('https://active-ride.internal/sos', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-commride-ride-id': rideId,
+        },
+        body: JSON.stringify({ type, sos }),
+      }),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        'Active Ride room did not acknowledge persisted SOS broadcast.',
+      );
+    }
+  }
+
   async messageCreated(
     rideId: string,
     message: RideMessage,
@@ -104,4 +183,62 @@ export class DurableObjectActiveRideGateway
       );
     }
   }
+}
+
+
+function parseTrustedPresence(
+  value: unknown,
+): TrustedRidePresenceSnapshot | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const latitude = value.latitude;
+  const longitude = value.longitude;
+  const observedAt = normalizeIsoDate(value.observedAt);
+  const receivedAt = normalizeIsoDate(value.receivedAt);
+  const freshness = value.freshness;
+  const movement = value.movement;
+
+  if (
+    typeof latitude !== 'number' ||
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    typeof longitude !== 'number' ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180 ||
+    observedAt == null ||
+    receivedAt == null ||
+    (freshness !== 'live' &&
+      freshness !== 'stale' &&
+      freshness !== 'offline') ||
+    (movement !== 'moving' &&
+      movement !== 'stopped' &&
+      movement !== 'unknown')
+  ) {
+    return null;
+  }
+
+  return {
+    latitude,
+    longitude,
+    observedAt,
+    receivedAt,
+    freshness,
+    movement,
+  };
+}
+
+function normalizeIsoDate(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf()) ? null : parsed.toISOString();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value != null && !Array.isArray(value);
 }
