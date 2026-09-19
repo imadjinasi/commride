@@ -298,30 +298,34 @@ void main() {
     },
   );
 
-  test('shared runtime does not open or close a second realtime socket', () async {
-    final FakeLocationProvider location = FakeLocationProvider();
-    final FakeRealtimeClient realtime = FakeRealtimeClient();
-    final RideLocationSessionController session = RideLocationSessionController(
-      locationProvider: location,
-      realtimeClient: realtime,
-      ownsRealtimeConnection: false,
-    );
+  test(
+    'shared runtime does not open or close a second realtime socket',
+    () async {
+      final FakeLocationProvider location = FakeLocationProvider();
+      final FakeRealtimeClient realtime = FakeRealtimeClient();
+      final RideLocationSessionController session =
+          RideLocationSessionController(
+            locationProvider: location,
+            realtimeClient: realtime,
+            ownsRealtimeConnection: false,
+          );
 
-    await session.startTracking(ride(RideStatus.active));
+      await session.startTracking(ride(RideStatus.active));
 
-    expect(session.state.phase, RideLocationSessionPhase.active);
-    expect(location.startCalls, 1);
-    expect(realtime.connectCalls, 0);
+      expect(session.state.phase, RideLocationSessionPhase.active);
+      expect(location.startCalls, 1);
+      expect(realtime.connectCalls, 0);
 
-    await session.stopTracking();
+      await session.stopTracking();
 
-    expect(location.stopCalls, 1);
-    expect(realtime.disconnectCalls, 0);
+      expect(location.stopCalls, 1);
+      expect(realtime.disconnectCalls, 0);
 
-    session.dispose();
-    await location.close();
-    await realtime.close();
-  });
+      session.dispose();
+      await location.close();
+      await realtime.close();
+    },
+  );
 
   test('sign-out stop tears down provider and realtime session', () async {
     final FakeLocationProvider location = FakeLocationProvider();
