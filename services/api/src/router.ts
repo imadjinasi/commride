@@ -56,6 +56,14 @@ import {
 } from './ride-comms/repository';
 import { handleRideSosRequest, isRideSosPath } from './ride-sos/handler';
 import {
+  handleRideRecapRequest,
+  isRideRecapPath,
+} from './ride-recap/handler';
+import {
+  D1RideRecapRepository,
+  type RideRecapRepository,
+} from './ride-recap/repository';
+import {
   D1RideSosRepository,
   type RideSosRepository,
 } from './ride-sos/repository';
@@ -89,6 +97,7 @@ export interface RouterOverrides {
   readonly checkpointRepository?: CheckpointRepository;
   readonly rideMessageRepository?: RideMessageRepository;
   readonly rideSosRepository?: RideSosRepository;
+  readonly rideRecapRepository?: RideRecapRepository;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
@@ -197,6 +206,59 @@ export async function handleRequest(
           riderRepository,
           clubRideRepository,
           activeRideGateway,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isRideRecapPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      const rideRecapRepository =
+        overrides.rideRecapRepository ??
+        (env.DB == null ? null : new D1RideRecapRepository(env.DB));
+
+      if (
+        riderRepository == null ||
+        clubRideRepository == null ||
+        rideRecapRepository == null
+      ) {
+        return errorResponse(
+          'database_not_configured',
+          'Ride Recap persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleRideRecapRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          rideRecapRepository,
+          now: overrides.now,
         },
       );
 
