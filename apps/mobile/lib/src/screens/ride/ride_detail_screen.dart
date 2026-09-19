@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
+import '../../api/ride_comms_api.dart';
 import '../../api/route_planner_api.dart';
+import '../../active_ride/ride_comms_controller.dart';
 import '../../models/club_ride.dart';
 import 'checkpoints_screen.dart';
 import 'ride_briefing_screen.dart';
+import 'ride_comms_screen.dart';
 import 'route_planner_screen.dart';
 
 class RideDetailScreen extends StatefulWidget {
@@ -16,6 +19,7 @@ class RideDetailScreen extends StatefulWidget {
     required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
+    required this.rideCommsApi,
     required this.onChanged,
     super.key,
   });
@@ -25,6 +29,7 @@ class RideDetailScreen extends StatefulWidget {
   final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
+  final RideCommsApi rideCommsApi;
   final VoidCallback onChanged;
 
   @override
@@ -114,6 +119,12 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                   label: const Text('Checkpoints'),
                 ),
                 const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _working ? null : _openComms,
+                  icon: const Icon(Icons.forum_outlined),
+                  label: const Text('Comms'),
+                ),
+                const SizedBox(height: 8),
               ],
             ],
             if (membership?.status == RideMembershipStatus.invited)
@@ -159,6 +170,30 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openComms() async {
+    final RideMembership? membership = _item.membership;
+    if (membership == null ||
+        membership.status == RideMembershipStatus.invited ||
+        membership.status == RideMembershipStatus.left) {
+      return;
+    }
+
+    final RideCommsController controller = RideCommsController(
+      rideId: _item.ride.id,
+      api: widget.rideCommsApi,
+    );
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideCommsScreen(
+          ride: _item.ride,
+          membership: membership,
+          controller: controller,
         ),
       ),
     );
