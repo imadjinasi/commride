@@ -388,14 +388,27 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
         ).showSnackBar(SnackBar(content: Text(successMessage)));
       }
       setState(() {});
-    } catch (_) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aksi belum dapat diselesaikan.')),
-      );
+      if (error is ClubRideApiException &&
+          error.code == 'active_sos_requires_resolution') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Ride belum dapat diakhiri karena masih ada SOS aktif. '
+              'Batalkan atau tandai selesai SOS terlebih dahulu.',
+            ),
+            action: SnackBarAction(label: 'Buka SOS', onPressed: _openSos),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aksi belum dapat diselesaikan.')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
