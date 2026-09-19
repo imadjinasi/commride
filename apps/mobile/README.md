@@ -44,7 +44,9 @@ rather than hand-maintained before the first verified Flutter bootstrap.
 From `apps/mobile`:
 
 ```bash
-flutter create --platforms=android,ios --project-name commride_mobile .
+flutter create --platforms=android,ios --project-name commride_mobile \
+  --org io.github.imadjinasi .
+python tool/configure_platforms.py
 flutter pub get
 flutter analyze
 flutter test
@@ -89,6 +91,7 @@ Supported non-secret defines:
 
 - `COMMRIDE_ENV=development|production`
 - `COMMRIDE_API_BASE_URL=<url>`
+- `COMMRIDE_MAPS_ENABLED=true|false`
 
 The API base URL is required for authenticated Rider profile bootstrap.
 
@@ -248,25 +251,50 @@ It guarantees at the Flutter/domain boundary that:
 - server `ride.ended` stops local location and realtime publishing;
 - sign-out teardown stops the local session.
 
-### Native platform work still required
+### Native platform bootstrap
 
-This repository still intentionally has no committed generated `android/` or
-`ios/` application projects. Per the bootstrap rule above, those projects must
-be generated and verified locally before committing app identifiers, manifest
-permissions, Android foreground-service declarations, iOS Info.plist usage
-descriptions, or background-location capabilities.
+Generated Android/iOS projects remain reproducible rather than hand-edited.
+After `flutter create`, run:
 
-The intended minimum-permission direction is:
+```bash
+python tool/configure_platforms.py
+```
 
-- Android: foreground location plus a visible location foreground service for
-  an explicitly active Ride; do not add `ACCESS_BACKGROUND_LOCATION` unless
-  verified device behavior proves the accepted lifecycle requires it.
-- iOS: request When In Use first and start the continuous Ride location session
-  while the app is foregrounded; do not request Always unless a separately
-  accepted requirement needs terminated-app relaunch/location delivery.
+The configurator applies the accepted MVP declarations:
 
-The native adapter must be tested on real Android/iOS lifecycle transitions
-before #30 can be considered fully closed.
+- Android coarse/fine location plus location foreground-service permissions;
+- Android persistent location foreground-service support without
+  `ACCESS_BACKGROUND_LOCATION` by default;
+- Android 13+ notification declaration;
+- iOS When In Use explanation plus `UIBackgroundModes=location`;
+- iOS background-location explanation required by the selected plugin;
+- Maps SDK key hooks whose values come only from local environment variables.
+
+Optional local key inputs:
+
+```bash
+export COMMRIDE_MAPS_ANDROID_API_KEY=...
+export COMMRIDE_MAPS_IOS_API_KEY=...
+```
+
+The script writes those values only into generated native files. Do not commit
+real keys. Client Maps keys must be restricted to the final Android application
+ID / iOS bundle ID and Maps SDK API.
+
+The repository CI generates both native projects and builds an Android debug
+APK with Maps disabled, so Dart/native dependency integration is checked without
+requiring secrets.
+
+The current default bootstrap organization is `io.github.imadjinasi` for
+development builds. Confirm the final store application/bundle identifiers
+before release registration; do not treat that default as a claimed production
+identifier.
+
+The runtime now includes `GeolocatorRideLocationProvider`. It starts only
+after the Rider explicitly enables tracking from an Active Ride. Android uses a
+visible foreground-service notification; iOS uses a foreground-started
+continuous location session. Real lock-screen/app-switch/battery behavior still
+requires device verification before #33 can be accepted.
 
 
 ## Active Ride realtime mobile client
@@ -476,3 +504,22 @@ load/refresh is the recovery path.
 
 The confirmation UI explicitly states that CommRide does **not** automatically
 contact ambulance, police, or public emergency services.
+
+
+## Live Rider map runtime
+
+The Live Group surface now supports Map / List when
+`COMMRIDE_MAPS_ENABLED=true`.
+
+Map behavior is intentionally conservative:
+
+- one marker per server-accepted RiderPresence;
+- Live / Stale / Offline remain explicit;
+- Stale/Offline coordinates are labeled as last-known;
+- server-derived convoy separation may affect attention styling;
+- incoming presence updates do not continuously recenter the camera;
+- **Fit Group** is an explicit Rider action;
+- no speed leaderboard or racing metric is introduced.
+
+If Maps is disabled, the existing Live Group list remains the operational
+fallback.
