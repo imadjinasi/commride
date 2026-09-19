@@ -30,17 +30,32 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.47.5"
           cache: true
 
       - name: Flutter version
         run: flutter --version
 
+      - name: Reject tracked provider or signing secrets
+        run: |
+          tracked="$(git ls-files --             'android/app/google-services.json'             'ios/Runner/GoogleService-Info.plist'             'android/key.properties'             'android/app/*.jks'             'android/app/*.keystore')"
+          test -z "$tracked" || {
+            echo "Forbidden provider/signing files are tracked:"
+            echo "$tracked"
+            exit 1
+          }
+
       - name: Generate native platform projects
         run: |
           native_dir="$RUNNER_TEMP/commride_native"
-          flutter create             --platforms=android,ios             --project-name commride_mobile             --org io.github.imadjinasi             "$native_dir"
+          flutter create \
+            --platforms=android,ios \
+            --project-name commride_mobile \
+            --org io.github.imadjinasi \
+            "$native_dir"
           cp -R "$native_dir/android" "$native_dir/ios" .
           python tool/configure_platforms.py
+          python tool/verify_platforms.py
 
       - name: Install dependencies
         run: flutter pub get
@@ -61,3 +76,20 @@ jobs:
           flutter build apk --debug \
             --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
             --dart-define=COMMRIDE_MAPS_ENABLED=false
+
+      - name: Build Android release AAB
+        run: |
+          flutter build appbundle --release \
+            --dart-define=COMMRIDE_ENV=production \
+            --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
+            --dart-define=COMMRIDE_MAPS_ENABLED=false
+
+      - name: Upload Android build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: commride-android-ci
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/bundle/release/app-release.aab
