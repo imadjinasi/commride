@@ -163,9 +163,7 @@ void main() {
   ) async {
     final FakeRideCommsApi api = FakeRideCommsApi()
       ..page = RideMessagePage(
-        messages: <RideMessage>[
-          message(body: '<b>Bukan HTML</b>'),
-        ],
+        messages: <RideMessage>[message(body: '<b>Bukan HTML</b>')],
         nextCursor: null,
       );
 
@@ -221,10 +219,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.kinds, <RideMessageKind>[RideMessageKind.announcement]);
-    expect(
-      find.text('Regroup di checkpoint berikutnya'),
-      findsWidgets,
-    );
+    expect(find.text('Regroup di checkpoint berikutnya'), findsWidgets);
     expect(find.text('Pengumuman Leader'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox.shrink());
