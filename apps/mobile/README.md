@@ -444,3 +444,35 @@ competing with future location/Live Group socket ownership.
 Message bodies render as plain text. No HTML/rich-text execution, attachment
 upload, edit/delete, voice note, or public/social exposure is introduced by
 this slice.
+
+
+## Persistent Ride SOS
+
+Active and Completed Ride detail exposes a dedicated **SOS** surface. SOS is
+kept separate from ordinary Comms and from the lightweight **Butuh Bantuan**
+Quick Action.
+
+Mobile behavior:
+- authenticated HTTP history is authoritative;
+- Active Ride participants deliberately confirm before raising SOS;
+- optional reason is bounded to the backend contract;
+- every raise uses a client-generated `clientCommandId`;
+- failed raise remains visibly failed and retry reuses that exact ID;
+- the app never fabricates Active SOS before server acknowledgement;
+- SOS remains valid when no GPS/presence snapshot exists;
+- trusted presence is labeled Live/Stale/Offline and shown as last-known
+  context, not implied current position;
+- the Rider who raised an Active SOS can cancel it;
+- the Ride Leader can resolve an Active SOS;
+- Completed Ride is history-only.
+
+The realtime parser understands `ride.sos_raised`,
+`ride.sos_cancelled`, and `ride.sos_resolved`. The controller can consume a
+shared Active Ride realtime client and replaces incidents by persisted ID.
+
+As with Comms, the current SOS screen does not open a second screen-specific
+Active Ride socket. Until shared session ownership is centralized, HTTP
+load/refresh is the recovery path.
+
+The confirmation UI explicitly states that CommRide does **not** automatically
+contact ambulance, police, or public emergency services.
