@@ -4,6 +4,7 @@ import 'api/checkpoint_api.dart';
 import 'api/club_ride_api.dart';
 import 'api/rider_profile_api.dart';
 import 'api/ride_briefing_api.dart';
+import 'api/ride_comms_api.dart';
 import 'api/route_planner_api.dart';
 import 'api/vehicle_api.dart';
 import 'auth/auth_gateway.dart';
@@ -22,6 +23,7 @@ class CommRideApp extends StatelessWidget {
     required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
+    required this.rideCommsApi,
     super.key,
   });
 
@@ -33,6 +35,7 @@ class CommRideApp extends StatelessWidget {
   final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
+  final RideCommsApi rideCommsApi;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +53,7 @@ class CommRideApp extends StatelessWidget {
         checkpointApi: checkpointApi,
         routePlannerApi: routePlannerApi,
         rideBriefingApi: rideBriefingApi,
+        rideCommsApi: rideCommsApi,
       ),
     );
   }
