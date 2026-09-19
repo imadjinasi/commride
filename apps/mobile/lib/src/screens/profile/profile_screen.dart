@@ -124,9 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 24),
               if (widget.ridePushController != null) ...<Widget>[
-                _RideNotificationCard(
-                  controller: widget.ridePushController!,
-                ),
+                _RideNotificationCard(controller: widget.ridePushController!),
                 const SizedBox(height: 24),
               ],
               const Divider(),
@@ -239,11 +237,10 @@ class _RideNotificationCard extends StatelessWidget {
       builder: (BuildContext context, Widget? child) {
         final RidePushState state = controller.state;
         final String status = switch (state.permission) {
-          RidePushPermission.authorized ||
-          RidePushPermission.provisional when state.registered =>
+          RidePushPermission.authorized || RidePushPermission.provisional
+              when state.registered =>
             'Aktif untuk alert Ride penting.',
-          RidePushPermission.authorized ||
-          RidePushPermission.provisional =>
+          RidePushPermission.authorized || RidePushPermission.provisional =>
             'Izin aktif, tetapi perangkat belum terdaftar.',
           RidePushPermission.denied =>
             'Izin notifikasi ditolak pada perangkat ini.',
