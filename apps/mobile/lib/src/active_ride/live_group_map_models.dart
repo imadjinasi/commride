@@ -3,11 +3,7 @@ import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'location_provider.dart';
 
-enum LiveGroupMapAttention {
-  normal,
-  inspect,
-  separated,
-}
+enum LiveGroupMapAttention { normal, inspect, separated }
 
 class LiveGroupMapMarker {
   const LiveGroupMapMarker({
@@ -82,23 +78,24 @@ class LiveGroupMapPresentation {
       }
     }
 
-    final List<LiveGroupMapMarker> markers = latestByRider.values
-        .map(
-          (LiveRiderPresence presence) => LiveGroupMapMarker(
-            riderId: presence.riderId,
-            displayName: presence.displayName,
-            role: presence.role,
-            latitude: presence.latitude,
-            longitude: presence.longitude,
-            observedAt: presence.observedAt,
-            receivedAt: presence.receivedAt,
-            movement: presence.movement,
-            freshness: presence.effectiveFreshness(now),
-            attention: _attentionFor(presence.riderId, separation),
-          ),
-        )
-        .toList(growable: false)
-      ..sort(_compareMarkers);
+    final List<LiveGroupMapMarker> markers =
+        latestByRider.values
+            .map(
+              (LiveRiderPresence presence) => LiveGroupMapMarker(
+                riderId: presence.riderId,
+                displayName: presence.displayName,
+                role: presence.role,
+                latitude: presence.latitude,
+                longitude: presence.longitude,
+                observedAt: presence.observedAt,
+                receivedAt: presence.receivedAt,
+                movement: presence.movement,
+                freshness: presence.effectiveFreshness(now),
+                attention: _attentionFor(presence.riderId, separation),
+              ),
+            )
+            .toList(growable: false)
+          ..sort(_compareMarkers);
 
     return LiveGroupMapPresentation(
       markers: List<LiveGroupMapMarker>.unmodifiable(markers),
@@ -108,11 +105,10 @@ class LiveGroupMapPresentation {
   }
 }
 
-bool _shouldReplace(
-  LiveRiderPresence current,
-  LiveRiderPresence candidate,
-) {
-  final int observedCompare = candidate.observedAt.compareTo(current.observedAt);
+bool _shouldReplace(LiveRiderPresence current, LiveRiderPresence candidate) {
+  final int observedCompare = candidate.observedAt.compareTo(
+    current.observedAt,
+  );
   if (observedCompare > 0) {
     return true;
   }
@@ -136,15 +132,13 @@ LiveGroupMapAttention _attentionFor(
   String riderId,
   LiveConvoySeparation? separation,
 ) {
-  if (separation == null ||
-      !separation.isolatedRiderIds.contains(riderId)) {
+  if (separation == null || !separation.isolatedRiderIds.contains(riderId)) {
     return LiveGroupMapAttention.normal;
   }
 
   return switch (separation.phase) {
     ConvoySeparationPhase.splitCandidate => LiveGroupMapAttention.inspect,
-    ConvoySeparationPhase.separatedAttention =>
-      LiveGroupMapAttention.separated,
+    ConvoySeparationPhase.separatedAttention => LiveGroupMapAttention.separated,
     ConvoySeparationPhase.insufficientData ||
     ConvoySeparationPhase.normal => LiveGroupMapAttention.normal,
   };
@@ -200,10 +194,5 @@ LiveGroupMapBounds? _bounds(List<LiveGroupMapMarker> markers) {
     }
   }
 
-  return LiveGroupMapBounds(
-    south: south,
-    west: west,
-    north: north,
-    east: east,
-  );
+  return LiveGroupMapBounds(south: south, west: west, north: north, east: east);
 }
