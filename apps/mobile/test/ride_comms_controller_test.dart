@@ -310,6 +310,24 @@ void main() {
     controller.dispose();
   });
 
+  test('Completed Ride starts read-only before any realtime event', () async {
+    final FakeRideCommsApi api = FakeRideCommsApi();
+    final RideCommsController controller = RideCommsController(
+      rideId: 'ride-1',
+      api: api,
+      readOnly: true,
+    );
+
+    expect(controller.state.rideEnded, isTrue);
+    await expectLater(
+      controller.sendChat('Too late'),
+      throwsStateError,
+    );
+    expect(api.sentIds, isEmpty);
+
+    controller.dispose();
+  });
+
   test('Ride end makes sending read-only', () async {
     final FakeRideCommsApi api = FakeRideCommsApi();
     final FakeRealtimeClient realtime = FakeRealtimeClient();
