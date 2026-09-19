@@ -107,8 +107,7 @@ class FakeRealtimeClient implements ActiveRideRealtimeClient {
 
 void main() {
   test('load recovers authoritative SOS state', () async {
-    final FakeRideSosApi api = FakeRideSosApi()
-      ..items = <RideSos>[sos()];
+    final FakeRideSosApi api = FakeRideSosApi()..items = <RideSos>[sos()];
     final RideSosController controller = RideSosController(
       rideId: 'ride-1',
       api: api,
