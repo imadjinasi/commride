@@ -316,10 +316,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
         type == 'ride.sos_resolved') {
       try {
         _events.add(
-          ActiveRideSosChanged(
-            type: type,
-            sos: RideSos.fromJson(rawPayload),
-          ),
+          ActiveRideSosChanged(type: type, sos: RideSos.fromJson(rawPayload)),
         );
       } on FormatException {
         return;
