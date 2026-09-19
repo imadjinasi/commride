@@ -37,7 +37,9 @@ jobs:
 
       - name: Generate native platform projects
         run: |
-          flutter create --platforms=android,ios --project-name commride_mobile --org io.github.imadjinasi .
+          native_dir="$RUNNER_TEMP/commride_native"
+          flutter create             --platforms=android,ios             --project-name commride_mobile             --org io.github.imadjinasi             "$native_dir"
+          cp -R "$native_dir/android" "$native_dir/ios" .
           python tool/configure_platforms.py
 
       - name: Install dependencies
