@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/push_token_api.dart';
 import '../api/rider_profile_api.dart';
 import '../api/ride_briefing_api.dart';
 import '../api/ride_comms_api.dart';
@@ -12,6 +13,7 @@ import '../api/vehicle_api.dart';
 import '../config/app_config.dart';
 import '../models/rider_profile.dart';
 import '../navigation/app_shell.dart';
+import '../push/ride_push_messaging.dart';
 import '../screens/auth/sign_in_screen.dart';
 import '../screens/profile/rider_profile_onboarding_screen.dart';
 import 'auth_gateway.dart';
@@ -29,6 +31,9 @@ class AuthGate extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.pushTokenApi,
+    this.pushMessaging,
+    this.pushPlatform,
     super.key,
   });
 
@@ -43,6 +48,9 @@ class AuthGate extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final PushTokenApi? pushTokenApi;
+  final RidePushMessaging? pushMessaging;
+  final RidePushPlatform? pushPlatform;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +86,9 @@ class AuthGate extends StatelessWidget {
           rideCommsApi: rideCommsApi,
           rideSosApi: rideSosApi,
           rideRecapApi: rideRecapApi,
+          pushTokenApi: pushTokenApi,
+          pushMessaging: pushMessaging,
+          pushPlatform: pushPlatform,
         );
       },
     );
@@ -97,6 +108,9 @@ class _RiderProfileGate extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.pushTokenApi,
+    this.pushMessaging,
+    this.pushPlatform,
     super.key,
   });
 
@@ -111,6 +125,9 @@ class _RiderProfileGate extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final PushTokenApi? pushTokenApi;
+  final RidePushMessaging? pushMessaging;
+  final RidePushPlatform? pushPlatform;
 
   @override
   State<_RiderProfileGate> createState() => _RiderProfileGateState();
@@ -168,6 +185,9 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           rideCommsApi: widget.rideCommsApi,
           rideSosApi: widget.rideSosApi,
           rideRecapApi: widget.rideRecapApi,
+          pushTokenApi: widget.pushTokenApi,
+          pushMessaging: widget.pushMessaging,
+          pushPlatform: widget.pushPlatform,
           authGateway: widget.authGateway,
         );
       },
