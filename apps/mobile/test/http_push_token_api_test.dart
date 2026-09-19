@@ -31,71 +31,77 @@ class FakeAuthGateway implements AuthGateway {
 }
 
 void main() {
-  test('registerToken authenticates and sends platform without Rider identity', () async {
-    late http.Request captured;
-    final MockClient client = MockClient((http.Request request) async {
-      captured = request;
-      return http.Response(
-        jsonEncode(<String, Object?>{
-          'pushToken': <String, Object?>{
-            'id': 'push-1',
-            'platform': 'android',
-            'updatedAt': '2026-09-19T06:00:00Z',
-          },
-        }),
-        200,
+  test(
+    'registerToken authenticates and sends platform without Rider identity',
+    () async {
+      late http.Request captured;
+      final MockClient client = MockClient((http.Request request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'pushToken': <String, Object?>{
+              'id': 'push-1',
+              'platform': 'android',
+              'updatedAt': '2026-09-19T06:00:00Z',
+            },
+          }),
+          200,
+        );
+      });
+      final HttpPushTokenApi api = HttpPushTokenApi(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: FakeAuthGateway(),
+        client: client,
       );
-    });
-    final HttpPushTokenApi api = HttpPushTokenApi(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: FakeAuthGateway(),
-      client: client,
-    );
 
-    await api.registerToken(
-      token: 'device-token',
-      platform: RidePushPlatform.android,
-    );
-
-    expect(captured.method, 'POST');
-    expect(captured.url.path, '/v1/me/push-tokens');
-    expect(captured.headers['authorization'], 'Bearer token-1');
-
-    final Map<String, Object?> body =
-        jsonDecode(captured.body) as Map<String, Object?>;
-    expect(body, <String, Object?>{
-      'token': 'device-token',
-      'platform': 'android',
-    });
-    expect(body.containsKey('riderId'), isFalse);
-  });
-
-  test('unregisterToken uses authenticated DELETE with the same token', () async {
-    late http.Request captured;
-    final MockClient client = MockClient((http.Request request) async {
-      captured = request;
-      return http.Response(
-        jsonEncode(<String, Object?>{'unregistered': true}),
-        200,
+      await api.registerToken(
+        token: 'device-token',
+        platform: RidePushPlatform.android,
       );
-    });
-    final HttpPushTokenApi api = HttpPushTokenApi(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: FakeAuthGateway(),
-      client: client,
-    );
 
-    await api.unregisterToken(
-      token: 'device-token',
-      platform: RidePushPlatform.ios,
-    );
+      expect(captured.method, 'POST');
+      expect(captured.url.path, '/v1/me/push-tokens');
+      expect(captured.headers['authorization'], 'Bearer token-1');
 
-    expect(captured.method, 'DELETE');
-    final Map<String, Object?> body =
-        jsonDecode(captured.body) as Map<String, Object?>;
-    expect(body['token'], 'device-token');
-    expect(body['platform'], 'ios');
-  });
+      final Map<String, Object?> body =
+          jsonDecode(captured.body) as Map<String, Object?>;
+      expect(body, <String, Object?>{
+        'token': 'device-token',
+        'platform': 'android',
+      });
+      expect(body.containsKey('riderId'), isFalse);
+    },
+  );
+
+  test(
+    'unregisterToken uses authenticated DELETE with the same token',
+    () async {
+      late http.Request captured;
+      final MockClient client = MockClient((http.Request request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode(<String, Object?>{'unregistered': true}),
+          200,
+        );
+      });
+      final HttpPushTokenApi api = HttpPushTokenApi(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: FakeAuthGateway(),
+        client: client,
+      );
+
+      await api.unregisterToken(
+        token: 'device-token',
+        platform: RidePushPlatform.ios,
+      );
+
+      expect(captured.method, 'DELETE');
+      final Map<String, Object?> body =
+          jsonDecode(captured.body) as Map<String, Object?>;
+      expect(body['token'], 'device-token');
+      expect(body['platform'], 'ios');
+    },
+  );
 
   test('preserves structured registration errors', () async {
     final MockClient client = MockClient((http.Request request) async {
@@ -116,10 +122,7 @@ void main() {
     );
 
     expect(
-      () => api.registerToken(
-        token: 'bad',
-        platform: RidePushPlatform.android,
-      ),
+      () => api.registerToken(token: 'bad', platform: RidePushPlatform.android),
       throwsA(
         isA<PushTokenApiException>().having(
           (PushTokenApiException error) => error.code,
