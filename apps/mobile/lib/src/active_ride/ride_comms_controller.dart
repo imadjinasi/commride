@@ -129,12 +129,7 @@ class RideCommsController extends ChangeNotifier {
       return;
     }
 
-    _setState(
-      _state.copyWith(
-        loading: true,
-        clearError: true,
-      ),
-    );
+    _setState(_state.copyWith(loading: true, clearError: true));
 
     try {
       final RideMessagePage page = await _api.fetchMessages(_rideId);
@@ -163,12 +158,7 @@ class RideCommsController extends ChangeNotifier {
       return;
     }
 
-    _setState(
-      _state.copyWith(
-        loadingOlder: true,
-        clearError: true,
-      ),
-    );
+    _setState(_state.copyWith(loadingOlder: true, clearError: true));
 
     try {
       final RideMessagePage page = await _api.fetchMessages(
@@ -258,11 +248,7 @@ class RideCommsController extends ChangeNotifier {
     }
 
     _setState(
-      _state.copyWith(
-        sending: true,
-        clearFailedSend: true,
-        clearError: true,
-      ),
+      _state.copyWith(sending: true, clearFailedSend: true, clearError: true),
     );
 
     try {
@@ -280,10 +266,7 @@ class RideCommsController extends ChangeNotifier {
 
       _setState(
         _state.copyWith(
-          messages: _sortedUnique(<RideMessage>[
-            ..._state.messages,
-            message,
-          ]),
+          messages: _sortedUnique(<RideMessage>[..._state.messages, message]),
           sending: false,
           clearFailedSend: true,
           clearError: true,
