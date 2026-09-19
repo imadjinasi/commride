@@ -530,6 +530,42 @@ A staging environment can be added once external integrations and mobile release
 
 Do not share production secrets with development.
 
+## Persistent Ride SOS
+
+SOS uses D1 as authoritative low-frequency incident state and remains separate
+from private Ride chat and Quick Actions.
+
+Flow:
+1. mobile sends an authenticated HTTP SOS command;
+2. API derives Rider identity and Ride role from server-side membership;
+3. API best-effort asks the Active Ride room for that Rider's latest
+   server-accepted presence;
+4. D1 persists the SOS even when no presence or realtime room is available;
+5. after persistence, the API best-effort broadcasts a typed SOS event through
+   the Active Ride room;
+6. clients recover through the authenticated SOS read API if realtime delivery
+   is missed.
+
+The retained location is one incident snapshot, not a GPS history stream. It
+preserves observedAt, receivedAt, movement, and Live/Stale/Offline freshness.
+
+Initial commands are:
+- raise SOS by an Active Ride participant;
+- cancel own Active SOS;
+- resolve Active SOS by the Ride Leader.
+
+Ride completion is blocked while any SOS remains Active. The first slice does
+not silently resolve incidents at Ride end.
+
+Typed realtime events are:
+- `ride.sos_raised`;
+- `ride.sos_cancelled`;
+- `ride.sos_resolved`.
+
+No event or UI may state that ambulance, police, roadside assistance, or another
+external emergency service was contacted unless a separately verified
+integration actually performs that action.
+
 ## 16. Cost model principle
 
 The early stack is intentionally selected so small usage can remain within no-cost tiers.
