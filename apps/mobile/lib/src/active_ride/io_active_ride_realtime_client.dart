@@ -210,7 +210,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
 
     final Object? type = decoded['type'];
     final Object? rawPayload = decoded['payload'];
-    if (rawPayload is! Map<String, Object?>) {
+    if (type is! String || rawPayload is! Map<String, Object?>) {
       return;
     }
 
