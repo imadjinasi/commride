@@ -242,10 +242,8 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
 
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => RideRecapScreen(
-          rideId: _item.ride.id,
-          rideRecapApi: rideRecapApi,
-        ),
+        builder: (BuildContext context) =>
+            RideRecapScreen(rideId: _item.ride.id, rideRecapApi: rideRecapApi),
       ),
     );
   }
