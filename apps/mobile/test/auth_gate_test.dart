@@ -256,10 +256,7 @@ class FakeRideCommsApi implements RideCommsApi {
     String? cursor,
     int limit = 50,
   }) async {
-    return const RideMessagePage(
-      messages: <RideMessage>[],
-      nextCursor: null,
-    );
+    return const RideMessagePage(messages: <RideMessage>[], nextCursor: null);
   }
 
   @override
