@@ -69,9 +69,6 @@ export class FcmHttpV1Transport implements PushTransport {
                 data: message.data,
                 android: {
                   priority: 'high',
-                  notification: {
-                    channel_id: 'commride_ride_alerts',
-                  },
                 },
                 apns: {
                   headers: {
