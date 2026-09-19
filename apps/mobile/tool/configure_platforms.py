@@ -126,6 +126,8 @@ def configure_ios() -> None:
     background_modes = list(plist.get("UIBackgroundModes", []))
     if "location" not in background_modes:
         background_modes.append("location")
+    if "remote-notification" not in background_modes:
+        background_modes.append("remote-notification")
     plist["UIBackgroundModes"] = background_modes
     plist["COMMRIDE_MAPS_API_KEY"] = os.environ.get(
         "COMMRIDE_MAPS_IOS_API_KEY", ""
@@ -175,6 +177,26 @@ def configure_ios() -> None:
             raise SystemExit(
                 "Unexpected iOS AppDelegate template; refusing unsafe patch."
             )
+    messaging_setup = (
+        "    FLTFirebaseMessagingPlugin."
+        "configureNotificationCenterDelegate()\n"
+    )
+    if "configureNotificationCenterDelegate()" not in content:
+        return_marker = (
+            "    return super.application(application, "
+            "didFinishLaunchingWithOptions: launchOptions)"
+        )
+        if return_marker not in content:
+            raise SystemExit(
+                "Unexpected iOS AppDelegate template for Firebase Messaging; "
+                "refusing unsafe patch."
+            )
+        content = content.replace(
+            return_marker,
+            messaging_setup + return_marker,
+            1,
+        )
+
     app_delegate.write_text(content, encoding="utf-8")
 
 
