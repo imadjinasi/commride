@@ -5,6 +5,7 @@ import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/ride_comms_api.dart';
+import '../../api/ride_recap_api.dart';
 import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../active_ride/ride_comms_controller.dart';
@@ -14,6 +15,7 @@ import 'active_ride_command_center_screen.dart';
 import 'checkpoints_screen.dart';
 import 'ride_briefing_screen.dart';
 import 'ride_comms_screen.dart';
+import 'ride_recap_screen.dart';
 import 'ride_sos_screen.dart';
 import 'route_planner_screen.dart';
 
@@ -26,6 +28,7 @@ class RideDetailScreen extends StatefulWidget {
     required this.rideBriefingApi,
     required this.rideCommsApi,
     required this.rideSosApi,
+    this.rideRecapApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
     required this.onChanged,
@@ -39,6 +42,7 @@ class RideDetailScreen extends StatefulWidget {
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
+  final RideRecapApi? rideRecapApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
   final VoidCallback onChanged;
@@ -131,6 +135,15 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                 ),
                 const SizedBox(height: 8),
               ],
+              if (ride.status == RideStatus.completed &&
+                  widget.rideRecapApi != null) ...<Widget>[
+                FilledButton.tonalIcon(
+                  onPressed: _working ? null : _openRecap,
+                  icon: const Icon(Icons.summarize_outlined),
+                  label: const Text('Ride Recap'),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (ride.status == RideStatus.active ||
                   ride.status == RideStatus.completed) ...<Widget>[
                 OutlinedButton.icon(
@@ -216,6 +229,22 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
           ride: _item.ride,
           runtimeManager: runtimeManager,
           mapsEnabled: widget.mapsEnabled,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRecap() async {
+    final RideRecapApi? rideRecapApi = widget.rideRecapApi;
+    if (rideRecapApi == null || _item.ride.status != RideStatus.completed) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideRecapScreen(
+          rideId: _item.ride.id,
+          rideRecapApi: rideRecapApi,
         ),
       ),
     );
