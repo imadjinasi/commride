@@ -43,9 +43,7 @@ class RidePushState {
       latestForegroundPush: clearForegroundPush
           ? null
           : (latestForegroundPush ?? this.latestForegroundPush),
-      latestError: clearLatestError
-          ? null
-          : (latestError ?? this.latestError),
+      latestError: clearLatestError ? null : (latestError ?? this.latestError),
     );
   }
 }
@@ -78,25 +76,19 @@ class RidePushController extends ChangeNotifier {
     }
     _started = true;
 
-    _tokenSubscription = _messaging.tokenRefreshes.listen(
-      (String token) {
-        unawaited(_registerToken(token));
-      },
-    );
-    _foregroundSubscription = _messaging.foregroundMessages.listen(
-      (RideForegroundPush message) {
-        _setState(
-          _state.copyWith(
-            latestForegroundPush: message,
-            clearLatestError: true,
-          ),
-        );
-      },
-    );
+    _tokenSubscription = _messaging.tokenRefreshes.listen((String token) {
+      unawaited(_registerToken(token));
+    });
+    _foregroundSubscription = _messaging.foregroundMessages.listen((
+      RideForegroundPush message,
+    ) {
+      _setState(
+        _state.copyWith(latestForegroundPush: message, clearLatestError: true),
+      );
+    });
 
     try {
-      final RidePushPermission permission =
-          await _messaging.checkPermission();
+      final RidePushPermission permission = await _messaging.checkPermission();
       _setState(_state.copyWith(permission: permission));
       if (permission.canReceive) {
         await _syncToken();
@@ -115,21 +107,18 @@ class RidePushController extends ChangeNotifier {
       return;
     }
 
-    _setState(
-      _state.copyWith(working: true, clearLatestError: true),
-    );
+    _setState(_state.copyWith(working: true, clearLatestError: true));
 
     try {
-      final RidePushPermission permission =
-          await _messaging.requestPermission();
+      final RidePushPermission permission = await _messaging
+          .requestPermission();
       _setState(_state.copyWith(permission: permission));
 
       if (!permission.canReceive) {
         _setState(
           _state.copyWith(
             registered: false,
-            latestError:
-                'Izin notifikasi belum diberikan pada perangkat ini.',
+            latestError: 'Izin notifikasi belum diberikan pada perangkat ini.',
           ),
         );
         return;
@@ -138,9 +127,7 @@ class RidePushController extends ChangeNotifier {
       await _syncToken();
     } catch (_) {
       _setState(
-        _state.copyWith(
-          latestError: 'Notifikasi Ride belum dapat diaktifkan.',
-        ),
+        _state.copyWith(latestError: 'Notifikasi Ride belum dapat diaktifkan.'),
       );
     } finally {
       if (!_disposed) {
@@ -156,10 +143,7 @@ class RidePushController extends ChangeNotifier {
     }
 
     try {
-      await _tokenApi.unregisterToken(
-        token: token,
-        platform: _platform,
-      );
+      await _tokenApi.unregisterToken(token: token, platform: _platform);
       _registeredToken = null;
       _setState(_state.copyWith(registered: false));
     } catch (_) {
@@ -197,17 +181,9 @@ class RidePushController extends ChangeNotifier {
     }
 
     try {
-      await _tokenApi.registerToken(
-        token: normalized,
-        platform: _platform,
-      );
+      await _tokenApi.registerToken(token: normalized, platform: _platform);
       _registeredToken = normalized;
-      _setState(
-        _state.copyWith(
-          registered: true,
-          clearLatestError: true,
-        ),
-      );
+      _setState(_state.copyWith(registered: true, clearLatestError: true));
     } catch (_) {
       _setState(
         _state.copyWith(
