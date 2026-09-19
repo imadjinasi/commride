@@ -90,25 +90,28 @@ class FakeMessaging implements RidePushMessaging {
 }
 
 void main() {
-  test('start never prompts when notification permission is undecided', () async {
-    final FakePushTokenApi api = FakePushTokenApi();
-    final FakeMessaging messaging = FakeMessaging();
-    final RidePushController controller = RidePushController(
-      tokenApi: api,
-      messaging: messaging,
-      platform: RidePushPlatform.android,
-    );
+  test(
+    'start never prompts when notification permission is undecided',
+    () async {
+      final FakePushTokenApi api = FakePushTokenApi();
+      final FakeMessaging messaging = FakeMessaging();
+      final RidePushController controller = RidePushController(
+        tokenApi: api,
+        messaging: messaging,
+        platform: RidePushPlatform.android,
+      );
 
-    await controller.start();
+      await controller.start();
 
-    expect(messaging.checkCalls, 1);
-    expect(messaging.requestCalls, 0);
-    expect(api.registered, isEmpty);
-    expect(controller.state.permission, RidePushPermission.notDetermined);
+      expect(messaging.checkCalls, 1);
+      expect(messaging.requestCalls, 0);
+      expect(api.registered, isEmpty);
+      expect(controller.state.permission, RidePushPermission.notDetermined);
 
-    controller.dispose();
-    await messaging.close();
-  });
+      controller.dispose();
+      await messaging.close();
+    },
+  );
 
   test('start silently syncs token when permission already exists', () async {
     final FakePushTokenApi api = FakePushTokenApi();
@@ -189,10 +192,10 @@ void main() {
     messaging.tokenRefreshController.add('device-token-2');
     await Future<void>.delayed(Duration.zero);
 
-    expect(
-      api.registered,
-      <String>['android:device-token', 'android:device-token-2'],
-    );
+    expect(api.registered, <String>[
+      'android:device-token',
+      'android:device-token-2',
+    ]);
 
     controller.dispose();
     await messaging.close();
@@ -241,10 +244,7 @@ void main() {
 
     await controller.start();
 
-    await expectLater(
-      controller.unregisterBestEffort(),
-      completes,
-    );
+    await expectLater(controller.unregisterBestEffort(), completes);
 
     controller.dispose();
     await messaging.close();
