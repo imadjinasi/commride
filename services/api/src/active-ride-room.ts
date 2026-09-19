@@ -10,6 +10,7 @@ import {
   separationStateMeaningfullyChanged,
   type ConvoySeparationState,
 } from './active-ride/separation';
+import { realtimeRateLimited } from './active-ride/rate-limit';
 import {
   ACTIVE_RIDE_PROTOCOL_VERSION,
   type ConnectionAttachment,
@@ -22,6 +23,8 @@ import {
 
 const RIDE_STATUS_CHECK_INTERVAL_MS = 60_000;
 const LOCATION_SAMPLE_INTERVAL_MS = 60_000;
+const PRESENCE_MIN_INTERVAL_MS = 750;
+const QUICK_ACTION_MIN_INTERVAL_MS = 2_000;
 const QUICK_ACTION_DEDUP_LIMIT = 128;
 const ENDED_AT_KEY = 'room.endedAt';
 const QUICK_ACTION_IDS_KEY = 'room.quickActionIds';
@@ -316,7 +319,7 @@ export class ActiveRideRoom {
       return;
     }
 
-    await this.handleQuickAction(attachment, parsed);
+    await this.handleQuickAction(socket, attachment, parsed);
   }
 
   async webSocketClose(
@@ -538,6 +541,24 @@ export class ActiveRideRoom {
       { type: 'presence.update' }
     >,
   ): Promise<void> {
+    const acceptedAt = new Date();
+    if (
+      realtimeRateLimited(
+        attachment.lastPresenceAcceptedAt,
+        acceptedAt,
+        PRESENCE_MIN_INTERVAL_MS,
+      )
+    ) {
+      socket.send(
+        serverEvent('error', {
+          code: 'presence_rate_limited',
+          message: 'Presence updates are arriving too quickly.',
+          eventId: event.eventId,
+        }),
+      );
+      return;
+    }
+
     const current =
       attachment.lastPresence ??
       await this.state.storage.get<StoredPresence>(
@@ -563,13 +584,14 @@ export class ActiveRideRoom {
       latitude: event.payload.latitude,
       longitude: event.payload.longitude,
       observedAt: event.payload.observedAt,
-      receivedAt: new Date().toISOString(),
+      receivedAt: acceptedAt.toISOString(),
       movement: event.payload.movement,
       connected: true,
     };
 
     socket.serializeAttachment({
       ...attachment,
+      lastPresenceAcceptedAt: acceptedAt.toISOString(),
       lastPresence: next,
     } satisfies ConnectionAttachment);
 
@@ -642,6 +664,7 @@ export class ActiveRideRoom {
   }
 
   private async handleQuickAction(
+    socket: WebSocket,
     attachment: ConnectionAttachment,
     event: Extract<
       ReturnType<typeof parseClientEvent>,
@@ -654,12 +677,35 @@ export class ActiveRideRoom {
       return;
     }
 
+    const acceptedAt = new Date();
+    if (
+      realtimeRateLimited(
+        attachment.lastQuickActionAcceptedAt,
+        acceptedAt,
+        QUICK_ACTION_MIN_INTERVAL_MS,
+      )
+    ) {
+      socket.send(
+        serverEvent('error', {
+          code: 'quick_action_rate_limited',
+          message: 'Quick Actions are arriving too quickly.',
+          eventId: event.eventId,
+        }),
+      );
+      return;
+    }
+
     const nextRecent = [...recent, event.eventId].slice(
       -QUICK_ACTION_DEDUP_LIMIT,
     );
     await this.state.storage.put(QUICK_ACTION_IDS_KEY, nextRecent);
 
-    const raisedAt = new Date();
+    socket.serializeAttachment({
+      ...attachment,
+      lastQuickActionAcceptedAt: acceptedAt.toISOString(),
+    } satisfies ConnectionAttachment);
+
+    const raisedAt = acceptedAt;
 
     this.broadcast(
       serverEvent(
