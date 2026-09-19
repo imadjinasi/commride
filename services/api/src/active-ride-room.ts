@@ -1,4 +1,5 @@
 import type { Env } from './env';
+import { resolveRidePushNotifier } from './push/runtime';
 import { errorResponse, jsonResponse } from './http/json';
 import { resolveRequestId } from './request-id';
 import type { RideRole } from './clubs-rides/models';
@@ -360,7 +361,7 @@ export class ActiveRideRoom {
       }),
     );
 
-    await this.evaluateSeparation();
+    await this.evaluateSeparation(attachment.rideId);
   }
 
   async webSocketError(
@@ -512,7 +513,7 @@ export class ActiveRideRoom {
     };
     server.serializeAttachment(attachment);
 
-    const separation = await this.evaluateSeparation();
+    const separation = await this.evaluateSeparation(rideId);
     const snapshot = await this.snapshot();
     server.send(
       serverEvent('ride.snapshot', {
@@ -581,7 +582,7 @@ export class ActiveRideRoom {
       }),
     );
 
-    await this.evaluateSeparation();
+    await this.evaluateSeparation(attachment.rideId);
   }
 
   private async persistJourneySample(
@@ -666,6 +667,13 @@ export class ActiveRideRoom {
         quickActionRaisedPayload(attachment, event, raisedAt),
       ),
     );
+
+    if (
+      event.payload.kind === 'need_help' ||
+      event.payload.kind === 'left_behind'
+    ) {
+      await this.notifyQuickActionBestEffort(attachment, event);
+    }
   }
 
   private async snapshot(): Promise<readonly ReturnType<typeof presenceView>[]> {
@@ -712,7 +720,9 @@ export class ActiveRideRoom {
     return [...byRider.values()];
   }
 
-  private async evaluateSeparation(): Promise<ConvoySeparationState> {
+  private async evaluateSeparation(
+    rideId?: string,
+  ): Promise<ConvoySeparationState> {
     const previous =
       await this.state.storage.get<ConvoySeparationState>(
         SEPARATION_STATE_KEY,
@@ -730,9 +740,85 @@ export class ActiveRideRoom {
           separation: next,
         }),
       );
+
+      if (
+        rideId != null &&
+        previous?.phase !== 'separated_attention' &&
+        next.phase === 'separated_attention'
+      ) {
+        await this.notifySeparationBestEffort(rideId, next.confirmedAt);
+      }
     }
 
     return next;
+  }
+
+  private async notifyQuickActionBestEffort(
+    attachment: ConnectionAttachment,
+    event: Extract<
+      ReturnType<typeof parseClientEvent>,
+      { type: 'quick_action.raise' }
+    >,
+  ): Promise<void> {
+    const notifier = resolveRidePushNotifier(this.env);
+    if (notifier == null) {
+      return;
+    }
+
+    const isHelp = event.payload.kind === 'need_help';
+    const kindLabel = isHelp ? 'Butuh bantuan' : 'Tertinggal';
+    try {
+      await notifier.notify({
+        eventKey: `quick-action:${attachment.rideId}:${event.eventId}`,
+        rideId: attachment.rideId,
+        kind: event.payload.kind,
+        title: `${kindLabel} · ${attachment.displayName}`,
+        body:
+          event.payload.reason ??
+          (isHelp
+            ? 'Rider meminta bantuan pada Ride aktif.'
+            : 'Rider melaporkan tertinggal dari rombongan.'),
+        data: {
+          type: 'quick_action.raised',
+          rideId: attachment.rideId,
+          eventId: event.eventId,
+          kind: event.payload.kind,
+        },
+        excludeRiderId: attachment.riderId,
+      });
+    } catch {
+      // Realtime action remains authoritative even when push fails.
+    }
+  }
+
+  private async notifySeparationBestEffort(
+    rideId: string,
+    confirmedAt: string | null,
+  ): Promise<void> {
+    const notifier = resolveRidePushNotifier(this.env);
+    if (notifier == null) {
+      return;
+    }
+
+    try {
+      await notifier.notify({
+        eventKey:
+          `separation:${rideId}:${confirmedAt ?? new Date().toISOString()}`,
+        rideId,
+        kind: 'convoy_separation',
+        title: 'Perhatian rombongan terpisah',
+        body:
+          'CommRide mendeteksi pemisahan rombongan yang sudah melewati ambang konfirmasi.',
+        data: {
+          type: 'convoy.separation_updated',
+          rideId,
+          phase: 'separated_attention',
+        },
+        leaderOnly: true,
+      });
+    } catch {
+      // Convoy state remains realtime/server-derived even when push fails.
+    }
   }
 
   private async ensureRideActive(
