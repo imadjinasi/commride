@@ -5,6 +5,7 @@ import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
 import '../api/ride_briefing_api.dart';
 import '../api/ride_comms_api.dart';
+import '../api/ride_recap_api.dart';
 import '../api/ride_sos_api.dart';
 import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
@@ -28,6 +29,7 @@ class AppShell extends StatefulWidget {
     required this.rideBriefingApi,
     required this.rideCommsApi,
     required this.rideSosApi,
+    this.rideRecapApi,
     required this.authGateway,
     super.key,
   });
@@ -41,6 +43,7 @@ class AppShell extends StatefulWidget {
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
+  final RideRecapApi? rideRecapApi;
   final AuthGateway authGateway;
 
   @override
@@ -80,6 +83,7 @@ class _AppShellState extends State<AppShell> {
         rideBriefingApi: widget.rideBriefingApi,
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
+        rideRecapApi: widget.rideRecapApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
       ),
@@ -91,6 +95,7 @@ class _AppShellState extends State<AppShell> {
         rideBriefingApi: widget.rideBriefingApi,
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
+        rideRecapApi: widget.rideRecapApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
       ),
