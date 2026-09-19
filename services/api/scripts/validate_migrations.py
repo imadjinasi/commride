@@ -40,6 +40,8 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "ride_messages",
         "ride_sos",
         "ride_location_samples",
+        "rider_push_tokens",
+        "push_notification_events",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -766,6 +768,94 @@ def assert_ride_sos_invariants(connection: sqlite3.Connection) -> None:
     )
 
 
+def assert_push_notification_invariants(
+    connection: sqlite3.Connection,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO rider_push_tokens(
+          id,
+          rider_id,
+          token,
+          platform,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, 'android', ?, ?)
+        """,
+        (
+            "push-1",
+            "rider-1",
+            "token-1",
+            "2026-09-18T10:20:00Z",
+            "2026-09-18T10:20:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO rider_push_tokens(
+              id,
+              rider_id,
+              token,
+              platform,
+              created_at,
+              updated_at
+            ) VALUES (?, ?, ?, 'ios', ?, ?)
+            """,
+            (
+                "push-duplicate",
+                "rider-1",
+                "token-1",
+                "2026-09-18T10:21:00Z",
+                "2026-09-18T10:21:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate push token was accepted")
+
+    connection.execute(
+        """
+        INSERT INTO push_notification_events(
+          event_key,
+          ride_id,
+          kind,
+          created_at
+        ) VALUES (?, ?, ?, ?)
+        """,
+        (
+            "sos:sos-1:raised",
+            "ride-1",
+            "sos_raised",
+            "2026-09-18T10:22:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO push_notification_events(
+              event_key,
+              ride_id,
+              kind,
+              created_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (
+                "sos:sos-1:raised",
+                "ride-1",
+                "sos_raised",
+                "2026-09-18T10:23:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate push event dedupe key was accepted")
+
+
 def main() -> None:
     connection = sqlite3.connect(":memory:")
     connection.execute("PRAGMA foreign_keys = ON")
@@ -779,6 +869,7 @@ def main() -> None:
     assert_location_sample_invariants(connection)
     assert_ride_message_invariants(connection)
     assert_ride_sos_invariants(connection)
+    assert_push_notification_invariants(connection)
     assert_foreign_keys(connection)
 
     print("migration-validation-ok")
