@@ -218,9 +218,7 @@ void main() {
         LiveGroupMapPresentation.fromPresences(
           presences: presences,
           now: now,
-          separation: separation(
-            ConvoySeparationPhase.separatedAttention,
-          ),
+          separation: separation(ConvoySeparationPhase.separatedAttention),
         );
 
     expect(
