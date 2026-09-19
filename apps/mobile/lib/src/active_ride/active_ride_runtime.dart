@@ -99,11 +99,10 @@ class ActiveRideRuntimeManager {
           realtimeClient: realtimeClient,
           ownsRealtimeConnection: false,
         );
-    final ActiveRideGroupController groupController =
-        ActiveRideGroupController(
-          rideId: ride.id,
-          realtimeClient: realtimeClient,
-        )..start();
+    final ActiveRideGroupController groupController = ActiveRideGroupController(
+      rideId: ride.id,
+      realtimeClient: realtimeClient,
+    )..start();
 
     final ActiveRideRuntime runtime = ActiveRideRuntime(
       rideId: ride.id,
