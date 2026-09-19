@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:commride_mobile/src/api/http_ride_recap_api.dart';
+import 'package:commride_mobile/src/api/ride_recap_api.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/models/ride_recap.dart';
 import 'package:flutter_test/flutter_test.dart';
