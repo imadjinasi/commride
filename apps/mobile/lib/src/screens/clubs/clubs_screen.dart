@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../active_ride/active_ride_runtime.dart';
+
 import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
@@ -18,6 +20,8 @@ class ClubsScreen extends StatefulWidget {
     required this.rideBriefingApi,
     required this.rideCommsApi,
     required this.rideSosApi,
+    this.activeRideRuntimeManager,
+    this.mapsEnabled = false,
     super.key,
   });
 
@@ -27,6 +31,8 @@ class ClubsScreen extends StatefulWidget {
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
+  final ActiveRideRuntimeManager? activeRideRuntimeManager;
+  final bool mapsEnabled;
 
   @override
   State<ClubsScreen> createState() => _ClubsScreenState();
@@ -157,6 +163,8 @@ class _ClubsScreenState extends State<ClubsScreen> {
           rideBriefingApi: widget.rideBriefingApi,
           rideCommsApi: widget.rideCommsApi,
           rideSosApi: widget.rideSosApi,
+          activeRideRuntimeManager: widget.activeRideRuntimeManager,
+          mapsEnabled: widget.mapsEnabled,
           onChanged: _refresh,
         ),
       ),
