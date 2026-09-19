@@ -4,6 +4,7 @@ import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
 import '../api/ride_briefing_api.dart';
 import '../api/ride_comms_api.dart';
+import '../api/ride_sos_api.dart';
 import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
 import '../auth/auth_gateway.dart';
@@ -25,6 +26,7 @@ class AppShell extends StatefulWidget {
     required this.routePlannerApi,
     required this.rideBriefingApi,
     required this.rideCommsApi,
+    required this.rideSosApi,
     required this.authGateway,
     super.key,
   });
@@ -37,6 +39,7 @@ class AppShell extends StatefulWidget {
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
+  final RideSosApi rideSosApi;
   final AuthGateway authGateway;
 
   @override
@@ -56,6 +59,7 @@ class _AppShellState extends State<AppShell> {
         routePlannerApi: widget.routePlannerApi,
         rideBriefingApi: widget.rideBriefingApi,
         rideCommsApi: widget.rideCommsApi,
+        rideSosApi: widget.rideSosApi,
       ),
       const ExploreScreen(),
       ClubsScreen(
@@ -64,6 +68,7 @@ class _AppShellState extends State<AppShell> {
         routePlannerApi: widget.routePlannerApi,
         rideBriefingApi: widget.rideBriefingApi,
         rideCommsApi: widget.rideCommsApi,
+        rideSosApi: widget.rideSosApi,
       ),
       ProfileScreen(
         riderProfile: widget.riderProfile,
