@@ -269,15 +269,10 @@ class _LiveGroupMapViewState extends State<_LiveGroupMapView> {
             height: 420,
             child: GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: LatLng(
-                  bounds.centerLatitude,
-                  bounds.centerLongitude,
-                ),
+                target: LatLng(bounds.centerLatitude, bounds.centerLongitude),
                 zoom: presentation.markers.length == 1 ? 16 : 12,
               ),
-              markers: presentation.markers
-                  .map(_toGoogleMarker)
-                  .toSet(),
+              markers: presentation.markers.map(_toGoogleMarker).toSet(),
               myLocationEnabled: false,
               myLocationButtonEnabled: false,
               compassEnabled: true,
