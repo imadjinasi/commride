@@ -61,10 +61,8 @@ Map<String, Object?> recapJson({
     'journey': <String, Object?>{
       'sampleCount': sampleCount,
       'trackedRiderCount': trackedRiderCount,
-      'firstObservedAt':
-          sampleCount == 0 ? null : '2026-09-18T09:01:00Z',
-      'lastObservedAt':
-          sampleCount == 0 ? null : '2026-09-18T11:59:00Z',
+      'firstObservedAt': sampleCount == 0 ? null : '2026-09-18T09:01:00Z',
+      'lastObservedAt': sampleCount == 0 ? null : '2026-09-18T11:59:00Z',
       'leaderTrackedDistanceMeters': leaderTrackedDistanceMeters,
     },
     'checkpoints': <Object?>[
@@ -93,59 +91,65 @@ Map<String, Object?> recapJson({
 }
 
 void main() {
-  test('fetchRecap authenticates and preserves no-sample truthfulness', () async {
-    late http.Request captured;
-    final MockClient client = MockClient((http.Request request) async {
-      captured = request;
-      return http.Response(
-        jsonEncode(<String, Object?>{'recap': recapJson()}),
-        200,
+  test(
+    'fetchRecap authenticates and preserves no-sample truthfulness',
+    () async {
+      late http.Request captured;
+      final MockClient client = MockClient((http.Request request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode(<String, Object?>{'recap': recapJson()}),
+          200,
+        );
+      });
+      final HttpRideRecapApi api = HttpRideRecapApi(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: FakeAuthGateway(),
+        client: client,
       );
-    });
-    final HttpRideRecapApi api = HttpRideRecapApi(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: FakeAuthGateway(),
-      client: client,
-    );
 
-    final RideRecap recap = await api.fetchRecap('ride-1');
+      final RideRecap recap = await api.fetchRecap('ride-1');
 
-    expect(captured.method, 'GET');
-    expect(captured.url.path, '/v1/rides/ride-1/recap');
-    expect(captured.headers['authorization'], 'Bearer token-1');
-    expect(recap.durationSeconds, 10800);
-    expect(recap.journey.hasSamples, isFalse);
-    expect(recap.journey.leaderTrackedDistanceMeters, isNull);
-    expect(recap.checkpoints.single.checkInCount, 8);
-    expect(recap.incidents.single.state, 'resolved');
-  });
+      expect(captured.method, 'GET');
+      expect(captured.url.path, '/v1/rides/ride-1/recap');
+      expect(captured.headers['authorization'], 'Bearer token-1');
+      expect(recap.durationSeconds, 10800);
+      expect(recap.journey.hasSamples, isFalse);
+      expect(recap.journey.leaderTrackedDistanceMeters, isNull);
+      expect(recap.checkpoints.single.checkInCount, 8);
+      expect(recap.incidents.single.state, 'resolved');
+    },
+  );
 
-  test('fetchRecap preserves sampled journey separately from planned route', () async {
-    final MockClient client = MockClient((http.Request request) async {
-      return http.Response(
-        jsonEncode(<String, Object?>{
-          'recap': recapJson(
-            sampleCount: 60,
-            trackedRiderCount: 9,
-            leaderTrackedDistanceMeters: 39750,
-          ),
-        }),
-        200,
+  test(
+    'fetchRecap preserves sampled journey separately from planned route',
+    () async {
+      final MockClient client = MockClient((http.Request request) async {
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'recap': recapJson(
+              sampleCount: 60,
+              trackedRiderCount: 9,
+              leaderTrackedDistanceMeters: 39750,
+            ),
+          }),
+          200,
+        );
+      });
+      final HttpRideRecapApi api = HttpRideRecapApi(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: FakeAuthGateway(),
+        client: client,
       );
-    });
-    final HttpRideRecapApi api = HttpRideRecapApi(
-      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
-      authGateway: FakeAuthGateway(),
-      client: client,
-    );
 
-    final RideRecap recap = await api.fetchRecap('ride-1');
+      final RideRecap recap = await api.fetchRecap('ride-1');
 
-    expect(recap.plannedRoute?.distanceMeters, 42000);
-    expect(recap.journey.leaderTrackedDistanceMeters, 39750);
-    expect(recap.journey.sampleCount, 60);
-    expect(recap.journey.trackedRiderCount, 9);
-  });
+      expect(recap.plannedRoute?.distanceMeters, 42000);
+      expect(recap.journey.leaderTrackedDistanceMeters, 39750);
+      expect(recap.journey.sampleCount, 60);
+      expect(recap.journey.trackedRiderCount, 9);
+    },
+  );
 
   test('fetchRecap keeps structured API errors', () async {
     final MockClient client = MockClient((http.Request request) async {
