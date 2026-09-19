@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../active_ride/active_ride_runtime.dart';
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/push_token_api.dart';
 import '../api/ride_briefing_api.dart';
 import '../api/ride_comms_api.dart';
 import '../api/ride_recap_api.dart';
@@ -12,6 +15,8 @@ import '../api/vehicle_api.dart';
 import '../auth/auth_gateway.dart';
 import '../config/app_config.dart';
 import '../models/rider_profile.dart';
+import '../push/ride_push_controller.dart';
+import '../push/ride_push_messaging.dart';
 import '../screens/clubs/clubs_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -31,6 +36,9 @@ class AppShell extends StatefulWidget {
     required this.rideSosApi,
     this.rideRecapApi,
     required this.authGateway,
+    this.pushTokenApi,
+    this.pushMessaging,
+    this.pushPlatform,
     super.key,
   });
 
@@ -45,6 +53,9 @@ class AppShell extends StatefulWidget {
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
   final AuthGateway authGateway;
+  final PushTokenApi? pushTokenApi;
+  final RidePushMessaging? pushMessaging;
+  final RidePushPlatform? pushPlatform;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -53,6 +64,8 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   ActiveRideRuntimeManager? _activeRideRuntimeManager;
+  RidePushController? _ridePushController;
+  RideForegroundPush? _shownForegroundPush;
 
   @override
   void initState() {
@@ -64,12 +77,62 @@ class _AppShellState extends State<AppShell> {
         authGateway: widget.authGateway,
       );
     }
+
+    final PushTokenApi? pushTokenApi = widget.pushTokenApi;
+    final RidePushMessaging? pushMessaging = widget.pushMessaging;
+    final RidePushPlatform? pushPlatform = widget.pushPlatform;
+    if (
+      pushTokenApi != null &&
+      pushMessaging != null &&
+      pushPlatform != null
+    ) {
+      final RidePushController controller = RidePushController(
+        tokenApi: pushTokenApi,
+        messaging: pushMessaging,
+        platform: pushPlatform,
+      );
+      _ridePushController = controller;
+      controller.addListener(_onPushStateChanged);
+      unawaited(controller.start());
+    }
   }
 
   @override
   void dispose() {
+    _ridePushController?.removeListener(_onPushStateChanged);
+    _ridePushController?.dispose();
     _activeRideRuntimeManager?.dispose();
     super.dispose();
+  }
+
+  void _onPushStateChanged() {
+    final RideForegroundPush? message =
+        _ridePushController?.state.latestForegroundPush;
+    if (
+      message == null ||
+      identical(message, _shownForegroundPush) ||
+      !mounted
+    ) {
+      return;
+    }
+    _shownForegroundPush = message;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message.displayText),
+          action: SnackBarAction(
+            label: 'Tutup',
+            onPressed: () {
+              _ridePushController?.clearForegroundPush();
+            },
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -103,6 +166,7 @@ class _AppShellState extends State<AppShell> {
         riderProfile: widget.riderProfile,
         vehicleApi: widget.vehicleApi,
         authGateway: widget.authGateway,
+        ridePushController: _ridePushController,
       ),
     ];
 
