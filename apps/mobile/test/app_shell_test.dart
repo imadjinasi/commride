@@ -318,18 +318,12 @@ class FakeRideSosApi implements RideSosApi {
   }
 
   @override
-  Future<RideSos> cancelSos({
-    required String rideId,
-    required String sosId,
-  }) {
+  Future<RideSos> cancelSos({required String rideId, required String sosId}) {
     throw UnimplementedError();
   }
 
   @override
-  Future<RideSos> resolveSos({
-    required String rideId,
-    required String sosId,
-  }) {
+  Future<RideSos> resolveSos({required String rideId, required String sosId}) {
     throw UnimplementedError();
   }
 }
