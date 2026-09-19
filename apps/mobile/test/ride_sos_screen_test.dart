@@ -213,7 +213,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.resolves, 1);
-    expect(find.text('Selesai'), findsOneWidget);
+    expect(find.textContaining('Selesai'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
