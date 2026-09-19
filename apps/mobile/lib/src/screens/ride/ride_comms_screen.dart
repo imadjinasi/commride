@@ -72,7 +72,7 @@ class _RideCommsScreenState extends State<RideCommsScreen> {
                 message: state.errorMessage!,
                 failedSend: state.failedSend,
                 sending: state.sending,
-                onRetrySend: widget.controller.retryFailed,
+                onRetrySend: _retryFailed,
                 onDismiss: widget.controller.clearError,
               ),
             Expanded(
@@ -112,6 +112,14 @@ class _RideCommsScreenState extends State<RideCommsScreen> {
       }
     } catch (_) {
       // Controller state carries a retryable failure.
+    }
+  }
+
+  Future<void> _retryFailed() async {
+    try {
+      await widget.controller.retryFailed();
+    } catch (_) {
+      // Controller state keeps the retryable failure visible.
     }
   }
 
