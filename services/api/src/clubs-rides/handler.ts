@@ -4,6 +4,7 @@ import type { IdentityVerifier } from '../auth/identity';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderProfile } from '../riders/rider-profile';
 import type { RiderRepository } from '../riders/rider-repository';
+import type { RideSosRepository } from '../ride-sos/repository';
 import type {
   ClubMembership,
   Ride,
@@ -18,6 +19,7 @@ export interface ClubRideHandlerDependencies {
   readonly riderRepository: RiderRepository;
   readonly clubRideRepository: ClubRideRepository;
   readonly activeRideGateway?: ActiveRideGateway;
+  readonly rideSosRepository?: RideSosRepository;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -579,6 +581,20 @@ async function transitionRide(
       'ride_not_found',
       'The Ride does not exist.',
       404,
+      requestId,
+    );
+  }
+
+  if (
+    nextStatus === 'completed' &&
+    current.status === expectedStatus &&
+    dependencies.rideSosRepository != null &&
+    await dependencies.rideSosRepository.hasActiveForRide(rideId)
+  ) {
+    return errorResponse(
+      'active_sos_requires_resolution',
+      'Resolve or cancel all Active SOS incidents before ending the Ride.',
+      409,
       requestId,
     );
   }
