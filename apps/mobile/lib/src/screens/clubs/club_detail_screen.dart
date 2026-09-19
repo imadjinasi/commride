@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../active_ride/active_ride_runtime.dart';
+
 import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
 import '../../api/ride_briefing_api.dart';
@@ -19,6 +21,8 @@ class ClubDetailScreen extends StatefulWidget {
     required this.rideBriefingApi,
     required this.rideCommsApi,
     required this.rideSosApi,
+    this.activeRideRuntimeManager,
+    this.mapsEnabled = false,
     required this.onChanged,
     super.key,
   });
@@ -30,6 +34,8 @@ class ClubDetailScreen extends StatefulWidget {
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
+  final ActiveRideRuntimeManager? activeRideRuntimeManager;
+  final bool mapsEnabled;
   final VoidCallback onChanged;
 
   @override
