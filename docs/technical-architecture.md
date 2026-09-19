@@ -122,6 +122,22 @@ Conceptual interfaces:
 
 Provider-specific models should be converted into CommRide domain DTOs.
 
+For the Active Ride map, `RiderPresence` must first be translated into a
+provider-neutral Live Group marker presentation model. That model owns product
+semantics such as Rider identity, Ride role, Live/Stale/Offline freshness,
+last-known labeling, server-derived separation attention, and group-fit bounds.
+The eventual Maps SDK adapter only translates that presentation into provider
+marker/camera types.
+
+Incoming map updates must not recalculate convoy separation independently from
+the server/domain state, and must not auto-recenter the Rider's map on every
+presence event.
+
+Actual mobile Maps SDK configuration is committed only after Android/iOS
+platform projects and real application identifiers exist. Client map keys are
+platform/API restricted and remain distinct from server-side Routes/Places
+credentials.
+
 This does not need an elaborate plugin framework. A clear adapter boundary is enough.
 
 ## 4. High-level runtime
