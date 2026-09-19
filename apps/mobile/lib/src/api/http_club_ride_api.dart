@@ -228,11 +228,13 @@ class HttpClubRideApi implements ClubRideApi {
 
     final Object? error = body['error'];
     if (error is Map<String, Object?>) {
+      final Object? code = error['code'];
       final Object? message = error['message'];
       if (message is String && message.isNotEmpty) {
         throw ClubRideApiException(
           statusCode: response.statusCode,
           message: message,
+          code: code is String && code.isNotEmpty ? code : null,
         );
       }
     }
