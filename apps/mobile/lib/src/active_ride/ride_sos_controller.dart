@@ -60,9 +60,7 @@ class RideSosViewState {
       loading: loading ?? this.loading,
       working: working ?? this.working,
       rideEnded: rideEnded ?? this.rideEnded,
-      failedRaise: clearFailedRaise
-          ? null
-          : (failedRaise ?? this.failedRaise),
+      failedRaise: clearFailedRaise ? null : (failedRaise ?? this.failedRaise),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
@@ -184,11 +182,7 @@ class RideSosController extends ChangeNotifier {
     }
 
     _setState(
-      _state.copyWith(
-        working: true,
-        clearFailedRaise: true,
-        clearError: true,
-      ),
+      _state.copyWith(working: true, clearFailedRaise: true, clearError: true),
     );
 
     try {
@@ -242,9 +236,7 @@ class RideSosController extends ChangeNotifier {
         ),
       );
     } catch (_) {
-      _setState(
-        _state.copyWith(working: false, errorMessage: failureMessage),
-      );
+      _setState(_state.copyWith(working: false, errorMessage: failureMessage));
       rethrow;
     }
   }
