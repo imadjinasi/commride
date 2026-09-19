@@ -1,3 +1,4 @@
+import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/http_club_ride_api.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
 import 'package:commride_mobile/src/models/club_ride.dart';
@@ -91,6 +92,44 @@ void main() {
     final Ride ride = await api.publishRide('ride-1');
 
     expect(ride.status, RideStatus.published);
+  });
+
+  test('End Ride preserves active SOS error code for explicit UX', () async {
+    final MockClient client = MockClient((http.Request request) async {
+      expect(request.method, 'POST');
+      expect(request.url.path, '/v1/rides/ride-1/end');
+
+      return http.Response(
+        '{"error":{"code":"active_sos_requires_resolution",'
+        '"message":"Resolve or cancel all Active SOS incidents before ending '
+        'the Ride."}}',
+        409,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final HttpClubRideApi api = HttpClubRideApi(
+      apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+      authGateway: TokenAuthGateway(),
+      client: client,
+    );
+
+    await expectLater(
+      api.endRide('ride-1'),
+      throwsA(
+        isA<ClubRideApiException>()
+            .having(
+              (ClubRideApiException error) => error.statusCode,
+              'statusCode',
+              409,
+            )
+            .having(
+              (ClubRideApiException error) => error.code,
+              'code',
+              'active_sos_requires_resolution',
+            ),
+      ),
+    );
   });
 
   test('cancelRide uses explicit cancellation endpoint', () async {
