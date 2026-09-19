@@ -20,6 +20,7 @@ import {
 } from './active-ride/protocol';
 
 const RIDE_STATUS_CHECK_INTERVAL_MS = 60_000;
+const LOCATION_SAMPLE_INTERVAL_MS = 60_000;
 const QUICK_ACTION_DEDUP_LIMIT = 128;
 const ENDED_AT_KEY = 'room.endedAt';
 const QUICK_ACTION_IDS_KEY = 'room.quickActionIds';
@@ -39,6 +40,7 @@ interface RideStatusRow {
  */
 export class ActiveRideRoom {
   private lastRideStatusCheckAt = 0;
+  private readonly lastPersistedSampleAt = new Map<string, number>();
 
   constructor(
     private readonly state: DurableObjectState,
@@ -570,6 +572,8 @@ export class ActiveRideRoom {
       lastPresence: next,
     } satisfies ConnectionAttachment);
 
+    await this.persistJourneySample(attachment.rideId, next);
+
     this.broadcast(
       serverEvent('presence.updated', {
         eventId: event.eventId,
@@ -578,6 +582,62 @@ export class ActiveRideRoom {
     );
 
     await this.evaluateSeparation();
+  }
+
+  private async persistJourneySample(
+    rideId: string,
+    presence: StoredPresence,
+  ): Promise<void> {
+    if (this.env.DB == null) {
+      return;
+    }
+
+    const observedAtMs = Date.parse(presence.observedAt);
+    if (!Number.isFinite(observedAtMs)) {
+      return;
+    }
+
+    const previous = this.lastPersistedSampleAt.get(presence.riderId);
+    if (
+      previous != null &&
+      observedAtMs - previous < LOCATION_SAMPLE_INTERVAL_MS
+    ) {
+      return;
+    }
+
+    try {
+      await this.env.DB
+        .prepare(
+          `
+          INSERT INTO ride_location_samples(
+            id,
+            ride_id,
+            rider_id,
+            latitude,
+            longitude,
+            observed_at,
+            received_at,
+            movement
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(ride_id, rider_id, observed_at) DO NOTHING
+          `,
+        )
+        .bind(
+          crypto.randomUUID(),
+          rideId,
+          presence.riderId,
+          presence.latitude,
+          presence.longitude,
+          presence.observedAt,
+          presence.receivedAt,
+          presence.movement,
+        )
+        .run();
+
+      this.lastPersistedSampleAt.set(presence.riderId, observedAtMs);
+    } catch {
+      // Recap sampling is best-effort and must never interrupt realtime.
+    }
   }
 
   private async handleQuickAction(
