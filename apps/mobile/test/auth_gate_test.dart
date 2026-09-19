@@ -3,6 +3,7 @@ import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/rider_profile_api.dart';
 import 'package:commride_mobile/src/api/ride_briefing_api.dart';
 import 'package:commride_mobile/src/api/ride_comms_api.dart';
+import 'package:commride_mobile/src/api/ride_sos_api.dart';
 import 'package:commride_mobile/src/api/route_planner_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/app.dart';
@@ -13,6 +14,7 @@ import 'package:commride_mobile/src/models/rider_profile.dart';
 import 'package:commride_mobile/src/models/ride_checkpoint.dart';
 import 'package:commride_mobile/src/models/ride_briefing.dart';
 import 'package:commride_mobile/src/models/ride_message.dart';
+import 'package:commride_mobile/src/models/ride_sos.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -278,6 +280,30 @@ class FakeRideCommsApi implements RideCommsApi {
   }
 }
 
+class FakeRideSosApi implements RideSosApi {
+  @override
+  Future<List<RideSos>> fetchSos(String rideId) async => const <RideSos>[];
+
+  @override
+  Future<RideSos> raiseSos({
+    required String rideId,
+    required String clientCommandId,
+    required String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RideSos> cancelSos({required String rideId, required String sosId}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RideSos> resolveSos({required String rideId, required String sosId}) {
+    throw UnimplementedError();
+  }
+}
+
 void main() {
   testWidgets('signed-out user sees authentication screen', (
     WidgetTester tester,
@@ -293,6 +319,7 @@ void main() {
         routePlannerApi: FakeRoutePlannerApi(),
         rideBriefingApi: FakeRideBriefingApi(),
         rideCommsApi: FakeRideCommsApi(),
+        rideSosApi: FakeRideSosApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -318,6 +345,7 @@ void main() {
         routePlannerApi: FakeRoutePlannerApi(),
         rideBriefingApi: FakeRideBriefingApi(),
         rideCommsApi: FakeRideCommsApi(),
+        rideSosApi: FakeRideSosApi(),
       ),
     );
     await tester.pumpAndSettle();
@@ -350,6 +378,7 @@ void main() {
         routePlannerApi: FakeRoutePlannerApi(),
         rideBriefingApi: FakeRideBriefingApi(),
         rideCommsApi: FakeRideCommsApi(),
+        rideSosApi: FakeRideSosApi(),
       ),
     );
     await tester.pumpAndSettle();
