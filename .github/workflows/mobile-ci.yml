@@ -35,6 +35,11 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      - name: Generate native platform projects
+        run: |
+          flutter create --platforms=android,ios --project-name commride_mobile --org io.github.imadjinasi .
+          python tool/configure_platforms.py
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -48,3 +53,9 @@ jobs:
 
       - name: Test
         run: flutter test
+
+      - name: Build Android debug APK
+        run: |
+          flutter build apk --debug \
+            --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
+            --dart-define=COMMRIDE_MAPS_ENABLED=false
