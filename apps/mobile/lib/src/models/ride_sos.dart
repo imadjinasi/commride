@@ -29,8 +29,7 @@ enum RidePresenceFreshness {
   static RidePresenceFreshness fromWireValue(String value) {
     return RidePresenceFreshness.values.firstWhere(
       (RidePresenceFreshness freshness) => freshness.name == value,
-      orElse: () =>
-          throw FormatException('Unknown presence freshness: $value'),
+      orElse: () => throw FormatException('Unknown presence freshness: $value'),
     );
   }
 
