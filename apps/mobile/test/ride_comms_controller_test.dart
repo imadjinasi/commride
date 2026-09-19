@@ -50,10 +50,7 @@ class FakeRideCommsApi implements RideCommsApi {
       return firstPage;
     }
     return pages[cursor] ??
-        const RideMessagePage(
-          messages: <RideMessage>[],
-          nextCursor: null,
-        );
+        const RideMessagePage(messages: <RideMessage>[], nextCursor: null);
   }
 
   @override
@@ -226,9 +223,7 @@ void main() {
     await controller.sendChat('Hello');
     final RideMessage persisted = controller.state.messages.single;
 
-    realtime.controller.add(
-      ActiveRideMessageCreated(message: persisted),
-    );
+    realtime.controller.add(ActiveRideMessageCreated(message: persisted));
 
     expect(controller.state.messages, hasLength(1));
     expect(controller.state.messages.single.id, persisted.id);
@@ -302,10 +297,7 @@ void main() {
 
     await controller.loadInitial();
 
-    expect(
-      controller.state.latestAnnouncement?.body,
-      'Latest announcement',
-    );
+    expect(controller.state.latestAnnouncement?.body, 'Latest announcement');
 
     controller.dispose();
   });
@@ -319,10 +311,7 @@ void main() {
     );
 
     expect(controller.state.rideEnded, isTrue);
-    await expectLater(
-      controller.sendChat('Too late'),
-      throwsStateError,
-    );
+    await expectLater(controller.sendChat('Too late'), throwsStateError);
     expect(api.sentIds, isEmpty);
 
     controller.dispose();
@@ -342,10 +331,7 @@ void main() {
     );
 
     expect(controller.state.rideEnded, isTrue);
-    await expectLater(
-      controller.sendChat('Too late'),
-      throwsStateError,
-    );
+    await expectLater(controller.sendChat('Too late'), throwsStateError);
     expect(api.sentIds, isEmpty);
 
     controller.dispose();
