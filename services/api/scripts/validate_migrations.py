@@ -36,6 +36,7 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "ride_briefings",
         "ride_briefing_acknowledgements",
         "ride_messages",
+        "ride_sos",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -459,6 +460,74 @@ def assert_ride_message_invariants(connection: sqlite3.Connection) -> None:
         raise AssertionError("Unsupported Ride message kind was accepted")
 
 
+
+
+def assert_ride_sos_invariants(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT INTO ride_sos(
+          id,
+          ride_id,
+          rider_id,
+          rider_display_name,
+          rider_ride_role,
+          state,
+          client_command_id,
+          reason,
+          raised_at
+        ) VALUES (?, ?, ?, ?, 'leader', 'active', ?, ?, ?)
+        """,
+        (
+            "sos-1",
+            "ride-1",
+            "rider-1",
+            "Rider One",
+            "client-sos-1",
+            "Need assistance",
+            "2026-09-18T10:10:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO ride_sos(
+              id,
+              ride_id,
+              rider_id,
+              rider_display_name,
+              rider_ride_role,
+              state,
+              client_command_id,
+              raised_at
+            ) VALUES (?, ?, ?, ?, 'leader', 'active', ?, ?)
+            """,
+            (
+                "sos-duplicate",
+                "ride-1",
+                "rider-1",
+                "Rider One",
+                "client-sos-1",
+                "2026-09-18T10:11:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate SOS idempotency key was accepted")
+
+    connection.execute(
+        """
+        UPDATE ride_sos
+        SET state = 'resolved',
+            resolved_at = ?,
+            resolved_by_rider_id = ?
+        WHERE id = ?
+        """,
+        ("2026-09-18T10:12:00Z", "rider-1", "sos-1"),
+    )
+
+
 def main() -> None:
     connection = sqlite3.connect(":memory:")
     connection.execute("PRAGMA foreign_keys = ON")
@@ -469,6 +538,7 @@ def main() -> None:
     assert_route_plan_invariants(connection)
     assert_briefing_invariants(connection)
     assert_ride_message_invariants(connection)
+    assert_ride_sos_invariants(connection)
     assert_foreign_keys(connection)
 
     print("migration-validation-ok")
