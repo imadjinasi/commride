@@ -9,8 +9,8 @@ class FirebaseRidePushMessaging implements RidePushMessaging {
 
   @override
   Future<RidePushPermission> checkPermission() async {
-    final NotificationSettings settings =
-        await _messaging.getNotificationSettings();
+    final NotificationSettings settings = await _messaging
+        .getNotificationSettings();
     return _permission(settings.authorizationStatus);
   }
 
