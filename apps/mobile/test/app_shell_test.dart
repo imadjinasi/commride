@@ -1,6 +1,7 @@
 import 'package:commride_mobile/src/api/checkpoint_api.dart';
 import 'package:commride_mobile/src/api/club_ride_api.dart';
 import 'package:commride_mobile/src/api/ride_briefing_api.dart';
+import 'package:commride_mobile/src/api/ride_comms_api.dart';
 import 'package:commride_mobile/src/api/route_planner_api.dart';
 import 'package:commride_mobile/src/api/vehicle_api.dart';
 import 'package:commride_mobile/src/auth/auth_gateway.dart';
@@ -9,6 +10,7 @@ import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/rider_profile.dart';
 import 'package:commride_mobile/src/models/ride_checkpoint.dart';
 import 'package:commride_mobile/src/models/ride_briefing.dart';
+import 'package:commride_mobile/src/models/ride_message.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
 import 'package:commride_mobile/src/navigation/app_shell.dart';
@@ -271,11 +273,41 @@ class FakeRideBriefingApi implements RideBriefingApi {
   }
 }
 
+class FakeRideCommsApi implements RideCommsApi {
+  @override
+  Future<RideMessagePage> fetchMessages(
+    String rideId, {
+    String? cursor,
+    int limit = 50,
+  }) async {
+    return const RideMessagePage(messages: <RideMessage>[], nextCursor: null);
+  }
+
+  @override
+  Future<RideMessage> sendAnnouncement({
+    required String rideId,
+    required String clientMessageId,
+    required String body,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RideMessage> sendChat({
+    required String rideId,
+    required String clientMessageId,
+    required String body,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
 Widget buildShell({
   VehicleApi? vehicleApi,
   ClubRideApi? clubRideApi,
   RoutePlannerApi? routePlannerApi,
   RideBriefingApi? rideBriefingApi,
+  RideCommsApi? rideCommsApi,
   CheckpointApi? checkpointApi,
 }) {
   return MaterialApp(
@@ -288,6 +320,7 @@ Widget buildShell({
       checkpointApi: checkpointApi ?? FakeCheckpointApi(),
       routePlannerApi: routePlannerApi ?? FakeRoutePlannerApi(),
       rideBriefingApi: rideBriefingApi ?? FakeRideBriefingApi(),
+      rideCommsApi: rideCommsApi ?? FakeRideCommsApi(),
       authGateway: FakeAuthGateway(),
     ),
   );
