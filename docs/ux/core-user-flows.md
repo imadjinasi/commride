@@ -256,6 +256,37 @@ Do not shame or score the Rider negatively.
 6. allow call/message action
 7. resolve state when help is no longer needed
 
+## 16. Ride Comms
+
+Active Ride participant:
+
+1. Open **Comms**
+2. App loads private Ride message history from the authenticated API
+3. Read the latest Leader announcement separately from ordinary chat
+4. Send a chat message while the Ride is Active
+5. If the send fails:
+   - show the failure explicitly;
+   - keep the same clientMessageId for retry;
+   - do not fabricate a delivered state.
+6. When a persisted `ride.message_created` realtime event arrives, insert it
+   into the visible conversation without duplicating an HTTP-created message.
+
+Leader additionally:
+
+1. Open **Pengumuman Leader**
+2. Enter concise operational text
+3. Publish through the Leader-only announcement endpoint
+4. Announcement is visually distinct from ordinary chat
+
+Completed Ride:
+
+- private history remains readable to eligible Ride participants;
+- composing chat and Leader announcements is disabled;
+- the screen is explicitly read-only.
+
+Quick Actions, Checkpoints, convoy separation, Ride End, and future SOS remain
+typed operational state. They are not flattened into ordinary chat messages.
+
 ## 16. SOS
 
 1. Rider presses SOS
