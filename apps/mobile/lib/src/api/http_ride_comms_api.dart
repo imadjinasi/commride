@@ -25,12 +25,16 @@ class HttpRideCommsApi implements RideCommsApi {
     String? cursor,
     int limit = 50,
   }) async {
+    final Map<String, String> queryParameters = <String, String>{
+      'limit': '$limit',
+    };
+    if (cursor != null) {
+      queryParameters['cursor'] = cursor;
+    }
+
     final Uri endpoint =
         _endpoint('/v1/rides/${Uri.encodeComponent(rideId)}/messages').replace(
-          queryParameters: <String, String>{
-            'limit': '$limit',
-            if (cursor != null) 'cursor': cursor,
-          },
+          queryParameters: queryParameters,
         );
 
     final http.Response response = await _client.get(
