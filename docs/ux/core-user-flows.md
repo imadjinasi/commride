@@ -289,18 +289,49 @@ typed operational state. They are not flattened into ordinary chat messages.
 
 ## 16. SOS
 
-1. Rider presses SOS
-2. deliberate confirmation designed to avoid accidental activation
-3. event sent with:
-   - Rider;
-   - timestamp;
-   - location;
-   - Ride.
-4. high-priority notification to relevant Ride roles
-5. show emergency contact/call options where configured
-6. SOS remains visibly active until resolved/cancelled
+Active Ride participant:
 
-Do not claim emergency services were contacted unless they actually were.
+1. Open **SOS Ride**
+2. App loads persisted SOS state from the authenticated API
+3. Tap **Aktifkan SOS**
+4. App explains before activation:
+   - the Ride group will receive a high-attention SOS;
+   - CommRide may attach the latest server-accepted Rider location if one is
+     available;
+   - GPS is not required;
+   - CommRide does **not** automatically contact ambulance, police, or another
+     public emergency service.
+5. Rider confirms, with an optional short reason
+6. UI stays pending until the server acknowledges persistence
+7. after acknowledgement, the incident remains visibly Active until:
+   - the Rider who raised it cancels it; or
+   - the Ride Leader resolves it.
+
+If the initial HTTP command fails:
+- do not fabricate an Active SOS;
+- show a retry action;
+- reuse the same clientCommandId on retry.
+
+Active SOS card shows:
+- Rider;
+- Ride role;
+- raised time;
+- optional reason;
+- trusted last-known location when available;
+- location freshness as Live/Stale/Offline;
+- explicit no-location state when GPS/presence is unavailable.
+
+Realtime `ride.sos_raised`, `ride.sos_cancelled`, and
+`ride.sos_resolved` events may update the same persisted incident. HTTP read
+remains the recovery source of truth after reconnect or missed realtime
+delivery.
+
+Completed Ride:
+- SOS history remains readable;
+- all SOS mutations are removed.
+
+An Active SOS must be explicitly cancelled or resolved before End Ride may
+complete in the initial policy.
 
 ## 17. Mandatory Regroup
 
