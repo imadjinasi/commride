@@ -146,7 +146,6 @@ def configure_ios() -> None:
             1,
         )
 
-    marker = "    GeneratedPluginRegistrant.register(with: self)"
     setup = """    if let mapsKey = Bundle.main.object(
       forInfoDictionaryKey: "COMMRIDE_MAPS_API_KEY"
     ) as? String, !mapsKey.isEmpty {
@@ -154,9 +153,28 @@ def configure_ios() -> None:
     }
 """
     if "GMSServices.provideAPIKey" not in content:
-        if marker not in content:
-            raise SystemExit("Unexpected iOS AppDelegate template.")
-        content = content.replace(marker, setup + marker, 1)
+        return_marker = (
+            "    return super.application(application, "
+            "didFinishLaunchingWithOptions: launchOptions)"
+        )
+        legacy_marker = "    GeneratedPluginRegistrant.register(with: self)"
+
+        if return_marker in content:
+            content = content.replace(
+                return_marker,
+                setup + return_marker,
+                1,
+            )
+        elif legacy_marker in content:
+            content = content.replace(
+                legacy_marker,
+                setup + legacy_marker,
+                1,
+            )
+        else:
+            raise SystemExit(
+                "Unexpected iOS AppDelegate template; refusing unsafe patch."
+            )
     app_delegate.write_text(content, encoding="utf-8")
 
 
