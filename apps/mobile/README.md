@@ -345,6 +345,36 @@ This view intentionally does not show a stream of exact coordinates as normal
 product copy. Coordinates remain part of operational presence for future map
 rendering.
 
+### Live Group map presentation model
+
+The repository now includes a provider-neutral map presentation model for the
+future Live Group map.
+
+It translates RiderPresence into one deterministic marker per Rider with:
+
+- Rider identity/display name and Ride role;
+- coordinate and original observation/receipt timestamps;
+- movement state;
+- effective Live / Stale / Offline freshness;
+- an explicit last-known interpretation whenever the marker is not Live;
+- optional attention state copied from server-derived convoy separation.
+
+The presenter is defensive about duplicate input:
+
+- newer observation wins;
+- older observation never moves a Rider marker backwards;
+- for the same observation timestamp, a more conservative Stale/Offline state
+  may replace Live;
+- it computes geographic bounds/center for a future **Fit Group** map action.
+
+The presenter does **not** calculate a new separation verdict, Rider speed, ETA,
+or route distance.
+
+This is deliberately only the repository-safe half of the map feature.
+Actual Google Maps Flutter rendering still requires generated Android/iOS
+platform projects, verified application identifiers, platform-restricted client
+map keys, and device verification under issue #33 / #52.
+
 
 ## Rider Quick Actions
 
