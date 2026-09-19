@@ -30,13 +30,13 @@ class RideCommsState {
     required this.errorMessage,
   });
 
-  const RideCommsState.initial()
+  const RideCommsState.initial({bool readOnly = false})
     : messages = const <RideMessage>[],
       nextCursor = null,
       loading = false,
       loadingOlder = false,
       sending = false,
-      rideEnded = false,
+      rideEnded = readOnly,
       failedSend = null,
       errorMessage = null;
 
@@ -90,11 +90,13 @@ class RideCommsController extends ChangeNotifier {
     required RideCommsApi api,
     ActiveRideRealtimeClient? realtimeClient,
     String Function()? clientMessageIdFactory,
+    bool readOnly = false,
   }) : _rideId = rideId,
        _api = api,
        _realtimeClient = realtimeClient,
        _clientMessageIdFactory =
-           clientMessageIdFactory ?? _defaultClientMessageId {
+           clientMessageIdFactory ?? _defaultClientMessageId,
+       _state = RideCommsState.initial(readOnly: readOnly) {
     if (rideId.trim().isEmpty) {
       throw ArgumentError.value(rideId, 'rideId', 'Ride ID is required.');
     }
@@ -105,7 +107,7 @@ class RideCommsController extends ChangeNotifier {
   final ActiveRideRealtimeClient? _realtimeClient;
   final String Function() _clientMessageIdFactory;
 
-  RideCommsState _state = const RideCommsState.initial();
+  RideCommsState _state;
   StreamSubscription<ActiveRideRealtimeEvent>? _realtimeSubscription;
   bool _disposed = false;
 
