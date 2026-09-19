@@ -38,22 +38,21 @@ class GeolocatorRideLocationProvider implements RideLocationProvider {
       throw StateError('Layanan lokasi perangkat belum aktif.');
     }
 
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: _settings(),
-    ).listen(
-      (Position position) {
-        _samples.add(
-          RideLocationSample(
-            latitude: position.latitude,
-            longitude: position.longitude,
-            observedAt: position.timestamp.toUtc(),
-            movement: _movement(position),
-          ),
+    _positionSubscription =
+        Geolocator.getPositionStream(locationSettings: _settings()).listen(
+          (Position position) {
+            _samples.add(
+              RideLocationSample(
+                latitude: position.latitude,
+                longitude: position.longitude,
+                observedAt: position.timestamp.toUtc(),
+                movement: _movement(position),
+              ),
+            );
+          },
+          onError: _samples.addError,
+          cancelOnError: false,
         );
-      },
-      onError: _samples.addError,
-      cancelOnError: false,
-    );
   }
 
   @override
