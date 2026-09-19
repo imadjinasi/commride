@@ -3,6 +3,7 @@ import type { IdentityVerifier } from '../auth/identity';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderRepository } from '../riders/rider-repository';
+import type { RidePushNotifier } from '../push/notifier';
 import type { RoutePlanRepository } from '../route-plans/repository';
 import type {
   PublishRideBriefingInput,
@@ -16,6 +17,7 @@ export interface RideBriefingHandlerDependencies {
   readonly clubRideRepository: ClubRideRepository;
   readonly routePlanRepository: RoutePlanRepository;
   readonly rideBriefingRepository: RideBriefingRepository;
+  readonly pushNotifier?: RidePushNotifier;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -198,6 +200,14 @@ export async function handleRideBriefingRequest(
       );
     }
 
+    await notifyBriefingBestEffort(
+      view.briefing.id,
+      path.rideId,
+      rider.id,
+      ride.title,
+      dependencies,
+    );
+
     return jsonResponse({ briefingView: view }, 200, requestId);
   }
 
@@ -260,6 +270,37 @@ export async function handleRideBriefingRequest(
   }
 
   return jsonResponse({ briefingView: view }, 200, requestId);
+}
+
+async function notifyBriefingBestEffort(
+  briefingId: string,
+  rideId: string,
+  leaderRiderId: string,
+  rideTitle: string,
+  dependencies: RideBriefingHandlerDependencies,
+): Promise<void> {
+  const notifier = dependencies.pushNotifier;
+  if (notifier == null) {
+    return;
+  }
+
+  try {
+    await notifier.notify({
+      eventKey: `briefing:${briefingId}`,
+      rideId,
+      kind: 'briefing_published',
+      title: 'Ride Briefing diperbarui',
+      body: `${rideTitle}: briefing terbaru siap dibaca.`,
+      data: {
+        type: 'ride.briefing_published',
+        rideId,
+        briefingId,
+      },
+      excludeRiderId: leaderRiderId,
+    });
+  } catch {
+    // Briefing persistence remains authoritative.
+  }
 }
 
 async function buildCurrentView(
