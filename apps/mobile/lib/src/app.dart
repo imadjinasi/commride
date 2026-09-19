@@ -5,6 +5,7 @@ import 'api/club_ride_api.dart';
 import 'api/rider_profile_api.dart';
 import 'api/ride_briefing_api.dart';
 import 'api/ride_comms_api.dart';
+import 'api/ride_recap_api.dart';
 import 'api/ride_sos_api.dart';
 import 'api/route_planner_api.dart';
 import 'api/vehicle_api.dart';
@@ -26,6 +27,7 @@ class CommRideApp extends StatelessWidget {
     required this.rideBriefingApi,
     required this.rideCommsApi,
     required this.rideSosApi,
+    this.rideRecapApi,
     super.key,
   });
 
@@ -39,6 +41,7 @@ class CommRideApp extends StatelessWidget {
   final RideBriefingApi rideBriefingApi;
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
+  final RideRecapApi? rideRecapApi;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +61,7 @@ class CommRideApp extends StatelessWidget {
         rideBriefingApi: rideBriefingApi,
         rideCommsApi: rideCommsApi,
         rideSosApi: rideSosApi,
+        rideRecapApi: rideRecapApi,
       ),
     );
   }
