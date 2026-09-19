@@ -166,11 +166,7 @@ void main() {
     final FakeRideSosApi api = FakeRideSosApi();
 
     await tester.pumpWidget(
-      buildScreen(
-        status: RideStatus.active,
-        role: RideRole.member,
-        api: api,
-      ),
+      buildScreen(status: RideStatus.active, role: RideRole.member, api: api),
     );
     await tester.pumpAndSettle();
 
@@ -200,11 +196,7 @@ void main() {
       ..items = <RideSos>[incident(riderId: 'rider-other')];
 
     await tester.pumpWidget(
-      buildScreen(
-        status: RideStatus.active,
-        role: RideRole.leader,
-        api: api,
-      ),
+      buildScreen(status: RideStatus.active, role: RideRole.leader, api: api),
     );
     await tester.pumpAndSettle();
 
@@ -228,9 +220,7 @@ void main() {
 
   testWidgets('Completed Ride is history-only', (WidgetTester tester) async {
     final FakeRideSosApi api = FakeRideSosApi()
-      ..items = <RideSos>[
-        incident(status: RideSosStatus.cancelled),
-      ];
+      ..items = <RideSos>[incident(status: RideSosStatus.cancelled)];
 
     await tester.pumpWidget(
       buildScreen(
