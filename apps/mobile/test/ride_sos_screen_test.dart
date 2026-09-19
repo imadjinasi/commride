@@ -213,7 +213,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Tandai SOS selesai?'), findsOneWidget);
 
-    await tester.tap(find.text('Tandai selesai'));
+    final Finder resolveConfirm = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.text('Tandai selesai'),
+    );
+    await tester.tap(resolveConfirm);
     await tester.pumpAndSettle();
 
     expect(api.resolves, 1);
