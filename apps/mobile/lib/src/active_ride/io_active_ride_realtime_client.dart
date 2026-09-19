@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../auth/auth_gateway.dart';
 import '../models/ride_message.dart';
+import '../models/ride_sos.dart';
 import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'location_provider.dart';
@@ -303,6 +304,22 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
       try {
         _events.add(
           ActiveRideMessageCreated(message: RideMessage.fromJson(rawPayload)),
+        );
+      } on FormatException {
+        return;
+      }
+      return;
+    }
+
+    if (type == 'ride.sos_raised' ||
+        type == 'ride.sos_cancelled' ||
+        type == 'ride.sos_resolved') {
+      try {
+        _events.add(
+          ActiveRideSosChanged(
+            type: type,
+            sos: RideSos.fromJson(rawPayload),
+          ),
         );
       } on FormatException {
         return;
