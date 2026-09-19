@@ -100,10 +100,7 @@ class _RecapBody extends StatelessWidget {
           const SizedBox(height: 12),
           _JourneyCard(journey: recap.journey),
           const SizedBox(height: 24),
-          _SectionTitle(
-            title: 'Riders',
-            count: recap.participants.length,
-          ),
+          _SectionTitle(title: 'Riders', count: recap.participants.length),
           const SizedBox(height: 8),
           ...recap.participants.map(
             (RideRecapParticipant participant) => Card(
@@ -115,10 +112,7 @@ class _RecapBody extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _SectionTitle(
-            title: 'Checkpoints',
-            count: recap.checkpoints.length,
-          ),
+          _SectionTitle(title: 'Checkpoints', count: recap.checkpoints.length),
           const SizedBox(height: 8),
           if (recap.checkpoints.isEmpty)
             const _EmptyCard(message: 'Tidak ada checkpoint pada Ride ini.')
@@ -293,10 +287,7 @@ class _EmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(message),
-      ),
+      child: Padding(padding: const EdgeInsets.all(16), child: Text(message)),
     );
   }
 }
