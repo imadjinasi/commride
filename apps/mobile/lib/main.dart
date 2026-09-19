@@ -6,6 +6,7 @@ import 'src/api/http_checkpoint_api.dart';
 import 'src/api/http_club_ride_api.dart';
 import 'src/api/http_rider_profile_api.dart';
 import 'src/api/http_ride_briefing_api.dart';
+import 'src/api/http_ride_comms_api.dart';
 import 'src/api/http_route_planner_api.dart';
 import 'src/api/http_vehicle_api.dart';
 import 'src/app.dart';
@@ -60,6 +61,10 @@ Future<void> main() async {
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
     );
+    final HttpRideCommsApi rideCommsApi = HttpRideCommsApi(
+      apiBaseUrl: apiBaseUrl,
+      authGateway: authGateway,
+    );
 
     runApp(
       CommRideApp(
@@ -71,6 +76,7 @@ Future<void> main() async {
         checkpointApi: checkpointApi,
         routePlannerApi: routePlannerApi,
         rideBriefingApi: rideBriefingApi,
+        rideCommsApi: rideCommsApi,
       ),
     );
   } catch (_) {
