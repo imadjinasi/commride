@@ -343,14 +343,32 @@ SOS is treated as a special high-priority incident/event.
 
 ## 20. SOS
 
-A high-priority request for attention associated with:
-- Rider;
-- Ride;
-- location;
-- timestamp;
-- optional emergency contact action.
+A high-priority persistent Ride incident, separate from QuickAction and Message.
 
-SOS is not equivalent to contacting public emergency services unless such an integration is explicitly implemented.
+Initial lifecycle:
+- Active;
+- Cancelled by the Rider who raised it;
+- Resolved by the Ride Leader.
+
+An SOS records:
+- server-derived Rider identity and Ride role;
+- raised timestamp;
+- optional Rider-supplied context;
+- optional one-time snapshot of the latest server-accepted RiderPresence;
+- cancellation/resolution timestamps and resolver identity where applicable.
+
+GPS is not a prerequisite for SOS. When no trusted Ride presence is available,
+the SOS remains valid without location. When a location snapshot is retained,
+its original observation/receipt timestamps and Live/Stale/Offline freshness are
+preserved so last-known location is never presented as current by implication.
+
+SOS does not automatically resolve when RiderPresence becomes Live again.
+
+An Active SOS must be explicitly closed before the Ride can be completed in the
+initial policy.
+
+SOS is not equivalent to contacting public emergency services unless such an
+integration is explicitly implemented.
 
 ## 21. CheckIn
 
