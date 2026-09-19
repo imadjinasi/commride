@@ -186,6 +186,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     final RideCommsController controller = RideCommsController(
       rideId: _item.ride.id,
       api: widget.rideCommsApi,
+      readOnly: _item.ride.status == RideStatus.completed,
     );
 
     await Navigator.of(context).push<void>(
