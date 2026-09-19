@@ -70,11 +70,14 @@ class RideLocationSessionController extends ChangeNotifier {
   RideLocationSessionController({
     required RideLocationProvider locationProvider,
     required ActiveRideRealtimeClient realtimeClient,
+    bool ownsRealtimeConnection = true,
   }) : _locationProvider = locationProvider,
-       _realtimeClient = realtimeClient;
+       _realtimeClient = realtimeClient,
+       _ownsRealtimeConnection = ownsRealtimeConnection;
 
   final RideLocationProvider _locationProvider;
   final ActiveRideRealtimeClient _realtimeClient;
+  final bool _ownsRealtimeConnection;
 
   RideLocationSessionState _state = const RideLocationSessionState.inactive();
   StreamSubscription<RideLocationSample>? _sampleSubscription;
@@ -159,7 +162,9 @@ class RideLocationSessionController extends ChangeNotifier {
     );
 
     try {
-      await _realtimeClient.connect(ride.id);
+      if (_ownsRealtimeConnection) {
+        await _realtimeClient.connect(ride.id);
+      }
       _sampleSubscription = _locationProvider.samples.listen(
         (RideLocationSample sample) {
           unawaited(_handleSample(sample));
@@ -344,10 +349,12 @@ class RideLocationSessionController extends ChangeNotifier {
       // Stopping is best-effort; realtime disconnect still proceeds.
     }
 
-    try {
-      await _realtimeClient.disconnect();
-    } catch (_) {
-      // Local state still becomes stopped even if transport teardown fails.
+    if (_ownsRealtimeConnection) {
+      try {
+        await _realtimeClient.disconnect();
+      } catch (_) {
+        // Local state still becomes stopped even if transport teardown fails.
+      }
     }
   }
 
@@ -386,7 +393,9 @@ class RideLocationSessionController extends ChangeNotifier {
     unawaited(_sampleSubscription?.cancel());
     unawaited(_realtimeSubscription?.cancel());
     unawaited(_locationProvider.stop());
-    unawaited(_realtimeClient.disconnect());
+    if (_ownsRealtimeConnection) {
+      unawaited(_realtimeClient.disconnect());
+    }
     super.dispose();
   }
 }
