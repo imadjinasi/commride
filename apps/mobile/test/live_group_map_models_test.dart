@@ -72,8 +72,10 @@ void main() {
           now: now,
         );
 
-    expect(model.markers.map((LiveGroupMapMarker item) => item.riderId), <
-        String>['leader', 'member']);
+    expect(
+      model.markers.map((LiveGroupMapMarker item) => item.riderId),
+      <String>['leader', 'member'],
+    );
     expect(model.markers.first.role, RideRole.leader);
     expect(model.markers.first.latitude, -6.72);
     expect(model.markers.first.longitude, 108.54);
