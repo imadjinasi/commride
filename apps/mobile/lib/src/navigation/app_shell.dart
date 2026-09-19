@@ -81,11 +81,7 @@ class _AppShellState extends State<AppShell> {
     final PushTokenApi? pushTokenApi = widget.pushTokenApi;
     final RidePushMessaging? pushMessaging = widget.pushMessaging;
     final RidePushPlatform? pushPlatform = widget.pushPlatform;
-    if (
-      pushTokenApi != null &&
-      pushMessaging != null &&
-      pushPlatform != null
-    ) {
+    if (pushTokenApi != null && pushMessaging != null && pushPlatform != null) {
       final RidePushController controller = RidePushController(
         tokenApi: pushTokenApi,
         messaging: pushMessaging,
@@ -108,11 +104,9 @@ class _AppShellState extends State<AppShell> {
   void _onPushStateChanged() {
     final RideForegroundPush? message =
         _ridePushController?.state.latestForegroundPush;
-    if (
-      message == null ||
-      identical(message, _shownForegroundPush) ||
-      !mounted
-    ) {
+    if (message == null ||
+        identical(message, _shownForegroundPush) ||
+        !mounted) {
       return;
     }
     _shownForegroundPush = message;
