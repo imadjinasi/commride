@@ -218,7 +218,8 @@ describe('push notifications', () => {
 
   it('keeps push transport failure non-authoritative', async () => {
     const repository = new MemoryPushRepository();
-    const transport = new RecordingTransport()..fail = true;
+    const transport = new RecordingTransport();
+    transport.fail = true;
     const notifier = new BestEffortRidePushNotifier(
       repository,
       transport,
