@@ -94,6 +94,8 @@ void main() {
     expect(find.textContaining('42.0 km'), findsOneWidget);
     expect(find.textContaining('tidak ada sampel lokasi'), findsOneWidget);
     expect(find.textContaining('8/10 Rider check-in'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Rider Two'), 300);
     expect(find.text('Rider Two'), findsOneWidget);
     expect(find.textContaining('Ban bocor'), findsOneWidget);
   });
