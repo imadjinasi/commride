@@ -42,10 +42,8 @@ RideRecap buildRecap({required bool withSamples}) {
     journey: RideRecapJourney(
       sampleCount: withSamples ? 60 : 0,
       trackedRiderCount: withSamples ? 8 : 0,
-      firstObservedAt:
-          withSamples ? DateTime.utc(2026, 9, 18, 9, 1) : null,
-      lastObservedAt:
-          withSamples ? DateTime.utc(2026, 9, 18, 11, 59) : null,
+      firstObservedAt: withSamples ? DateTime.utc(2026, 9, 18, 9, 1) : null,
+      lastObservedAt: withSamples ? DateTime.utc(2026, 9, 18, 11, 59) : null,
       leaderTrackedDistanceMeters: withSamples ? 39750 : null,
     ),
     checkpoints: <RideRecapCheckpoint>[
@@ -94,10 +92,7 @@ void main() {
     expect(find.text('Sunday Ride'), findsOneWidget);
     expect(find.text('Rencana'), findsOneWidget);
     expect(find.textContaining('42.0 km'), findsOneWidget);
-    expect(
-      find.textContaining('tidak ada sampel lokasi'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('tidak ada sampel lokasi'), findsOneWidget);
     expect(find.textContaining('8/10 Rider check-in'), findsOneWidget);
     expect(find.text('Rider Two'), findsOneWidget);
     expect(find.textContaining('Ban bocor'), findsOneWidget);
@@ -113,7 +108,9 @@ void main() {
     expect(find.textContaining('60 sampel'), findsOneWidget);
     expect(find.textContaining('Jejak Leader: 39.8 km'), findsOneWidget);
     expect(
-      find.textContaining('dapat lebih pendek dari jarak perjalanan sebenarnya'),
+      find.textContaining(
+        'dapat lebih pendek dari jarak perjalanan sebenarnya',
+      ),
       findsOneWidget,
     );
   });
