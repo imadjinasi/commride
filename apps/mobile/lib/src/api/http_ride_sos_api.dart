@@ -73,10 +73,7 @@ class HttpRideSosApi implements RideSosApi {
   }
 
   @override
-  Future<RideSos> cancelSos({
-    required String rideId,
-    required String sosId,
-  }) {
+  Future<RideSos> cancelSos({required String rideId, required String sosId}) {
     return _post(
       '/v1/rides/${Uri.encodeComponent(rideId)}/sos/'
       '${Uri.encodeComponent(sosId)}/cancel',
@@ -84,20 +81,14 @@ class HttpRideSosApi implements RideSosApi {
   }
 
   @override
-  Future<RideSos> resolveSos({
-    required String rideId,
-    required String sosId,
-  }) {
+  Future<RideSos> resolveSos({required String rideId, required String sosId}) {
     return _post(
       '/v1/rides/${Uri.encodeComponent(rideId)}/sos/'
       '${Uri.encodeComponent(sosId)}/resolve',
     );
   }
 
-  Future<RideSos> _post(
-    String path, {
-    Map<String, Object?>? body,
-  }) async {
+  Future<RideSos> _post(String path, {Map<String, Object?>? body}) async {
     final http.Response response = await _client.post(
       _endpoint(path),
       headers: await _headers(json: body != null),
