@@ -302,9 +302,7 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
     if (type == 'ride.message_created') {
       try {
         _events.add(
-          ActiveRideMessageCreated(
-            message: RideMessage.fromJson(rawPayload),
-          ),
+          ActiveRideMessageCreated(message: RideMessage.fromJson(rawPayload)),
         );
       } on FormatException {
         return;
