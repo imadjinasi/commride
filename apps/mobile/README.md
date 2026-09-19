@@ -407,3 +407,40 @@ visible but removes mutation actions.
 
 This slice does not request location permission, use geofencing, or call a map
 provider.
+
+
+## Private Ride Comms
+
+Active and Completed Ride detail now exposes a private **Comms** surface for
+eligible Ride participants.
+
+The mobile contract follows the backend's D1-authoritative communication model:
+
+- message history loads from the authenticated HTTP API;
+- participant chat sends through the persisted HTTP command;
+- Leader announcement sends through the separate Leader-only HTTP command;
+- every send carries a bounded client-generated `clientMessageId`;
+- a failed send remains visibly failed and retry reuses the **same**
+  `clientMessageId` so backend idempotency remains effective;
+- HTTP success is inserted into local history without waiting for realtime;
+- Completed Ride remains readable but removes all compose/announcement actions.
+
+The screen keeps the latest Leader announcement visually separate from ordinary
+chat. Quick Actions, Checkpoints, convoy separation, Ride End, and future SOS
+remain typed operational state rather than being flattened into chat.
+
+Incoming protocol event `ride.message_created` is parsed into
+`ActiveRideMessageCreated`, and `RideCommsController` can consume a shared
+Active Ride realtime client to insert a persisted message without duplicating
+the HTTP-created record.
+
+The current app entrypoint deliberately does **not** open a second
+screen-specific Active Ride WebSocket for Comms. Active Ride room connection
+ownership still needs to be centralized because the room replaces an older
+socket for the same Rider. Until that shared session is wired, the Comms screen
+uses HTTP history/refresh as the authoritative recovery path instead of
+competing with future location/Live Group socket ownership.
+
+Message bodies render as plain text. No HTML/rich-text execution, attachment
+upload, edit/delete, voice note, or public/social exposure is introduced by
+this slice.
