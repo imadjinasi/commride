@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api/checkpoint_api.dart';
 import 'api/club_ride_api.dart';
+import 'api/push_token_api.dart';
 import 'api/rider_profile_api.dart';
 import 'api/ride_briefing_api.dart';
 import 'api/ride_comms_api.dart';
@@ -12,6 +13,7 @@ import 'api/vehicle_api.dart';
 import 'auth/auth_gateway.dart';
 import 'auth/auth_gate.dart';
 import 'config/app_config.dart';
+import 'push/ride_push_messaging.dart';
 import 'screens/setup/setup_required_screen.dart';
 import 'theme/commride_theme.dart';
 
@@ -28,6 +30,9 @@ class CommRideApp extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.pushTokenApi,
+    this.pushMessaging,
+    this.pushPlatform,
     super.key,
   });
 
@@ -42,6 +47,9 @@ class CommRideApp extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final PushTokenApi? pushTokenApi;
+  final RidePushMessaging? pushMessaging;
+  final RidePushPlatform? pushPlatform;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +70,9 @@ class CommRideApp extends StatelessWidget {
         rideCommsApi: rideCommsApi,
         rideSosApi: rideSosApi,
         rideRecapApi: rideRecapApi,
+        pushTokenApi: pushTokenApi,
+        pushMessaging: pushMessaging,
+        pushPlatform: pushPlatform,
       ),
     );
   }
