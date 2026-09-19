@@ -18,17 +18,20 @@ Implemented:
 - provider-neutral route/place boundary;
 - Google Routes + Places (New) web-service adapter;
 - authenticated route/place planning endpoints;
-- a deliberately non-functional `ActiveRideRoom` placeholder;
-- unit tests for the HTTP router, Rider profile, and map-provider behavior.
+- hibernatable Active Ride WebSocket room;
+- persisted Checkpoints, private Ride Comms, persistent SOS, and Ride Recap;
+- low-frequency Ride journey sampling;
+- authenticated FCM device-token lifecycle and best-effort Ride notifications;
+- scheduled privacy retention for sampled location history;
+- realtime event cadence guards;
+- unit tests and migration validation across the implemented MVP API.
 
-Not implemented:
+Still environment/operator work:
 
-- production Cloudflare resources;
-- production Firebase configuration;
-- Active Ride WebSockets;
+- production Cloudflare resource identifiers and secrets;
+- production Firebase/APNs configuration;
 - production Google Maps Platform configuration;
-- notifications;
-- deployment.
+- deployment and real-device verification.
 
 ## Local development
 
@@ -99,9 +102,10 @@ Unknown endpoints return a structured error:
 `Env` reserves optional bindings:
 
 - `DB` — future Cloudflare D1 database;
-- `ACTIVE_RIDE_ROOM` — future Durable Object namespace.
+- `ACTIVE_RIDE_ROOM` — Active Ride Durable Object namespace.
 
-They are intentionally **not configured** in `wrangler.jsonc` yet because no real Cloudflare resources have been verified or created.
+They are intentionally **not bound to invented production identifiers** in
+`wrangler.jsonc`; deployment must use verified Cloudflare resource IDs.
 
 When infrastructure is provisioned, use real resource identifiers and add the required Durable Object migration. Never commit provider secrets.
 
@@ -506,3 +510,61 @@ Acknowledgements for older Briefing revisions remain historical but do not
 count toward readiness for a newer revision.
 
 Readiness is advisory in the MVP. It is not a server-side Start Ride blocker.
+
+
+## Push notifications
+
+Authenticated Riders register mobile delivery tokens through:
+
+- `POST /v1/me/push-tokens`
+- `DELETE /v1/me/push-tokens`
+
+Only token + platform are accepted from mobile. Rider ownership is derived from
+the verified Firebase identity.
+
+FCM HTTP v1 delivery is best-effort. Notification failure never rolls back
+Ride persistence or realtime state. Stable push event keys suppress duplicate
+fan-out for retried authoritative commands.
+
+Server-side FCM delivery requires deployment secrets:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL`
+- `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`
+
+Do not commit the private key.
+
+## Operational location retention
+
+Realtime RiderPresence remains operational/overwrite state. Completed Ride
+history stores only low-frequency `ride_location_samples`, currently sampled
+at most once per Rider per minute.
+
+The Worker scheduled handler purges sampled location rows for completed Rides
+older than the configured retention window. The default is **30 days**.
+
+Optional configuration:
+
+`LOCATION_SAMPLE_RETENTION_DAYS=1..365`
+
+Unsafe/invalid values fall back to 30 days. The same maintenance pass removes
+old push-delivery dedupe rows. Message/SOS/Recap records are not silently
+deleted by this job.
+
+`wrangler.jsonc` includes a daily cron schedule, but repository configuration
+does not prove that a production Worker has been deployed.
+
+## Realtime abuse guard
+
+The Active Ride room keeps its normal low-write design while rejecting client
+bursts that exceed product cadence:
+
+- presence updates inside 750 ms of the last accepted update on the same socket
+  are rejected;
+- distinct Quick Actions inside 2 seconds of the last accepted Quick Action on
+  the same socket are rejected;
+- duplicate Quick Action event IDs remain idempotently ignored.
+
+These guards are defensive ceilings, not a substitute for edge/WAF abuse
+controls. The normal mobile location cadence is much slower (10 seconds / 25 m
+starting policy).
