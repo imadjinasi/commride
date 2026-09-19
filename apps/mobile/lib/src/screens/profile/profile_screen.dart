@@ -4,6 +4,8 @@ import '../../api/vehicle_api.dart';
 import '../../auth/auth_gateway.dart';
 import '../../models/rider_profile.dart';
 import '../../models/vehicle_profile.dart';
+import '../../push/ride_push_controller.dart';
+import '../../push/ride_push_messaging.dart';
 import 'vehicle_editor_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -11,12 +13,14 @@ class ProfileScreen extends StatefulWidget {
     required this.riderProfile,
     required this.vehicleApi,
     required this.authGateway,
+    this.ridePushController,
     super.key,
   });
 
   final RiderProfile riderProfile;
   final VehicleApi vehicleApi;
   final AuthGateway authGateway;
+  final RidePushController? ridePushController;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -119,10 +123,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
               ),
               const SizedBox(height: 24),
+              if (widget.ridePushController != null) ...<Widget>[
+                _RideNotificationCard(
+                  controller: widget.ridePushController!,
+                ),
+                const SizedBox(height: 24),
+              ],
               const Divider(),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: widget.authGateway.signOut,
+                onPressed: _signOut,
                 icon: const Icon(Icons.logout),
                 label: const Text('Keluar'),
               ),
@@ -131,6 +141,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _signOut() async {
+    await widget.ridePushController?.unregisterBestEffort();
+    await widget.authGateway.signOut();
   }
 
   void _reloadVehicles() {
@@ -209,6 +224,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(content: Text('Kendaraan belum dapat dihapus.')),
       );
     }
+  }
+}
+
+class _RideNotificationCard extends StatelessWidget {
+  const _RideNotificationCard({required this.controller});
+
+  final RidePushController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (BuildContext context, Widget? child) {
+        final RidePushState state = controller.state;
+        final String status = switch (state.permission) {
+          RidePushPermission.authorized ||
+          RidePushPermission.provisional when state.registered =>
+            'Aktif untuk alert Ride penting.',
+          RidePushPermission.authorized ||
+          RidePushPermission.provisional =>
+            'Izin aktif, tetapi perangkat belum terdaftar.',
+          RidePushPermission.denied =>
+            'Izin notifikasi ditolak pada perangkat ini.',
+          RidePushPermission.notDetermined =>
+            'Belum diaktifkan. CommRide tidak meminta izin otomatis.',
+        };
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    const Icon(Icons.notifications_outlined),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Notifikasi Ride',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(status),
+                if (state.latestError != null) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(
+                    state.latestError!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (!state.registered) ...<Widget>[
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: state.working ? null : controller.enable,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: Text(
+                      state.working
+                          ? 'Mengaktifkan…'
+                          : 'Aktifkan notifikasi Ride',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
