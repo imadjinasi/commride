@@ -32,10 +32,9 @@ class HttpRideCommsApi implements RideCommsApi {
       queryParameters['cursor'] = cursor;
     }
 
-    final Uri endpoint =
-        _endpoint('/v1/rides/${Uri.encodeComponent(rideId)}/messages').replace(
-          queryParameters: queryParameters,
-        );
+    final Uri endpoint = _endpoint(
+      '/v1/rides/${Uri.encodeComponent(rideId)}/messages',
+    ).replace(queryParameters: queryParameters);
 
     final http.Response response = await _client.get(
       endpoint,
