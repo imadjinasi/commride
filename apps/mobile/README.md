@@ -18,16 +18,20 @@ Implemented foundation:
 - Ride Briefing publish/read/readiness flow tied to immutable RoutePlan revisions;
 - Active Ride location-session core with explicit contextual permission and realtime lifecycle contracts;
 - authenticated Active Ride WebSocket protocol-v1 client;
-- non-map Live Group presence/attention state for Live, Stale, and Offline Riders;
+- Live Group presence/attention state for Live, Stale, and Offline Riders;
+- shared Active Ride realtime runtime;
+- native Android/iOS location-provider adapter through reproducible platform bootstrap;
+- guarded Google Maps Live Group rendering;
+- Completed Ride Recap;
+- explicit Ride notification opt-in and Firebase Messaging token lifecycle;
 - explicit setup screen when Firebase or API configuration is absent.
 
-Not implemented yet:
+Still outside the repository-only acceptance boundary:
 
-- native Google Maps canvas / map rendering;
-- native Android/iOS location-provider adapter and platform declarations;
-- production WebSocket adapter wiring;
-- realtime Ride map/group-state rendering;
-- final high-fidelity design.
+- real Firebase/Maps production credentials;
+- real-device background/lock-screen/battery validation;
+- Play/App Store signing and distribution;
+- final field-tested high-fidelity polish.
 
 ## Prerequisites
 
@@ -268,6 +272,8 @@ The configurator applies the accepted MVP declarations:
 - Android 13+ notification declaration;
 - iOS When In Use explanation plus `UIBackgroundModes=location`;
 - iOS background-location explanation required by the selected plugin;
+- iOS `remote-notification` background mode and the FlutterFire UIScene
+  notification-center delegate hook;
 - Maps SDK key hooks whose values come only from local environment variables.
 
 Optional local key inputs:
@@ -523,3 +529,42 @@ Map behavior is intentionally conservative:
 
 If Maps is disabled, the existing Live Group list remains the operational
 fallback.
+
+
+## Ride notifications
+
+CommRide uses Firebase Cloud Messaging only as a delivery surface. Authoritative
+Ride state remains in the API/realtime room.
+
+The signed-in app shell owns one notification controller:
+
+- app startup checks existing OS permission but **never prompts automatically**;
+- if permission already exists, the current FCM token is synchronized silently;
+- Profile exposes **Aktifkan notifikasi Ride** as the explicit permission action;
+- Firebase token rotation re-registers the new token;
+- foreground messages appear as an in-app snackbar;
+- explicit sign-out attempts best-effort token unregistration before Firebase
+  sign-out;
+- notification cleanup failure never blocks sign-out.
+
+The server currently targets high-value operational notifications: SOS,
+Need Help, Left Behind, confirmed convoy separation, Leader announcement,
+Briefing publication, and Checkpoint release.
+
+For a real Firebase build, configure the Android/iOS Firebase application using
+the actual project. Do not commit server service-account credentials.
+
+For iOS device delivery, also configure the final Xcode target with the
+**Push Notifications** capability and the real APNs/Firebase relationship.
+The reproducible bootstrap adds the runtime Info.plist/AppDelegate declarations,
+but it intentionally does not invent an `aps-environment` entitlement or
+signing identity.
+
+The API-side FCM sender needs these environment secrets:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL`
+- `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`
+
+Those values belong in the deployment secret store, not mobile
+`--dart-define` and not Git.
