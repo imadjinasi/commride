@@ -62,10 +62,7 @@ class RideRecapPlannedRoute {
         'destinationLabel',
       ),
       distanceMeters: _requiredInt(json['distanceMeters'], 'distanceMeters'),
-      durationSeconds: _requiredInt(
-        json['durationSeconds'],
-        'durationSeconds',
-      ),
+      durationSeconds: _requiredInt(json['durationSeconds'], 'durationSeconds'),
       stopCount: _requiredInt(json['stopCount'], 'stopCount'),
     );
   }
@@ -129,10 +126,7 @@ class RideRecapCheckpoint {
     return RideRecapCheckpoint(
       checkpointId: _requiredString(json['checkpointId'], 'checkpointId'),
       label: _requiredString(json['label'], 'checkpoint.label'),
-      checkpointType: _requiredString(
-        json['checkpointType'],
-        'checkpointType',
-      ),
+      checkpointType: _requiredString(json['checkpointType'], 'checkpointType'),
       checkInCount: _requiredInt(json['checkInCount'], 'checkInCount'),
       participantCount: _requiredInt(
         json['participantCount'],
