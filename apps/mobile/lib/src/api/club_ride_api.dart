@@ -35,11 +35,16 @@ abstract interface class ClubRideApi {
 }
 
 class ClubRideApiException implements Exception {
-  const ClubRideApiException({required this.statusCode, required this.message});
+  const ClubRideApiException({
+    required this.statusCode,
+    required this.message,
+    this.code,
+  });
 
   final int statusCode;
   final String message;
+  final String? code;
 
   @override
-  String toString() => 'ClubRideApiException($statusCode, $message)';
+  String toString() => 'ClubRideApiException($statusCode, $code, $message)';
 }
