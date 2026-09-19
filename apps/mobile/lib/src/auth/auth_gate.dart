@@ -4,6 +4,7 @@ import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
 import '../api/rider_profile_api.dart';
 import '../api/ride_briefing_api.dart';
+import '../api/ride_comms_api.dart';
 import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
 import '../config/app_config.dart';
@@ -23,6 +24,7 @@ class AuthGate extends StatelessWidget {
     required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
+    required this.rideCommsApi,
     super.key,
   });
 
@@ -34,6 +36,7 @@ class AuthGate extends StatelessWidget {
   final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
+  final RideCommsApi rideCommsApi;
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +69,7 @@ class AuthGate extends StatelessWidget {
           checkpointApi: checkpointApi,
           routePlannerApi: routePlannerApi,
           rideBriefingApi: rideBriefingApi,
+          rideCommsApi: rideCommsApi,
         );
       },
     );
@@ -82,6 +86,7 @@ class _RiderProfileGate extends StatefulWidget {
     required this.checkpointApi,
     required this.routePlannerApi,
     required this.rideBriefingApi,
+    required this.rideCommsApi,
     super.key,
   });
 
@@ -93,6 +98,7 @@ class _RiderProfileGate extends StatefulWidget {
   final CheckpointApi checkpointApi;
   final RoutePlannerApi routePlannerApi;
   final RideBriefingApi rideBriefingApi;
+  final RideCommsApi rideCommsApi;
 
   @override
   State<_RiderProfileGate> createState() => _RiderProfileGateState();
@@ -147,6 +153,7 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           checkpointApi: widget.checkpointApi,
           routePlannerApi: widget.routePlannerApi,
           rideBriefingApi: widget.rideBriefingApi,
+          rideCommsApi: widget.rideCommsApi,
           authGateway: widget.authGateway,
         );
       },
