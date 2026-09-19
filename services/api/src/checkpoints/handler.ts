@@ -3,6 +3,7 @@ import type { IdentityVerifier } from '../auth/identity';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderRepository } from '../riders/rider-repository';
+import type { RidePushNotifier } from '../push/notifier';
 import type { RoutePlan, RouteStop } from '../route-plans/models';
 import type { RoutePlanRepository } from '../route-plans/repository';
 import type {
@@ -20,6 +21,7 @@ export interface CheckpointHandlerDependencies {
   readonly clubRideRepository: ClubRideRepository;
   readonly routePlanRepository: RoutePlanRepository;
   readonly checkpointRepository: CheckpointRepository;
+  readonly pushNotifier?: RidePushNotifier;
   readonly now?: () => Date;
 }
 
@@ -213,6 +215,15 @@ export async function handleCheckpointRequest(
         requestId,
       );
     }
+
+    await notifyCheckpointReleaseBestEffort(
+      route.rideId,
+      routePlan.id,
+      checkpoint.id,
+      checkpoint.label,
+      rider.id,
+      dependencies,
+    );
   }
 
   const checkpointView = await buildCheckpointView(
@@ -224,6 +235,39 @@ export async function handleCheckpointRequest(
   );
 
   return jsonResponse({ checkpointView }, 200, requestId);
+}
+
+async function notifyCheckpointReleaseBestEffort(
+  rideId: string,
+  routePlanId: string,
+  checkpointId: string,
+  checkpointLabel: string,
+  leaderRiderId: string,
+  dependencies: CheckpointHandlerDependencies,
+): Promise<void> {
+  const notifier = dependencies.pushNotifier;
+  if (notifier == null) {
+    return;
+  }
+
+  try {
+    await notifier.notify({
+      eventKey: `checkpoint-release:${routePlanId}:${checkpointId}`,
+      rideId,
+      kind: 'checkpoint_released',
+      title: 'Checkpoint dilepas',
+      body: `${checkpointLabel}: rombongan dapat melanjutkan Ride.`,
+      data: {
+        type: 'ride.checkpoint_released',
+        rideId,
+        routePlanId,
+        checkpointId,
+      },
+      excludeRiderId: leaderRiderId,
+    });
+  } catch {
+    // Checkpoint release persistence remains authoritative.
+  }
 }
 
 async function buildCheckpointView(
