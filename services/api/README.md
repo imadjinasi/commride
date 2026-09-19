@@ -238,6 +238,48 @@ Migration `0005_ride_messages.sql` deliberately follows the Checkpoint stack's
 reserved `0004_checkpoint_coordination.sql`. A branch may temporarily contain
 a numbering gap while these stacked PRs remain unmerged.
 
+## Persistent Ride SOS
+
+SOS is a dedicated persistent incident model; it is not an ordinary Ride
+message and is not the same as the lightweight **Butuh Bantuan** Quick Action.
+
+Endpoints:
+
+- `GET /v1/rides/:rideId/sos` — Active/Completed participating Rider history.
+- `POST /v1/rides/:rideId/sos` — raise a new SOS while the Ride is Active.
+- `POST /v1/rides/:rideId/sos/:sosId/cancel` — raising Rider cancels own
+  Active SOS.
+- `POST /v1/rides/:rideId/sos/:sosId/resolve` — Ride Leader resolves an
+  Active SOS.
+
+Raise requests include a bounded `clientCommandId` for retry idempotency and
+an optional reason. Rider identity, display name, and Ride role are always
+server-derived.
+
+The API best-effort requests the Rider's latest server-accepted presence from
+the Active Ride Durable Object. If available, one trusted snapshot is persisted
+with coordinates, observation/receipt timestamps, movement, and
+Live/Stale/Offline freshness. Missing GPS or an unavailable realtime room never
+blocks SOS persistence.
+
+After persistence, the room may broadcast:
+- `ride.sos_raised`;
+- `ride.sos_cancelled`;
+- `ride.sos_resolved`.
+
+Realtime failure never rolls back the authoritative D1 incident. Clients can
+recover through the read endpoint.
+
+Initial Ride-end policy is conservative: an Active SOS must be cancelled or
+resolved before `POST /v1/rides/:rideId/end` can complete.
+
+CommRide does **not** claim SOS contacts public emergency services. No such
+integration is implemented by this slice.
+
+Migration `0006_ride_sos.sql` stores one incident row and optional trusted
+presence snapshot; it does not introduce permanent high-frequency location
+history.
+
 ## Source of truth
 
 - `../../AGENTS.md`
