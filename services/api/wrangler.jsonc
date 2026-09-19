@@ -2,7 +2,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "commride-api",
   "main": "src/index.ts",
-  "compatibility_date": "2026-09-18"
+  "compatibility_date": "2026-09-18",
+  "triggers": {
+    "crons": ["17 3 * * *"]
+  }
 
   // Bindings are intentionally not configured until actual Cloudflare
   // resources are created. Do not invent production resource identifiers.
