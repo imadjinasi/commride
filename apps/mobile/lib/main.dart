@@ -53,8 +53,9 @@ Future<void> main() async {
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
     );
-    final FirebaseRidePushMessaging pushMessaging =
-        FirebaseRidePushMessaging(FirebaseMessaging.instance);
+    final FirebaseRidePushMessaging pushMessaging = FirebaseRidePushMessaging(
+      FirebaseMessaging.instance,
+    );
     final HttpRiderProfileApi riderProfileApi = HttpRiderProfileApi(
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
