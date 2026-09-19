@@ -118,6 +118,9 @@ class _RideCommsScreenState extends State<RideCommsScreen> {
   Future<void> _retryFailed() async {
     try {
       await widget.controller.retryFailed();
+      if (mounted) {
+        _composer.clear();
+      }
     } catch (_) {
       // Controller state keeps the retryable failure visible.
     }
