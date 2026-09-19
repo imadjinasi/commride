@@ -4,6 +4,7 @@ import type { ActiveRideGateway } from '../active-ride/gateway';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderRepository } from '../riders/rider-repository';
+import type { RidePushNotifier } from '../push/notifier';
 import type {
   CreateRideMessageInput,
   RideMessage,
@@ -23,6 +24,7 @@ export interface RideCommsHandlerDependencies {
   readonly clubRideRepository: ClubRideRepository;
   readonly messageRepository: RideMessageRepository;
   readonly activeRideGateway?: ActiveRideGateway;
+  readonly pushNotifier?: RidePushNotifier;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -226,6 +228,9 @@ export async function handleRideCommsRequest(
   const createdNow = persisted.id === messageInput.id;
   if (createdNow) {
     await broadcastBestEffort(path.rideId, persisted, dependencies);
+    if (persisted.kind === 'announcement') {
+      await notifyAnnouncementBestEffort(persisted, dependencies);
+    }
   }
 
   return jsonResponse(
@@ -233,6 +238,35 @@ export async function handleRideCommsRequest(
     createdNow ? 201 : 200,
     requestId,
   );
+}
+
+async function notifyAnnouncementBestEffort(
+  message: RideMessage,
+  dependencies: RideCommsHandlerDependencies,
+): Promise<void> {
+  const notifier = dependencies.pushNotifier;
+  if (notifier == null) {
+    return;
+  }
+
+  try {
+    await notifier.notify({
+      eventKey: `ride-message:${message.id}`,
+      rideId: message.rideId,
+      kind: 'leader_announcement',
+      title: 'Pengumuman Leader',
+      body: message.body,
+      data: {
+        type: 'ride.message_created',
+        rideId: message.rideId,
+        messageId: message.id,
+        messageKind: message.kind,
+      },
+      excludeRiderId: message.senderRiderId,
+    });
+  } catch {
+    // Persisted message history remains authoritative.
+  }
 }
 
 async function broadcastBestEffort(
