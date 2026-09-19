@@ -144,6 +144,7 @@ Widget buildScreen({
     rideId: 'ride-1',
     api: api,
     clientMessageIdFactory: clientMessageIdFactory,
+    readOnly: status == RideStatus.completed,
   );
 
   return MaterialApp(
