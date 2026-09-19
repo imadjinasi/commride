@@ -9,15 +9,9 @@ abstract interface class RideSosApi {
     required String? reason,
   });
 
-  Future<RideSos> cancelSos({
-    required String rideId,
-    required String sosId,
-  });
+  Future<RideSos> cancelSos({required String rideId, required String sosId});
 
-  Future<RideSos> resolveSos({
-    required String rideId,
-    required String sosId,
-  });
+  Future<RideSos> resolveSos({required String rideId, required String sosId});
 }
 
 class RideSosApiException implements Exception {
