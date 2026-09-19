@@ -3,6 +3,7 @@ import { errorResponse, jsonResponse } from './http/json';
 import { resolveRequestId } from './request-id';
 import type { RideRole } from './clubs-rides/models';
 import type { RideMessage } from './ride-comms/models';
+import type { RideSos } from './ride-sos/models';
 import {
   evaluateConvoySeparation,
   separationStateMeaningfullyChanged,
@@ -53,6 +54,106 @@ export class ActiveRideRoom {
       request.headers.get('x-commride-internal-action') === 'connect'
     ) {
       return this.connect(request, requestId);
+    }
+
+    if (url.pathname === '/presence-context') {
+      if (request.method !== 'GET') {
+        return errorResponse(
+          'method_not_allowed',
+          'Only GET is supported for this endpoint.',
+          405,
+          requestId,
+        );
+      }
+
+      const rideId = requiredHeader(request, 'x-commride-ride-id');
+      const riderId = requiredHeader(request, 'x-commride-rider-id');
+      if (rideId == null || riderId == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'Ride and Rider identity are required.',
+          400,
+          requestId,
+        );
+      }
+
+      const presence = (await this.presenceState()).find(
+        (item) => item.riderId === riderId,
+      );
+      if (presence == null) {
+        return jsonResponse({ presence: null }, 200, requestId);
+      }
+
+      const view = presenceView(presence, new Date());
+      return jsonResponse(
+        {
+          presence: {
+            latitude: view.latitude,
+            longitude: view.longitude,
+            observedAt: view.observedAt,
+            receivedAt: view.receivedAt,
+            freshness: view.freshness,
+            movement: view.movement,
+          },
+        },
+        200,
+        requestId,
+      );
+    }
+
+    if (url.pathname === '/sos') {
+      if (request.method !== 'POST') {
+        return errorResponse(
+          'method_not_allowed',
+          'Only POST is supported for this endpoint.',
+          405,
+          requestId,
+        );
+      }
+
+      const rideId = requiredHeader(request, 'x-commride-ride-id');
+      if (rideId == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'Ride identity is required.',
+          400,
+          requestId,
+        );
+      }
+
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return errorResponse(
+          'invalid_internal_request',
+          'SOS broadcast payload must be valid JSON.',
+          400,
+          requestId,
+        );
+      }
+
+      const parsed = parseInternalRideSosEvent(body, rideId);
+      if (parsed == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'Persisted SOS broadcast payload is invalid.',
+          400,
+          requestId,
+        );
+      }
+
+      if (await this.state.storage.get<string>(ENDED_AT_KEY)) {
+        return errorResponse(
+          'active_ride_ended',
+          'This Active Ride room has already ended.',
+          409,
+          requestId,
+        );
+      }
+
+      this.broadcast(serverEvent(parsed.type, parsed.sos));
+      return jsonResponse({ broadcast: true }, 200, requestId);
     }
 
     if (url.pathname === '/message') {
@@ -747,6 +848,157 @@ function parseInternalRideMessage(
     body: value.body,
     clientMessageId: value.clientMessageId,
     createdAt,
+  };
+}
+
+function parseInternalRideSosEvent(
+  value: unknown,
+  rideId: string,
+): {
+  type: 'ride.sos_raised' | 'ride.sos_cancelled' | 'ride.sos_resolved';
+  sos: RideSos;
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const type = value.type;
+  if (
+    type !== 'ride.sos_raised' &&
+    type !== 'ride.sos_cancelled' &&
+    type !== 'ride.sos_resolved'
+  ) {
+    return null;
+  }
+
+  const rawSos = value.sos;
+  if (!isRecord(rawSos) || rawSos.rideId !== rideId) {
+    return null;
+  }
+
+  const role = parseRideRole(rawSos.riderRideRole);
+  const state =
+    rawSos.state === 'active' ||
+    rawSos.state === 'cancelled' ||
+    rawSos.state === 'resolved'
+      ? rawSos.state
+      : null;
+  const raisedAt =
+    typeof rawSos.raisedAt === 'string'
+      ? normalizeIsoDate(rawSos.raisedAt)
+      : null;
+
+  if (
+    typeof rawSos.id !== 'string' ||
+    rawSos.id.length === 0 ||
+    typeof rawSos.riderId !== 'string' ||
+    rawSos.riderId.length === 0 ||
+    typeof rawSos.riderDisplayName !== 'string' ||
+    rawSos.riderDisplayName.length === 0 ||
+    role == null ||
+    state == null ||
+    typeof rawSos.clientCommandId !== 'string' ||
+    rawSos.clientCommandId.length === 0 ||
+    (rawSos.reason !== null && typeof rawSos.reason !== 'string') ||
+    raisedAt == null ||
+    (rawSos.cancelledAt !== null &&
+      (typeof rawSos.cancelledAt !== 'string' ||
+        normalizeIsoDate(rawSos.cancelledAt) == null)) ||
+    (rawSos.resolvedAt !== null &&
+      (typeof rawSos.resolvedAt !== 'string' ||
+        normalizeIsoDate(rawSos.resolvedAt) == null)) ||
+    (rawSos.resolvedByRiderId !== null &&
+      typeof rawSos.resolvedByRiderId !== 'string')
+  ) {
+    return null;
+  }
+
+  const presence = parseSosPresence(rawSos.presence);
+  if (rawSos.presence != null && presence == null) {
+    return null;
+  }
+
+  const sos: RideSos = {
+    id: rawSos.id,
+    rideId,
+    riderId: rawSos.riderId,
+    riderDisplayName: rawSos.riderDisplayName,
+    riderRideRole: role,
+    state,
+    clientCommandId: rawSos.clientCommandId,
+    reason: rawSos.reason as string | null,
+    raisedAt,
+    cancelledAt:
+      rawSos.cancelledAt == null
+        ? null
+        : normalizeIsoDate(rawSos.cancelledAt as string),
+    resolvedAt:
+      rawSos.resolvedAt == null
+        ? null
+        : normalizeIsoDate(rawSos.resolvedAt as string),
+    resolvedByRiderId:
+      rawSos.resolvedByRiderId == null
+        ? null
+        : rawSos.resolvedByRiderId as string,
+    presence,
+  };
+
+  const expectedState =
+    type === 'ride.sos_raised'
+      ? 'active'
+      : type === 'ride.sos_cancelled'
+        ? 'cancelled'
+        : 'resolved';
+  return sos.state === expectedState ? { type, sos } : null;
+}
+
+function parseSosPresence(
+  value: unknown,
+): RideSos['presence'] | null {
+  if (value == null) {
+    return null;
+  }
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const observedAt =
+    typeof value.observedAt === 'string'
+      ? normalizeIsoDate(value.observedAt)
+      : null;
+  const receivedAt =
+    typeof value.receivedAt === 'string'
+      ? normalizeIsoDate(value.receivedAt)
+      : null;
+
+  if (
+    typeof value.latitude !== 'number' ||
+    !Number.isFinite(value.latitude) ||
+    value.latitude < -90 ||
+    value.latitude > 90 ||
+    typeof value.longitude !== 'number' ||
+    !Number.isFinite(value.longitude) ||
+    value.longitude < -180 ||
+    value.longitude > 180 ||
+    observedAt == null ||
+    receivedAt == null ||
+    (value.freshness !== 'live' &&
+      value.freshness !== 'stale' &&
+      value.freshness !== 'offline') ||
+    (value.movement !== 'moving' &&
+      value.movement !== 'stopped' &&
+      value.movement !== 'unknown')
+  ) {
+    return null;
+  }
+
+  return {
+    latitude: value.latitude,
+    longitude: value.longitude,
+    observedAt,
+    receivedAt,
+    freshness: value.freshness,
+    movement: value.movement,
   };
 }
 
