@@ -37,10 +37,7 @@ class _ActiveRideCommandCenterScreenState
     return FutureBuilder<ActiveRideRuntime>(
       future: _runtimeFuture,
       builder:
-          (
-            BuildContext context,
-            AsyncSnapshot<ActiveRideRuntime> snapshot,
-          ) {
+          (BuildContext context, AsyncSnapshot<ActiveRideRuntime> snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
