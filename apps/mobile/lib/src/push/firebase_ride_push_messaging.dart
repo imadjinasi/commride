@@ -41,7 +41,7 @@ class FirebaseRidePushMessaging implements RidePushMessaging {
         body: message.notification?.body,
         data: Map<String, String>.unmodifiable(
           message.data.map(
-            (String key, Object value) =>
+            (String key, dynamic value) =>
                 MapEntry<String, String>(key, value.toString()),
           ),
         ),
@@ -53,7 +53,8 @@ class FirebaseRidePushMessaging implements RidePushMessaging {
     return switch (status) {
       AuthorizationStatus.authorized => RidePushPermission.authorized,
       AuthorizationStatus.provisional => RidePushPermission.provisional,
-      AuthorizationStatus.denied => RidePushPermission.denied,
+      AuthorizationStatus.denied ||
+      AuthorizationStatus.deniedPermanently => RidePushPermission.denied,
       AuthorizationStatus.notDetermined => RidePushPermission.notDetermined,
     };
   }
