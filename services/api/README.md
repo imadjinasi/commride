@@ -568,3 +568,28 @@ bursts that exceed product cadence:
 These guards are defensive ceilings, not a substitute for edge/WAF abuse
 controls. The normal mobile location cadence is much slower (10 seconds / 25 m
 starting policy).
+
+
+## Scheduled Ride reminders
+
+The Worker has a separate 15-minute cron for normal-priority Ride reminders.
+
+Only Rides that are:
+
+- `published`;
+- have `scheduled_start_at`;
+- scheduled after the current check time; and
+- scheduled within the next 60 minutes
+
+are considered.
+
+The push event key includes Ride ID + exact scheduled-start timestamp, so
+repeated 15-minute checks remain deduplicated by the existing push-event table.
+Draft Rides are not reminded.
+
+When a Ride first transitions Active -> Completed, the lifecycle handler also
+best-effort sends **Ride Recap tersedia** using Ride ID + `endedAt` as the
+stable dedupe key.
+
+As with every CommRide notification, reminder/Recap delivery is non-authoritative:
+failure never changes Ride status or persisted Recap availability.
