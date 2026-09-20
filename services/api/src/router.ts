@@ -725,6 +725,10 @@ export async function handleRequest(
           rideSosRepository:
             overrides.rideSosRepository ??
             (env.DB == null ? undefined : new D1RideSosRepository(env.DB)),
+          pushNotifier:
+            overrides.ridePushNotifier ??
+            resolveRidePushNotifier(env) ??
+            undefined,
           idFactory: overrides.idFactory,
           now: overrides.now,
         },
