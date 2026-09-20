@@ -90,6 +90,12 @@ Lifecycle:
 - Completed
 - Cancelled
 
+Lifecycle semantics:
+- Draft -> Published -> Active -> Completed is the normal execution path.
+- Draft or Published -> Cancelled is allowed before a Ride starts.
+- Cancelled is terminal and idempotent.
+- Active -> Cancelled is not allowed; once a Ride starts it must be ended as Completed so the product does not erase the fact that live Ride operations began.
+
 Key concepts:
 - organizer/Club;
 - title;
@@ -140,7 +146,15 @@ Contains:
 
 A Ride can evolve through multiple route-plan revisions.
 
-The system should retain enough provenance to distinguish the active plan from a superseded plan.
+RoutePlan revision semantics:
+- each successful saved plan creates a new immutable revision;
+- exactly one revision is current for a Ride;
+- replacing the current plan never mutates the previous revision in place;
+- a failed provider recomputation must not replace the last valid current plan;
+- the initial MVP allows route-plan replacement only while the Ride is Draft or Published;
+- Active Ride replanning requires a future explicit operational command rather than silently changing the pre-Ride plan.
+
+The system retains provenance so the current plan can be distinguished from superseded revisions.
 
 ## 10. RouteAlternative
 
@@ -169,6 +183,10 @@ Types may include:
 - custom.
 
 A Stop becomes operationally significant when converted to a Checkpoint.
+
+Within one RoutePlan revision, Stops have stable IDs and a unique zero-based
+sequence. Reordering changes the next revision's sequence; it does not rewrite
+the prior revision.
 
 ## 12. Checkpoint
 
@@ -214,6 +232,13 @@ Represents the period when Ride location sharing is active.
 
 It begins when the Ride starts and normally ends when the Ride ends.
 
+Initial lifecycle semantics:
+- only an Active Ride may accept realtime room connections;
+- joining the room does not itself start device location tracking;
+- Ride completion terminates the live room;
+- reconnect after completion is rejected;
+- live-room authorization is derived from authenticated RideMembership, never social follow state.
+
 It owns/controls:
 - who may publish location;
 - who may view location;
@@ -237,9 +262,18 @@ Potential states:
 
 Contains latest-known:
 - coordinates;
-- timestamp;
+- observation timestamp;
+- server receipt timestamp;
 - movement state;
+- connection/freshness state;
 - battery/network metadata only if explicitly justified and permission-safe.
+
+Initial semantics:
+- one latest RiderPresence is operationally retained per Rider in the Active Ride room;
+- an older observation cannot replace a newer observation;
+- disconnect changes connection state to Offline without pretending the last coordinate disappeared;
+- Stale/Offline positions retain timestamps;
+- RiderPresence is overwritten operational state, not an append-only GPS log.
 
 RiderPresence should be treated differently from long-term route history.
 
@@ -253,12 +287,29 @@ Sampling/retention should control cost and privacy exposure.
 
 ## 17. Message
 
-A communication event in a Ride.
+An immutable private communication record inside one Ride.
 
 Initial types:
 - text message;
-- Leader announcement;
-- quick-action status.
+- Leader announcement.
+
+Message identity and visibility are scoped to Ride participation. Public Club
+or social follow state never grants access to private Ride communication.
+
+Initial lifecycle semantics:
+- Active Ride participants may read and send text chat;
+- only the Ride Leader may publish a Leader announcement;
+- Completed Ride participants may read retained history but may not send;
+- Draft/Published Ride chat is not part of the initial operational slice;
+- sender Rider identity and Ride role are derived server-side;
+- a client-generated message ID is an idempotency key, not an authority claim.
+
+A Message stores communication content and sender/role snapshots. It does not
+store Rider location. Realtime delivery is an optimization after authoritative
+persistence; history is rebuilt from durable Ride records.
+
+QuickAction, Checkpoint, separation, Ride End, SOS, and other operational state
+remain typed domain events rather than being encoded as ordinary chat text.
 
 Future:
 - voice note;
@@ -292,14 +343,32 @@ SOS is treated as a special high-priority incident/event.
 
 ## 20. SOS
 
-A high-priority request for attention associated with:
-- Rider;
-- Ride;
-- location;
-- timestamp;
-- optional emergency contact action.
+A high-priority persistent Ride incident, separate from QuickAction and Message.
 
-SOS is not equivalent to contacting public emergency services unless such an integration is explicitly implemented.
+Initial lifecycle:
+- Active;
+- Cancelled by the Rider who raised it;
+- Resolved by the Ride Leader.
+
+An SOS records:
+- server-derived Rider identity and Ride role;
+- raised timestamp;
+- optional Rider-supplied context;
+- optional one-time snapshot of the latest server-accepted RiderPresence;
+- cancellation/resolution timestamps and resolver identity where applicable.
+
+GPS is not a prerequisite for SOS. When no trusted Ride presence is available,
+the SOS remains valid without location. When a location snapshot is retained,
+its original observation/receipt timestamps and Live/Stale/Offline freshness are
+preserved so last-known location is never presented as current by implication.
+
+SOS does not automatically resolve when RiderPresence becomes Live again.
+
+An Active SOS must be explicitly closed before the Ride can be completed in the
+initial policy.
+
+SOS is not equivalent to contacting public emergency services unless such an
+integration is explicitly implemented.
 
 ## 21. CheckIn
 
@@ -323,7 +392,19 @@ Includes:
 - timing;
 - notes.
 
-Each RideMembership can track briefing acknowledgement/readiness.
+RideBriefing revision semantics:
+- each publish creates a new immutable briefing revision;
+- exactly one briefing revision is current for a Ride;
+- the briefing references the exact immutable RoutePlan revision that was reviewed;
+- if the current RoutePlan later changes, the latest briefing remains readable but is stale until the Leader publishes a new briefing revision;
+- only Draft or Published Rides may publish or replace the current briefing in the initial MVP.
+
+Briefing acknowledgement/readiness is scoped to one Rider and one exact
+RideBriefing revision. Acknowledgement of an older briefing remains historical
+but does not count toward readiness for a newer revision.
+
+Readiness is advisory in the MVP. It is visible to the Leader before Start Ride
+but does not automatically block the Leader from starting the Ride.
 
 ## 23. RideRecap
 

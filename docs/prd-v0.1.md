@@ -78,6 +78,9 @@ The initial product flow is:
 - Select participating Riders.
 - Assign Leader and Sweeper.
 - Ride status: Draft, Published, Active, Completed, Cancelled.
+- Leader may cancel a Ride only before it becomes Active (Draft or Published).
+- Cancellation is idempotent; an already Cancelled Ride remains Cancelled.
+- An Active Ride must be ended to become Completed rather than cancelled, preserving the operational record of a Ride that actually started.
 
 #### Route planning
 - Origin/destination search.
@@ -101,7 +104,13 @@ The initial product flow is:
 - stops/checkpoints;
 - Leader/Sweeper;
 - important notes;
-- acknowledgement/readiness state.
+- acknowledgement/readiness state;
+- immutable briefing revisions tied to an exact RoutePlan revision;
+- stale indication when RoutePlan changes after publication;
+- readiness calculated only from acknowledgements of the current briefing revision.
+
+Readiness is advisory for MVP. The Leader may see Riders who have not
+acknowledged the current briefing, but Start Ride is not automatically blocked.
 
 #### Live Ride
 - background location sharing while Ride is active;
@@ -161,6 +170,13 @@ Every change recalculates:
 - total distance;
 - estimated drive time;
 - expected checkpoint arrival times.
+
+Persistence rule:
+- only a successful recomputation may become the new current RoutePlan;
+- the previous valid plan remains current if provider recomputation fails;
+- each saved plan is a new revision so reorder/add/remove history is recoverable;
+- Draft and Published Rides may replace the current plan in the initial MVP;
+- Active Ride replanning is deferred to an explicit operational flow.
 
 ### Search Along Route
 The Leader can search categories along the planned route without manually panning the map.
