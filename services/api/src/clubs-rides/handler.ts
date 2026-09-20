@@ -5,6 +5,8 @@ import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderProfile } from '../riders/rider-profile';
 import type { RiderRepository } from '../riders/rider-repository';
 import type { RideSosRepository } from '../ride-sos/repository';
+import type { RidePushNotifier } from '../push/notifier';
+import { notifyRideRecapAvailableBestEffort } from '../ride-notifications';
 import type {
   ClubMembership,
   Ride,
@@ -20,6 +22,7 @@ export interface ClubRideHandlerDependencies {
   readonly clubRideRepository: ClubRideRepository;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly rideSosRepository?: RideSosRepository;
+  readonly pushNotifier?: RidePushNotifier;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -650,6 +653,10 @@ async function transitionRide(
       rideId,
       updated.endedAt ?? timestamp,
       dependencies,
+    );
+    await notifyRideRecapAvailableBestEffort(
+      updated,
+      dependencies.pushNotifier,
     );
   }
 
