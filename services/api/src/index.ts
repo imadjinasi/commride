@@ -2,6 +2,7 @@ import { ActiveRideRoom } from './active-ride-room';
 import type { Env } from './env';
 import { handleRequest } from './router';
 import { purgeExpiredOperationalData } from './retention';
+import { sendUpcomingRideReminders } from './ride-notifications';
 
 export { ActiveRideRoom };
 
@@ -15,10 +16,15 @@ export default {
   },
 
   async scheduled(
-    _controller: ScheduledController,
+    controller: ScheduledController,
     env: Env,
     context: ExecutionContext,
   ): Promise<void> {
-    context.waitUntil(purgeExpiredOperationalData(env));
+    if (controller.cron === '17 3 * * *') {
+      context.waitUntil(purgeExpiredOperationalData(env));
+      return;
+    }
+
+    context.waitUntil(sendUpcomingRideReminders(env));
   },
 } satisfies ExportedHandler<Env>;
