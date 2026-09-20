@@ -568,3 +568,27 @@ The API-side FCM sender needs these environment secrets:
 
 Those values belong in the deployment secret store, not mobile
 `--dart-define` and not Git.
+
+
+## CI release-build gate
+
+Mobile CI regenerates Android/iOS platform projects from the pinned Flutter
+toolchain, reapplies CommRide's native declarations, and verifies the generated
+configuration before running analyzer/tests.
+
+The CI gate now also:
+
+- rejects tracked Firebase provider files and Android signing material;
+- verifies Android location/foreground-service/notification permissions;
+- verifies iOS location + remote-notification declarations;
+- verifies Google Maps key hooks without embedding a real key;
+- builds an Android debug APK;
+- builds an Android release AAB with Maps disabled and a non-production API
+  placeholder;
+- uploads both CI artifacts for short-lived inspection.
+
+The CI release AAB proves that the repository can produce a release-mode
+bundle. It is **not** evidence of Play-ready signing, production Firebase,
+production Maps keys, or device acceptance. Final signing/application IDs and
+provider configuration remain pilot/operator gates in
+`../../docs/pilot-release-checklist.md`.
