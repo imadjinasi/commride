@@ -110,26 +110,22 @@ describe('GoogleMapsProvider', () => {
     });
   });
 
-  it('uses native Places search-along-route and exposes route-impact totals', async () => {
+  it('searches a motorcycle route without fabricating car detour totals', async () => {
     const provider = new GoogleMapsProvider('secret-key', async (request, init) => {
       const url = new URL(request.toString());
       expect(url.pathname).toBe('/v1/places:searchText');
       const payload = JSON.parse(String(init?.body));
       expect(payload.searchAlongRouteParameters.polyline.encodedPolyline)
         .toBe('route-polyline');
-      expect(payload.routingParameters.travelMode).toBe('TWO_WHEELER');
+      expect(payload.routingParameters).toBeUndefined();
+      expect(new Headers(init?.headers).get('x-goog-fieldmask'))
+        .not.toContain('routingSummaries');
       return json({
         places: [{
           id: 'fuel-1',
           displayName: { text: 'SPBU Example' },
           formattedAddress: 'Jalan Contoh',
           location: { latitude: -6.8, longitude: 108.2 },
-        }],
-        routingSummaries: [{
-          legs: [
-            { distanceMeters: 10000, duration: '900s' },
-            { distanceMeters: 20000, duration: '1800s' },
-          ],
         }],
       });
     });
@@ -147,6 +143,48 @@ describe('GoogleMapsProvider', () => {
     });
     expect(places[0]).toMatchObject({
       reference: 'fuel-1',
+      viaPlaceDistanceMeters: null,
+      viaPlaceDurationSeconds: null,
+    });
+  });
+
+  it('returns routing-summary totals for supported drive search-along-route', async () => {
+    const provider = new GoogleMapsProvider('secret-key', async (_request, init) => {
+      const payload = JSON.parse(String(init?.body));
+      expect(payload.routingParameters).toMatchObject({
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_AWARE',
+      });
+      expect(new Headers(init?.headers).get('x-goog-fieldmask'))
+        .toContain('routingSummaries.legs.distanceMeters');
+      return json({
+        places: [{
+          id: 'food-1',
+          displayName: { text: 'Food Stop' },
+          location: { latitude: -6.8, longitude: 108.2 },
+        }],
+        routingSummaries: [{
+          legs: [
+            { distanceMeters: 10000, duration: '900s' },
+            { distanceMeters: 20000, duration: '1800s' },
+          ],
+        }],
+      });
+    });
+
+    const places = await provider.searchAlongRoute({
+      textQuery: 'restaurant',
+      encodedPolyline: 'route-polyline',
+      travelMode: 'drive',
+      modifiers: {
+        avoidTolls: false,
+        avoidHighways: false,
+        avoidFerries: false,
+      },
+      maxResults: 5,
+    });
+    expect(places[0]).toMatchObject({
+      reference: 'food-1',
       viaPlaceDistanceMeters: 30000,
       viaPlaceDurationSeconds: 2700,
     });

@@ -154,6 +154,11 @@ export class GoogleMapsProvider implements RoutePlaceProvider {
   async searchAlongRoute(
     input: SearchAlongRouteInput,
   ): Promise<readonly AlongRoutePlace[]> {
+    // Search Along Route itself can consume the polyline from a motorcycle
+    // route. However, Places routing summaries do not support TWO_WHEELER
+    // together with searchAlongRouteParameters. Do not silently substitute
+    // DRIVE for motorcycle detour totals; leave them unavailable instead.
+    const includeRoutingSummary = input.travelMode === 'drive';
     const body = await this.request(
       new URL('/v1/places:searchText', PLACES_ORIGIN),
       {
@@ -164,14 +169,19 @@ export class GoogleMapsProvider implements RoutePlaceProvider {
           searchAlongRouteParameters: {
             polyline: { encodedPolyline: input.encodedPolyline },
           },
-          routingParameters: {
-            travelMode: googleTravelMode(input.travelMode),
-            routeModifiers: {
-              avoidTolls: input.modifiers.avoidTolls,
-              avoidHighways: input.modifiers.avoidHighways,
-              avoidFerries: input.modifiers.avoidFerries,
-            },
-          },
+          ...(includeRoutingSummary
+            ? {
+                routingParameters: {
+                  travelMode: 'DRIVE',
+                  routingPreference: 'TRAFFIC_AWARE',
+                  routeModifiers: {
+                    avoidTolls: input.modifiers.avoidTolls,
+                    avoidHighways: input.modifiers.avoidHighways,
+                    avoidFerries: input.modifiers.avoidFerries,
+                  },
+                },
+              }
+            : {}),
         }),
       },
       [
@@ -179,13 +189,19 @@ export class GoogleMapsProvider implements RoutePlaceProvider {
         'places.displayName.text',
         'places.formattedAddress',
         'places.location',
-        'routingSummaries.legs.distanceMeters',
-        'routingSummaries.legs.duration',
+        ...(includeRoutingSummary
+          ? [
+              'routingSummaries.legs.distanceMeters',
+              'routingSummaries.legs.duration',
+            ]
+          : []),
       ].join(','),
     );
 
     const places = array(body.places);
-    const summaries = array(body.routingSummaries);
+    const summaries = includeRoutingSummary
+      ? array(body.routingSummaries)
+      : [];
     return places.flatMap((raw, index) => {
       const place = recordOrNull(raw);
       const reference = text(place?.id);

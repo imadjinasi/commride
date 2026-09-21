@@ -432,5 +432,5 @@ Not recommended for MVP:
 - always-on VPS solely for API;
 - storing every GPS point permanently;
 - Firestore as a high-frequency location event log;
-- embedded navigation engine;
+- building a custom navigation engine;
 - AI planner before deterministic planning flows work.
