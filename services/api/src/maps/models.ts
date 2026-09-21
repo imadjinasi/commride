@@ -51,6 +51,12 @@ export interface RouteOption {
   readonly distanceMeters: number;
   readonly durationSeconds: number;
   readonly encodedPolyline: string;
+  /**
+   * Short-lived opaque provider token that can reproduce the computed route
+   * in a compatible embedded navigation SDK. It is transport-only and is not
+   * persisted as RoutePlan source of truth.
+   */
+  readonly routeToken?: string | null;
   readonly legs: readonly RouteLeg[];
 }
 

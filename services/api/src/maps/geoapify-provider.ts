@@ -137,7 +137,7 @@ export class GeoapifyProvider implements RoutePlaceProvider {
     return {
       routeIndex: 0, labels: [kind === 'balanced' ? 'RECOMMENDED' : 'SHORTEST'],
       distanceMeters: metric(properties.distance), durationSeconds: metric(properties.time),
-      encodedPolyline, legs,
+      encodedPolyline, routeToken: null, legs,
     };
   }
 

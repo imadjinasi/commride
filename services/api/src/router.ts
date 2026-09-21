@@ -43,6 +43,7 @@ import {
 import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
 import { GeoapifyProvider } from './maps/geoapify-provider';
+import { GoogleMapsProvider } from './maps/google-maps-provider';
 import { handleMapsRequest, isMapsPath } from './maps/handler';
 import type { RoutePlaceProvider } from './maps/provider';
 import { resolveRequestId } from './request-id';
@@ -895,12 +896,23 @@ function resolveFirebaseVerifier(env: Env): IdentityVerifier | null {
 
 
 function resolveRoutePlaceProvider(env: Env): RoutePlaceProvider | null {
-  const apiKey = env.GEOAPIFY_API_KEY?.trim();
-  if (apiKey == null || apiKey.length === 0) {
+  const configured = env.MAP_PROVIDER?.trim().toLowerCase();
+
+  if (configured === 'google') {
+    const apiKey = env.GOOGLE_MAPS_API_KEY?.trim();
+    return apiKey == null || apiKey.length === 0
+      ? null
+      : new GoogleMapsProvider(apiKey);
+  }
+
+  if (configured != null && configured.length > 0 && configured !== 'geoapify') {
     return null;
   }
 
-  return new GeoapifyProvider(apiKey);
+  const apiKey = env.GEOAPIFY_API_KEY?.trim();
+  return apiKey == null || apiKey.length === 0
+    ? null
+    : new GeoapifyProvider(apiKey);
 }
 
 
