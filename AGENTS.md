@@ -32,18 +32,22 @@ If a requested implementation introduces behavior not covered by the current pro
 
 ## Current project stage
 
-CommRide is in product-definition / pre-implementation.
+CommRide has an integrated **repository-side MVP candidate for the first-Club
+pilot**. Repository CI can prove source, tests, migration validation, generated
+native declarations, and CI Android build gates.
 
-Do not treat proposed architecture as deployed reality.
+Do not treat repository readiness as deployed or field-tested reality.
 
 Do not claim:
-- production infrastructure exists;
+- production or pilot infrastructure exists;
 - external provider accounts are configured;
 - Google Maps billing/keys exist;
-- Firebase or Cloudflare projects exist;
-- mobile builds were tested;
+- Firebase or Cloudflare projects are configured;
+- a store-signed mobile build exists;
+- background GPS, push delivery, or convoy behavior passed on physical devices;
 
-unless verified by repository evidence or explicitly supplied runtime evidence.
+unless verified by repository evidence or explicitly supplied runtime/operator
+evidence.
 
 ## MVP boundaries
 
