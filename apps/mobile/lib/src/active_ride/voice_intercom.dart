@@ -16,12 +16,7 @@ enum RideVoiceMode {
   }
 }
 
-enum RideVoiceConnectionPhase {
-  disconnected,
-  connecting,
-  connected,
-  degraded,
-}
+enum RideVoiceConnectionPhase { disconnected, connecting, connected, degraded }
 
 sealed class RideVoiceEvent {
   const RideVoiceEvent();
@@ -125,8 +120,7 @@ class RideVoiceState {
       microphoneEnabled: microphoneEnabled ?? this.microphoneEnabled,
       moderatorMuted: moderatorMuted ?? this.moderatorMuted,
       pushToTalkActive: pushToTalkActive ?? this.pushToTalkActive,
-      locallyMutedRiderIds:
-          locallyMutedRiderIds ?? this.locallyMutedRiderIds,
+      locallyMutedRiderIds: locallyMutedRiderIds ?? this.locallyMutedRiderIds,
       activeSpeakerRiderIds:
           activeSpeakerRiderIds ?? this.activeSpeakerRiderIds,
       message: clearMessage ? null : (message ?? this.message),
@@ -210,7 +204,8 @@ class RideVoiceController extends ChangeNotifier {
   }
 
   Future<void> setMode(RideVoiceMode mode) async {
-    if (_disposed || _state.connectionPhase != RideVoiceConnectionPhase.connected) {
+    if (_disposed ||
+        _state.connectionPhase != RideVoiceConnectionPhase.connected) {
       return;
     }
 
@@ -225,8 +220,9 @@ class RideVoiceController extends ChangeNotifier {
     _setState(
       _state.copyWith(
         mode: mode,
-        microphoneEnabled:
-            mode == RideVoiceMode.listenOnly ? false : _state.microphoneEnabled,
+        microphoneEnabled: mode == RideVoiceMode.listenOnly
+            ? false
+            : _state.microphoneEnabled,
         pushToTalkActive: false,
         clearMessage: true,
       ),
@@ -234,7 +230,8 @@ class RideVoiceController extends ChangeNotifier {
   }
 
   Future<void> setMicrophoneEnabled(bool enabled) async {
-    if (_disposed || _state.connectionPhase != RideVoiceConnectionPhase.connected) {
+    if (_disposed ||
+        _state.connectionPhase != RideVoiceConnectionPhase.connected) {
       return;
     }
     if (enabled &&
@@ -299,18 +296,15 @@ class RideVoiceController extends ChangeNotifier {
       case RideVoiceActiveSpeakersChanged():
         _setState(
           _state.copyWith(
-            activeSpeakerRiderIds:
-                Set<String>.unmodifiable(event.riderIds),
+            activeSpeakerRiderIds: Set<String>.unmodifiable(event.riderIds),
           ),
         );
       case RideVoiceModeratorMutedChanged():
         _setState(
           _state.copyWith(
             moderatorMuted: event.muted,
-            microphoneEnabled:
-                event.muted ? false : _state.microphoneEnabled,
-            pushToTalkActive:
-                event.muted ? false : _state.pushToTalkActive,
+            microphoneEnabled: event.muted ? false : _state.microphoneEnabled,
+            pushToTalkActive: event.muted ? false : _state.pushToTalkActive,
           ),
         );
       case RideVoiceTransportDegraded():

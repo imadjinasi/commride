@@ -47,10 +47,7 @@ class FakeVoiceTransport implements RideVoiceTransport {
   }
 
   @override
-  Future<void> setParticipantAudioEnabled(
-    String riderId,
-    bool enabled,
-  ) async {
+  Future<void> setParticipantAudioEnabled(String riderId, bool enabled) async {
     if (enabled) {
       mutedLocally.remove(riderId);
     } else {
@@ -109,37 +106,40 @@ void main() {
     await transport.controller.close();
   });
 
-  test('listen only disables microphone and moderator mute never enables it', () async {
-    final FakeVoiceTransport transport = FakeVoiceTransport();
-    final RideVoiceController controller = RideVoiceController(
-      rideId: 'ride-1',
-      transport: transport,
-      canModerate: true,
-    );
-    await controller.join();
-    await controller.setMode(RideVoiceMode.listenOnly);
+  test(
+    'listen only disables microphone and moderator mute never enables it',
+    () async {
+      final FakeVoiceTransport transport = FakeVoiceTransport();
+      final RideVoiceController controller = RideVoiceController(
+        rideId: 'ride-1',
+        transport: transport,
+        canModerate: true,
+      );
+      await controller.join();
+      await controller.setMode(RideVoiceMode.listenOnly);
 
-    expect(controller.state.microphoneEnabled, isFalse);
-    await controller.setMicrophoneEnabled(true);
-    expect(controller.state.microphoneEnabled, isFalse);
+      expect(controller.state.microphoneEnabled, isFalse);
+      await controller.setMicrophoneEnabled(true);
+      expect(controller.state.microphoneEnabled, isFalse);
 
-    transport.controller.add(
-      const RideVoiceModeratorMutedChanged(muted: true),
-    );
-    await Future<void>.delayed(Duration.zero);
-    expect(controller.state.moderatorMuted, isTrue);
-    expect(controller.state.microphoneEnabled, isFalse);
+      transport.controller.add(
+        const RideVoiceModeratorMutedChanged(muted: true),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.state.moderatorMuted, isTrue);
+      expect(controller.state.microphoneEnabled, isFalse);
 
-    transport.controller.add(
-      const RideVoiceModeratorMutedChanged(muted: false),
-    );
-    await Future<void>.delayed(Duration.zero);
-    expect(controller.state.moderatorMuted, isFalse);
-    expect(controller.state.microphoneEnabled, isFalse);
+      transport.controller.add(
+        const RideVoiceModeratorMutedChanged(muted: false),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.state.moderatorMuted, isFalse);
+      expect(controller.state.microphoneEnabled, isFalse);
 
-    controller.dispose();
-    await transport.controller.close();
-  });
+      controller.dispose();
+      await transport.controller.close();
+    },
+  );
 
   test('local mute and leader moderator mute remain separate', () async {
     final FakeVoiceTransport transport = FakeVoiceTransport();
