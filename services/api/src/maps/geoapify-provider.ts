@@ -1,711 +1,306 @@
 import type {
-  AlongRoutePlace,
-  ComputeRoutesInput,
-  GeoPoint,
-  PlaceSuggestion,
-  ResolvedPlace,
-  RouteLeg,
-  RouteOption,
-  SearchAlongRouteInput,
+  AlongRoutePlace, ComputeRoutesInput, GeoPoint, PlaceSuggestion,
+  ResolvedPlace, RouteOption, SearchAlongRouteInput,
 } from './models';
 import {
-  type PlaceAutocompleteInput,
-  type ResolvePlaceInput,
-  type RoutePlaceProvider,
-  RoutePlaceProviderError,
+  type PlaceAutocompleteInput, type ResolvePlaceInput,
+  type RoutePlaceProvider, RoutePlaceProviderError,
 } from './provider';
+import {
+  decodePolyline, distanceMeters, distanceToRoute, encodePolyline,
+  MAX_POLYLINE_LENGTH, sampleRoute, validPoint,
+} from './route-geometry';
 
-const AUTOCOMPLETE_URL = 'https://api.geoapify.com/v1/geocode/autocomplete';
-const PLACE_DETAILS_URL = 'https://api.geoapify.com/v2/place-details';
-const ROUTING_URL = 'https://api.geoapify.com/v1/routing';
-const PLACES_URL = 'https://api.geoapify.com/v2/places';
-const GEOCODE_SEARCH_URL = 'https://api.geoapify.com/v1/geocode/search';
+const API_ORIGIN = 'https://api.geoapify.com';
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const SEARCH_RADIUS_METERS = 5000;
+const MAX_SEARCH_CENTERS = 6;
+const MAX_PER_CENTER = 5;
 
-const AUTOCOMPLETE_LIMIT = 8;
-const ALONG_ROUTE_RADIUS_METERS = 5000;
-const MAX_ALONG_ROUTE_SAMPLES = 6;
-const MAX_RESULTS_PER_SAMPLE = 5;
-const MATERIAL_ALTERNATIVE_RATIO = 0.02;
-
+type JsonObject = Record<string, unknown>;
 type RouteKind = 'balanced' | 'short';
+interface Candidate extends AlongRoutePlace { readonly routeDistance: number }
 
-interface CandidatePlace extends AlongRoutePlace {
-  readonly routeDistanceMeters: number;
-}
-
+/** Provider payloads, credentials and request policy stop at this boundary. */
 export class GeoapifyProvider implements RoutePlaceProvider {
   constructor(
     private readonly apiKey: string,
     private readonly fetcher: typeof fetch = fetch,
   ) {
-    if (apiKey.trim().length === 0) {
-      throw new Error('Geoapify API key must not be empty.');
-    }
+    if (apiKey.trim().length === 0) throw new Error('Geoapify API key must not be empty.');
   }
 
-  async autocomplete(
-    input: PlaceAutocompleteInput,
-  ): Promise<readonly PlaceSuggestion[]> {
-    const url = this.url(AUTOCOMPLETE_URL);
-    url.searchParams.set('text', input.input);
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('limit', String(AUTOCOMPLETE_LIMIT));
-
-    const response = await this.fetcher(url);
-    const body = await readJsonObject(response);
-    if (!response.ok) {
-      throw providerError(response.status, body);
-    }
-
-    return array(body.results).flatMap((item) => {
-      const reference = string(item.place_id);
-      const text = string(item.formatted) ??
-        string(item.address_line1) ??
-        string(item.name);
-      if (reference == null || text == null) {
-        return [];
-      }
-      return [{ reference, text }];
+  async autocomplete(input: PlaceAutocompleteInput): Promise<readonly PlaceSuggestion[]> {
+    const body = await this.get('/v1/geocode/autocomplete', {
+      text: input.input, format: 'json', limit: '8',
+    });
+    return collection(body, 'results').slice(0, 8).flatMap((item) => {
+      const reference = text(item.place_id);
+      const label = text(item.formatted) ?? text(item.address_line1) ?? text(item.name);
+      return reference == null || reference.length > 500 || label == null
+        ? [] : [{ reference, text: label }];
     });
   }
 
   async resolvePlace(input: ResolvePlaceInput): Promise<ResolvedPlace> {
-    const url = this.url(PLACE_DETAILS_URL);
-    url.searchParams.set('id', input.reference);
-    url.searchParams.set('features', 'details');
-
-    const response = await this.fetcher(url);
-    const body = await readJsonObject(response);
-    if (!response.ok) {
-      throw providerError(response.status, body);
-    }
-
-    const feature = array(body.features)[0];
-    const properties = record(feature?.properties);
-    const reference = string(properties.place_id) ?? input.reference;
-    const location = geoPoint(properties) ?? geometryPoint(feature?.geometry);
-    if (location == null) {
-      throw new RoutePlaceProviderError(
-        'provider_invalid_response',
-        'The place provider returned an incomplete place.',
-        502,
-      );
-    }
-
+    const body = await this.get('/v2/place-details', { id: input.reference, features: 'details' });
+    const feature = collection(body, 'features')[0];
+    if (feature == null) throw invalidResponse();
+    const properties = object(feature.properties);
+    const location = placePoint(properties, feature.geometry);
+    if (location == null) throw invalidResponse();
     return {
-      reference,
-      formattedAddress: string(properties.formatted),
+      reference: text(properties.place_id) ?? input.reference,
+      formattedAddress: text(properties.formatted),
       location,
     };
   }
 
-  async computeRoutes(
-    input: ComputeRoutesInput,
-  ): Promise<readonly RouteOption[]> {
-    const mode = input.travelMode === 'two_wheeler' ? 'motorcycle' : 'drive';
-
-    if (
-      input.travelMode === 'two_wheeler' &&
-      (input.modifiers.avoidTolls || input.modifiers.avoidHighways)
-    ) {
-      throw new RoutePlaceProviderError(
-        'route_modifier_not_supported',
-        'Geoapify motorcycle routing does not support avoid-tolls or avoid-highways.',
-        400,
-      );
+  async computeRoutes(input: ComputeRoutesInput): Promise<readonly RouteOption[]> {
+    if (input.travelMode === 'two_wheeler' &&
+        (input.modifiers.avoidTolls || input.modifiers.avoidHighways)) {
+      throw new RoutePlaceProviderError('route_modifier_not_supported',
+        'Motorcycle routing does not support toll or highway avoidance preferences.', 400);
     }
-
-    const waypointMode = intermediateWaypointMode(input);
-    const kinds: readonly RouteKind[] =
-      input.computeAlternatives && input.intermediates.length === 0
-        ? ['balanced', 'short']
-        : ['balanced'];
-
-    const routeCandidates = await Promise.all(
-      kinds.map((kind) => this.fetchRoute(input, mode, waypointMode, kind)),
-    );
-
-    const primary = routeCandidates[0];
-    if (primary == null) {
-      return [];
+    const viaCount = input.intermediates.filter((point) => point.via).length;
+    if (viaCount > 0 && viaCount !== input.intermediates.length) {
+      throw new RoutePlaceProviderError('mixed_waypoint_modes_not_supported',
+        'Use one intermediate waypoint mode per route request.', 400);
     }
-
-    const accepted: RouteOption[] = [{ ...primary, routeIndex: 0 }];
-    const alternative = routeCandidates[1];
-    if (alternative != null && isMateriallyDifferent(primary, alternative)) {
-      accepted.push({ ...alternative, routeIndex: 1 });
-    }
-    return accepted;
-  }
-
-  async searchAlongRoute(
-    input: SearchAlongRouteInput,
-  ): Promise<readonly AlongRoutePlace[]> {
-    const routePoints = decodePolyline(input.encodedPolyline);
-    if (routePoints.length === 0) {
-      throw new RoutePlaceProviderError(
-        'invalid_route_polyline',
-        'Search Along Route requires a valid route polyline.',
-        400,
-      );
-    }
-
-    const samples = sampleRoute(routePoints, MAX_ALONG_ROUTE_SAMPLES);
-    const perSampleLimit = Math.min(
-      MAX_RESULTS_PER_SAMPLE,
-      Math.max(3, input.maxResults),
-    );
-
-    const resultGroups = await Promise.all(
-      samples.map((sample) =>
-        this.searchNearRouteSample(
-          input.textQuery,
-          sample,
-          perSampleLimit,
-          samples,
-        )),
-    );
-
-    const deduplicated = new Map<string, CandidatePlace>();
-    for (const candidate of resultGroups.flat()) {
-      const current = deduplicated.get(candidate.reference);
-      if (
-        current == null ||
-        candidate.routeDistanceMeters < current.routeDistanceMeters
-      ) {
-        deduplicated.set(candidate.reference, candidate);
+    const primary = await this.route(input, 'balanced');
+    if (primary == null) return [];
+    const routes: RouteOption[] = [primary];
+    if (input.computeAlternatives && input.intermediates.length === 0) {
+      // An optional alternative failure must not destroy the valid primary route.
+      try {
+        const alternate = await this.route(input, 'short');
+        if (alternate != null && materiallyDifferent(primary, alternate)) {
+          routes.push({ ...alternate, routeIndex: 1 });
+        }
+      } catch (error) {
+        if (!(error instanceof RoutePlaceProviderError)) throw error;
       }
     }
-
-    return [...deduplicated.values()]
-      .sort((a, b) =>
-        a.routeDistanceMeters - b.routeDistanceMeters ||
-        a.displayName.localeCompare(b.displayName)
-      )
-      .slice(0, input.maxResults)
-      .map(({ routeDistanceMeters: _distance, ...place }) => place);
+    return routes;
   }
 
-  private async fetchRoute(
-    input: ComputeRoutesInput,
-    mode: 'motorcycle' | 'drive',
-    waypointMode: 'stopover' | 'pass_through' | null,
-    kind: RouteKind,
-  ): Promise<RouteOption | null> {
-    const url = this.url(ROUTING_URL);
-    const points = [
-      input.origin,
-      ...input.intermediates.map((item) => item.location),
-      input.destination,
+  private async route(input: ComputeRoutesInput, kind: RouteKind): Promise<RouteOption | null> {
+    const points = [input.origin, ...input.intermediates.map((p) => p.location), input.destination];
+    if (points.some((p) => validPoint(p.latitude, p.longitude) == null)) {
+      throw new RoutePlaceProviderError('invalid_maps_request', 'Invalid route coordinates.', 400);
+    }
+    const parameters: Record<string, string> = {
+      waypoints: points.map((p) => `${p.latitude},${p.longitude}`).join('|'),
+      mode: input.travelMode === 'two_wheeler' ? 'motorcycle' : 'drive',
+      type: kind, units: 'metric', format: 'geojson',
+    };
+    if (input.intermediates.length > 0) {
+      parameters.intermediate_waypoint_mode = input.intermediates[0]!.via ? 'pass_through' : 'stopover';
+    }
+    const avoids = [
+      ...(input.modifiers.avoidTolls ? ['tolls'] : []),
+      ...(input.modifiers.avoidHighways ? ['highways'] : []),
+      ...(input.modifiers.avoidFerries ? ['ferries'] : []),
     ];
-    url.searchParams.set(
-      'waypoints',
-      points.map((point) => `${point.latitude},${point.longitude}`).join('|'),
-    );
-    url.searchParams.set('mode', mode);
-    url.searchParams.set('type', kind);
-    url.searchParams.set('units', 'metric');
-    url.searchParams.set('format', 'geojson');
-
-    if (waypointMode != null) {
-      url.searchParams.set('intermediate_waypoint_mode', waypointMode);
-    }
-
-    const avoid = routeAvoids(input);
-    if (avoid.length > 0) {
-      url.searchParams.set('avoid', avoid.join('|'));
-    }
-
-    const response = await this.fetcher(url);
-    const body = await readJsonObject(response);
-    if (!response.ok) {
-      throw providerError(response.status, body);
-    }
-
-    const feature = array(body.features)[0];
-    if (feature == null) {
-      return null;
-    }
-
-    const properties = record(feature.properties);
-    const distanceMeters = nonNegativeNumber(properties.distance);
-    const durationSeconds = nonNegativeNumber(properties.time);
-    const pointsFromGeometry = routeGeometryPoints(feature.geometry);
-    if (
-      distanceMeters == null ||
-      durationSeconds == null ||
-      pointsFromGeometry.length === 0
-    ) {
-      throw new RoutePlaceProviderError(
-        'provider_invalid_response',
-        'The routing provider returned an incomplete route.',
-        502,
-      );
-    }
-
-    const legs: RouteLeg[] = array(properties.legs).flatMap((rawLeg) => {
-      const distance = nonNegativeNumber(rawLeg.distance);
-      const duration = nonNegativeNumber(rawLeg.time);
-      if (distance == null || duration == null) {
-        return [];
+    if (avoids.length > 0) parameters.avoid = avoids.join('|');
+    const body = await this.get('/v1/routing', parameters);
+    const feature = collection(body, 'features')[0];
+    if (feature == null) return null;
+    const properties = object(feature.properties);
+    const geometry = object(feature.geometry);
+    if (geometry.type !== 'MultiLineString' || !Array.isArray(geometry.coordinates)) throw invalidResponse();
+    const routePoints: GeoPoint[] = [];
+    for (const line of geometry.coordinates) {
+      if (!Array.isArray(line) || line.length < 2) throw invalidResponse();
+      for (const coordinates of line) {
+        if (!Array.isArray(coordinates)) throw invalidResponse();
+        const point = validPoint(coordinates[1], coordinates[0]);
+        if (point == null) throw invalidResponse();
+        const previous = routePoints.at(-1);
+        if (previous?.latitude !== point.latitude || previous.longitude !== point.longitude) {
+          routePoints.push(point);
+        }
       }
-      return [{
-        distanceMeters: Math.round(distance),
-        durationSeconds: Math.round(duration),
-      }];
-    });
-
+    }
+    if (routePoints.length < 2) throw invalidResponse();
+    const encodedPolyline = encodePolyline(routePoints);
+    if (encodedPolyline.length > MAX_POLYLINE_LENGTH) {
+      throw new RoutePlaceProviderError('route_geometry_too_large',
+        'This route is too detailed for the pilot. Choose a shorter Ride segment.', 422);
+    }
+    const legs = collection(properties, 'legs').map((leg) => ({
+      distanceMeters: metric(leg.distance), durationSeconds: metric(leg.time),
+    }));
+    if (legs.length === 0) throw invalidResponse();
     return {
-      routeIndex: 0,
-      labels: [kind === 'balanced' ? 'RECOMMENDED' : 'SHORTEST'],
-      distanceMeters: Math.round(distanceMeters),
-      durationSeconds: Math.round(durationSeconds),
-      encodedPolyline: encodePolyline(pointsFromGeometry),
-      legs,
+      routeIndex: 0, labels: [kind === 'balanced' ? 'RECOMMENDED' : 'SHORTEST'],
+      distanceMeters: metric(properties.distance), durationSeconds: metric(properties.time),
+      encodedPolyline, legs,
     };
   }
 
-  private async searchNearRouteSample(
-    textQuery: string,
-    sample: GeoPoint,
-    limit: number,
-    routeSamples: readonly GeoPoint[],
-  ): Promise<readonly CandidatePlace[]> {
-    const categories = categoriesForQuery(textQuery);
-    return categories == null
-      ? this.searchGeocodingNearSample(textQuery, sample, limit, routeSamples)
-      : this.searchPlacesNearSample(categories, sample, limit, routeSamples);
-  }
-
-  private async searchPlacesNearSample(
-    categories: string,
-    sample: GeoPoint,
-    limit: number,
-    routeSamples: readonly GeoPoint[],
-  ): Promise<readonly CandidatePlace[]> {
-    const url = this.url(PLACES_URL);
-    url.searchParams.set('categories', categories);
-    url.searchParams.set(
-      'filter',
-      `circle:${sample.longitude},${sample.latitude},${ALONG_ROUTE_RADIUS_METERS}`,
-    );
-    url.searchParams.set(
-      'bias',
-      `proximity:${sample.longitude},${sample.latitude}`,
-    );
-    url.searchParams.set('limit', String(limit));
-
-    const response = await this.fetcher(url);
-    const body = await readJsonObject(response);
-    if (!response.ok) {
-      throw providerError(response.status, body);
+  async searchAlongRoute(input: SearchAlongRouteInput): Promise<readonly AlongRoutePlace[]> {
+    const route = decodePolyline(input.encodedPolyline);
+    if (route.length < 2) {
+      throw new RoutePlaceProviderError('invalid_route_polyline',
+        'Search Along Route requires a valid route polyline.', 400);
     }
-
-    return array(body.features).flatMap((feature) => {
-      const properties = record(feature.properties);
-      const location = geoPoint(properties) ?? geometryPoint(feature.geometry);
-      const reference = string(properties.place_id);
-      const displayName = string(properties.name) ??
-        string(properties.address_line1) ??
-        string(properties.formatted);
-      if (reference == null || displayName == null || location == null) {
-        return [];
-      }
-
-      return [candidatePlace(
-        reference,
-        displayName,
-        string(properties.formatted),
-        location,
-        routeSamples,
-      )];
-    });
-  }
-
-  private async searchGeocodingNearSample(
-    textQuery: string,
-    sample: GeoPoint,
-    limit: number,
-    routeSamples: readonly GeoPoint[],
-  ): Promise<readonly CandidatePlace[]> {
-    const url = this.url(GEOCODE_SEARCH_URL);
-    url.searchParams.set('text', textQuery);
-    url.searchParams.set('format', 'json');
-    url.searchParams.set(
-      'filter',
-      `circle:${sample.longitude},${sample.latitude},${ALONG_ROUTE_RADIUS_METERS}`,
-    );
-    url.searchParams.set(
-      'bias',
-      `proximity:${sample.longitude},${sample.latitude}`,
-    );
-    url.searchParams.set('limit', String(limit));
-
-    const response = await this.fetcher(url);
-    const body = await readJsonObject(response);
-    if (!response.ok) {
-      throw providerError(response.status, body);
+    if (!Number.isInteger(input.maxResults) || input.maxResults < 1 || input.maxResults > 10) {
+      throw new RoutePlaceProviderError('invalid_maps_request', 'Invalid result limit.', 400);
     }
-
-    return array(body.results).flatMap((item) => {
-      const reference = string(item.place_id);
-      const displayName = string(item.name) ??
-        string(item.address_line1) ??
-        string(item.formatted);
-      const location = geoPoint(item);
-      if (reference == null || displayName == null || location == null) {
-        return [];
-      }
-
-      return [candidatePlace(
-        reference,
-        displayName,
-        string(item.formatted),
-        location,
-        routeSamples,
-     )];
-    });
-  }
-
-  private url(base: string): URL {
-    const url = new URL(base);
-    url.searchParams.set('apiKey', this.apiKey);
-    return url;
-  }
-}
-
-function intermediateWaypointMode(
-  input: ComputeRoutesInput,
-): 'stopover' | 'pass_through' | null {
-  if (input.intermediates.length === 0) {
-    return null;
-  }
-
-  const viaCount = input.intermediates.filter((item) => item.via).length;
-  if (viaCount === 0) {
-    return 'stopover';
-  }
-  if (viaCount === input.intermediates.length) {
-    return 'pass_through';
-  }
-
-  throw new RoutePlaceProviderError(
-    'mixed_waypoint_modes_not_supported',
-    'Geoapify routing requires one intermediate waypoint mode per route request.',
-    400,
-  );
-}
-
-function routeAvoids(input: ComputeRoutesInput): string[] {
-  const values: string[] = [];
-  if (input.modifiers.avoidTolls) {
-    values.push('tolls');
-  }
-  if (input.modifiers.avoidHighways) {
-    values.push('highways');
-  }
-  if (input.modifiers.avoidFerries) {
-    values.push('ferries');
-  }
-  return values;
-}
-
-function isMateriallyDifferent(
-  primary: RouteOption,
-  alternative: RouteOption,
-): boolean {
-  if (primary.encodedPolyline === alternative.encodedPolyline) {
-    return false;
-  }
-
-  const distanceRatio =
-    Math.abs(primary.distanceMeters - alternative.distanceMeters) /
-    Math.max(primary.distanceMeters, 1);
-  const durationRatio =
-    Math.abs(primary.durationSeconds - alternative.durationSeconds) /
-    Math.max(primary.durationSeconds, 1);
-
-  return distanceRatio >= MATERIAL_ALTERNATIVE_RATIO ||
-    durationRatio >= MATERIAL_ALTERNATIVE_RATIO;
-}
-
-function categoriesForQuery(textQuery: string): string | null {
-  const query = textQuery.trim().toLowerCase();
-  if (
-    query.includes('fuel') ||
-    query.includes('gas station') ||
-    query.includes('bbm')
-  ) {
-    return 'service.vehicle.fuel';
-  }
-  if (
-    query.includes('restaurant') ||
-    query.includes('food') ||
-    query.includes('makan')
-  ) {
-    return 'catering.restaurant,catering.fast_food,catering.food_court';
-  }
-  if (query.includes('hotel') || query.includes('penginapan')) {
-    return 'accommodation.hotel,accommodation.guest_house,accommodation.motel';
-  }
-  return null;
-}
-
-function candidatePlace(
-  reference: string,
-  displayName: string,
-  formattedAddress: string | null,
-  location: GeoPoint,
-  routeSamples: readonly GeoPoint[],
-): CandidatePlace {
-  return {
-    reference,
-    displayName,
-    formattedAddress,
-    location,
-    viaPlaceDistanceMeters: null,
-    viaPlaceDurationSeconds: null,
-    routeDistanceMeters: Math.min(
-      ...routeSamples.map((sample) => distanceMeters(location, sample)),
-    ),
-  };
-}
-
-function sampleRoute(
-  points: readonly GeoPoint[],
-  maxSamples: number,
-): GeoPoint[] {
-  if (points.length <= maxSamples) {
-    return [...points];
-  }
-
-  const indexes = new Set<number>();
-  for (let index = 0; index < maxSamples; index += 1) {
-    indexes.add(
-      Math.round(index * (points.length - 1) / (maxSamples - 1)),
-    );
-  }
-  return [...indexes].map((index) => points[index]!);
-}
-
-function distanceMeters(a: GeoPoint, b: GeoPoint): number {
-  const earthRadiusMeters = 6371000;
-  const degreesToRadians = Math.PI / 180;
-  const lat1 = a.latitude * degreesToRadians;
-  const lat2 = b.latitude * degreesToRadians;
-  const deltaLat = (b.latitude - a.latitude) * degreesToRadians;
-  const deltaLon = (b.longitude - a.longitude) * degreesToRadians;
-
-  const haversine =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
-
-  return 2 * earthRadiusMeters * Math.atan2(
-    Math.sqrt(haversine),
-    Math.sqrt(1 - haversine),
-  );
-}
-
-function routeGeometryPoints(value: unknown): GeoPoint[] {
-  const geometry = record(value);
-  const coordinates = geometry.coordinates;
-  if (!Array.isArray(coordinates)) {
-    return [];
-  }
-
-  const points: GeoPoint[] = [];
-  for (const rawLine of coordinates) {
-    if (!Array.isArray(rawLine)) {
-      continue;
-    }
-    for (const rawPoint of rawLine) {
-      if (!Array.isArray(rawPoint) || rawPoint.length < 2) {
-        continue;
-      }
-      const longitude = rawPoint[0];
-      const latitude = rawPoint[1];
-      if (
-        typeof latitude !== 'number' ||
-        !Number.isFinite(latitude) ||
-        typeof longitude !== 'number' ||
-        !Number.isFinite(longitude)
-      ) {
-        continue;
-      }
-      const previous = points[points.length - 1];
-      if (
-        previous?.latitude === latitude &&
-        previous.longitude === longitude
-      ) {
-        continue;
-      }
-      points.push({ latitude, longitude });
-    }
-  }
-  return points;
-}
-
-function encodePolyline(points: readonly GeoPoint[]): string {
-  let lastLatitude = 0;
-  let lastLongitude = 0;
-  let encoded = '';
-
-  for (const point of points) {
-    const latitude = Math.round(point.latitude * 1e5);
-    const longitude = Math.round(point.longitude * 1e5);
-    encoded += encodeSigned(latitude - lastLatitude);
-    encoded += encodeSigned(longitude - lastLongitude);
-    lastLatitude = latitude;
-    lastLongitude = longitude;
-  }
-  return encoded;
-}
-
-function encodeSigned(value: number): string {
-  let current = value < 0 ? ~(value << 1) : value << 1;
-  let encoded = '';
-  while (current >= 0x20) {
-    encoded += String.fromCharCode((0x20 | (current & 0x1f)) + 63);
-    current >>= 5;
-  }
-  return encoded + String.fromCharCode(current + 63);
-}
-
-function decodePolyline(encoded: string): GeoPoint[] {
-  const points: GeoPoint[] = [];
-  let index = 0;
-  let latitude = 0;
-  let longitude = 0;
-
-  try {
-    while (index < encoded.length) {
-      const latitudeResult = decodeSigned(encoded, index);
-      latitude += latitudeResult.value;
-      index = latitudeResult.nextIndex;
-
-      const longitudeResult = decodeSigned(encoded, index);
-      longitude += longitudeResult.value;
-      index = longitudeResult.nextIndex;
-
-      points.push({
-        latitude: latitude / 1e5,
-        longitude: longitude / 1e5,
+    const centers = sampleRoute(route, MAX_SEARCH_CENTERS);
+    const category = categoryForQuery(input.textQuery);
+    const groups = await Promise.all(centers.map(async (center): Promise<Candidate[]> => {
+      const limit = Math.min(MAX_PER_CENTER, input.maxResults);
+      const parameters: Record<string, string> = {
+        filter: `circle:${center.longitude},${center.latitude},${SEARCH_RADIUS_METERS}`,
+        bias: `proximity:${center.longitude},${center.latitude}`, limit: String(limit),
+      };
+      const body = category == null
+        ? await this.get('/v1/geocode/search', { ...parameters, text: input.textQuery, format: 'json' })
+        : await this.get('/v2/places', { ...parameters, categories: category });
+      const items = collection(body, category == null ? 'results' : 'features').slice(0, limit);
+      return items.flatMap((item) => {
+        const properties = category == null ? item : object(item.properties);
+        const reference = text(properties.place_id);
+        const displayName = text(properties.name) ?? text(properties.address_line1) ?? text(properties.formatted);
+        const location = placePoint(properties, item.geometry);
+        if (reference == null || reference.length > 500 || displayName == null || location == null) return [];
+        const routeDistance = distanceToRoute(location, route);
+        if (routeDistance > SEARCH_RADIUS_METERS ||
+            distanceMeters(location, center) > SEARCH_RADIUS_METERS) return [];
+        return [{
+          reference, displayName, location,
+          formattedAddress: text(properties.formatted),
+          // Geographic proximity is not a measured detour or road-access promise.
+          viaPlaceDistanceMeters: null, viaPlaceDurationSeconds: null, routeDistance,
+        }];
       });
+    }));
+    const unique = new Map<string, Candidate>();
+    for (const candidate of groups.flat()) {
+      const previous = unique.get(candidate.reference);
+      if (previous == null || candidate.routeDistance < previous.routeDistance) {
+        unique.set(candidate.reference, candidate);
+      }
     }
-  } catch {
-    return [];
+    return [...unique.values()]
+      .sort((a, b) => a.routeDistance - b.routeDistance || a.reference.localeCompare(b.reference))
+      .slice(0, input.maxResults)
+      .map(({ routeDistance: _distance, ...place }) => place);
   }
 
-  return points;
-}
-
-function decodeSigned(
-  encoded: string,
-  startIndex: number,
-): { readonly value: number; readonly nextIndex: number } {
-  let result = 0;
-  let shift = 0;
-  let index = startIndex;
-
-  while (index < encoded.length) {
-    const byte = encoded.charCodeAt(index) - 63;
-    index += 1;
-    if (byte < 0) {
-      throw new Error('invalid_polyline');
-    }
-    result |= (byte & 0x1f) << shift;
-    shift += 5;
-    if (byte < 0x20) {
-      const value = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
-      return { value, nextIndex: index };
-    }
-    if (shift > 30) {
-      throw new Error('invalid_polyline');
+  private async get(path: string, parameters: Record<string, string>): Promise<JsonObject> {
+    const url = new URL(path, API_ORIGIN);
+    for (const [name, value] of Object.entries(parameters)) url.searchParams.set(name, value);
+    url.searchParams.set('apiKey', this.apiKey);
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new RoutePlaceProviderError('maps_provider_timeout',
+          'The map provider timed out. Try again later.', 504));
+      }, REQUEST_TIMEOUT_MS);
+    });
+    const operation = async (): Promise<JsonObject> => {
+      const response = await this.fetcher(url, {
+        signal: controller.signal, redirect: 'error', headers: { accept: 'application/json' },
+      });
+      if (!response.ok) {
+        void response.body?.cancel().catch(() => {});
+        // Never use upstream text: it can echo request URLs, coordinates or keys.
+        const status = response.status === 429 ? 429 :
+          response.status === 401 || response.status === 403 ? 503 :
+          response.status >= 400 && response.status < 500 ? 400 : 502;
+        throw new RoutePlaceProviderError('maps_provider_error',
+          status === 429 ? 'The map provider quota is temporarily unavailable.' :
+          'The map provider request could not be completed.', status);
+      }
+      return await readBoundedJson(response);
+    };
+    try {
+      return await Promise.race([operation(), deadline]);
+    } catch (error) {
+      if (error instanceof RoutePlaceProviderError) throw error;
+      throw new RoutePlaceProviderError('maps_provider_error',
+        'The map provider could not be reached.', 502);
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
     }
   }
-
-  throw new Error('invalid_polyline');
 }
 
-async function readJsonObject(
-  response: Response,
-): Promise<Record<string, unknown>> {
+async function readBoundedJson(response: Response): Promise<JsonObject> {
+  if (response.body == null) throw invalidResponse();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let length = 0, body = '';
   try {
-    return record(await response.json());
-  } catch {
-    return {};
-  }
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      length += chunk.value.byteLength;
+      if (length > MAX_RESPONSE_BYTES) {
+        void reader.cancel().catch(() => {});
+        throw invalidResponse();
+      }
+      body += decoder.decode(chunk.value, { stream: true });
+    }
+    body += decoder.decode();
+    return object(JSON.parse(body));
+  } catch (error) {
+    if (error instanceof RoutePlaceProviderError) throw error;
+    throw invalidResponse();
+  } finally { reader.releaseLock(); }
 }
 
-function providerError(
-  status: number,
-  body: Record<string, unknown>,
-): RoutePlaceProviderError {
-  const rawError = body.error;
-  const providerMessage =
-    string(record(rawError).message) ??
-    string(rawError) ??
-    string(body.message);
-
-  return new RoutePlaceProviderError(
-    'maps_provider_error',
-    providerMessage ?? 'The map provider request failed.',
-    status >= 400 && status < 500 ? 400 : 502,
+function invalidResponse(): RoutePlaceProviderError {
+  return new RoutePlaceProviderError('provider_invalid_response',
+    'The map provider returned an incomplete or invalid response.', 502);
+}
+function object(value: unknown): JsonObject {
+  if (typeof value !== 'object' || value == null || Array.isArray(value)) throw invalidResponse();
+  return value as JsonObject;
+}
+function collection(body: JsonObject, name: string): JsonObject[] {
+  const values = body[name];
+  if (!Array.isArray(values)) throw invalidResponse();
+  return values.map(object);
+}
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+function metric(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) {
+    throw invalidResponse();
+  }
+  return Math.round(value);
+}
+function placePoint(properties: JsonObject, geometry: unknown): GeoPoint | null {
+  const point = validPoint(properties.lat, properties.lon);
+  if (point != null) return point;
+  if (geometry == null || typeof geometry !== 'object' || Array.isArray(geometry)) return null;
+  const raw = geometry as JsonObject;
+  return raw.type === 'Point' && Array.isArray(raw.coordinates)
+    ? validPoint(raw.coordinates[1], raw.coordinates[0]) : null;
+}
+function materiallyDifferent(a: RouteOption, b: RouteOption): boolean {
+  return a.encodedPolyline !== b.encodedPolyline && (
+    Math.abs(a.distanceMeters - b.distanceMeters) / Math.max(1, a.distanceMeters) >= 0.02 ||
+    Math.abs(a.durationSeconds - b.durationSeconds) / Math.max(1, a.durationSeconds) >= 0.02
   );
 }
-
-function record(value: unknown): Record<string, any> {
-  return typeof value === 'object' && value != null && !Array.isArray(value)
-    ? value as Record<string, any>
-    : {};
-}
-
-function array(value: unknown): Record<string, any>[] {
-  return Array.isArray(value) ? value.map(record) : [];
-}
-
-function string(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0
-    ? value
-    : null;
-}
-
-function nonNegativeNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
-}
-
-function geoPoint(value: unknown): GeoPoint | null {
-  const raw = record(value);
-  const latitude = raw.lat ?? raw.latitude;
-  const longitude = raw.lon ?? raw.longitude;
-  if (
-    typeof latitude !== 'number' ||
-    !Number.isFinite(latitude) ||
-    typeof longitude !== 'number' ||
-    !Number.isFinite(longitude)
-  ) {
-    return null;
+function categoryForQuery(query: string): string | null {
+  switch (query.trim().toLowerCase()) {
+    case 'fuel': case 'fuel station': case 'gas station': case 'bbm': case 'spbu':
+      return 'service.vehicle.fuel';
+    case 'restaurant': case 'food': case 'makan':
+      return 'catering.restaurant,catering.fast_food,catering.food_court';
+    case 'hotel': case 'penginapan':
+      return 'accommodation.hotel,accommodation.guest_house,accommodation.motel';
+    default: return null;
   }
-  return { latitude, longitude };
-}
-
-function geometryPoint(value: unknown): GeoPoint | null {
-  const geometry = record(value);
-  const coordinates = geometry.coordinates;
-  if (!Array.isArray(coordinates) || coordinates.length < 2) {
-    return null;
-  }
-  const longitude = coordinates[0];
-  const latitude = coordinates[1];
-  if (
-    typeof latitude !== 'number' ||
-    !Number.isFinite(latitude) ||
-    typeof longitude !== 'number' ||
-    !Number.isFinite(longitude)
-  ) {
-    return null;
-  }
-  return { latitude, longitude };
 }

@@ -81,19 +81,20 @@ export async function handleMapsRequest(
   }
 
   try {
+    // Await here so asynchronous provider failures reach the typed error boundary.
     if (url.pathname === '/v1/maps/autocomplete') {
-      return autocomplete(body, requestId, dependencies.provider);
+      return await autocomplete(body, requestId, dependencies.provider);
     }
 
     if (url.pathname === '/v1/maps/resolve-place') {
-      return resolvePlace(body, requestId, dependencies.provider);
+      return await resolvePlace(body, requestId, dependencies.provider);
     }
 
     if (url.pathname === '/v1/maps/routes') {
-      return computeRoutes(body, requestId, dependencies.provider);
+      return await computeRoutes(body, requestId, dependencies.provider);
     }
 
-    return searchAlongRoute(body, requestId, dependencies.provider);
+    return await searchAlongRoute(body, requestId, dependencies.provider);
   } catch (error) {
     if (error instanceof RoutePlaceProviderError) {
       return errorResponse(
