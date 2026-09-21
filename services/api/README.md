@@ -15,6 +15,7 @@ Implemented:
 - Firebase ID-token verification boundary;
 - authenticated `GET /v1/me` and `PUT /v1/me`;
 - D1 Rider profile repository;
+- authenticated Rider-owned Vehicle profile CRUD;
 - provider-neutral route/place boundary;
 - Google Routes + Places (New) web-service adapter;
 - authenticated route/place planning endpoints;
@@ -84,6 +85,22 @@ Example response:
 ### GET /version
 
 Returns the service name/version and request ID.
+
+### Rider Vehicle profile
+
+Authenticated Rider-owned Vehicle endpoints:
+
+- `GET /v1/me/vehicles` — list only the signed-in Rider's Vehicles;
+- `POST /v1/me/vehicles` — create a Vehicle owned by the signed-in Rider;
+- `PUT /v1/me/vehicles/:vehicleId` — update an owned Vehicle;
+- `DELETE /v1/me/vehicles/:vehicleId` — delete an owned Vehicle.
+
+Ownership is always derived from the authenticated Rider. Updating or deleting
+another Rider's Vehicle returns `vehicle_not_found` rather than exposing
+cross-Rider ownership details.
+
+The persistence table is the existing `vehicles` table from migration `0001`; this corrective restore does not require a new migration.
+
 
 Unknown endpoints return a structured error:
 
