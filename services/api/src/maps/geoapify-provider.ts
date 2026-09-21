@@ -11,7 +11,7 @@ import {
   MAX_POLYLINE_LENGTH, sampleRoute, validPoint,
 } from './route-geometry';
 
-const API_ORIGIN = 'https://api.geoapify.com';
+const API_ORIGIN = 'https://api-eu.geoapify.com';
 const REQUEST_TIMEOUT_MS = 15000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const SEARCH_RADIUS_METERS = 5000;
