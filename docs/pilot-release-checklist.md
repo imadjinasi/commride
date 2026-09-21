@@ -29,9 +29,12 @@ Required before handing the build to pilot Riders:
 - sampled location retention is bounded and tested.
 - normal client cadence stays below realtime abuse ceilings.
 
-## 2. Firebase / identity operator gate
+## 2. Application identity and Firebase operator gate
 
-Before distributing a real build:
+Before creating provider registrations or distributing a real build:
+
+- decide and record the final Android application ID and iOS bundle ID;
+- treat those identifiers as long-lived release identity, not as website URLs;
 
 - create/verify the production or pilot Firebase project;
 - register the final Android application ID and iOS bundle ID;
