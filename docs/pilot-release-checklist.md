@@ -33,7 +33,8 @@ Required before handing the build to pilot Riders:
 
 Before creating provider registrations or distributing a real build:
 
-- decide and record the final Android application ID and iOS bundle ID;
+- Android application ID is fixed for the pilot baseline as `io.github.imadjinasi.commride`;
+- decide and record the final iOS bundle ID before iOS provider registration;
 - treat those identifiers as long-lived release identity, not as website URLs;
 
 - create/verify the production or pilot Firebase project;
