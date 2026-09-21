@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Apply reproducible CommRide declarations to generated Android/iOS projects.
 
-MapLibre uses client style configuration in Dart, not native Google Maps keys.
-Firebase provider files and signing credentials remain local and untracked.
+The working fallback uses MapLibre. The optional Android Google Navigation SDK
+reads its platform key from ignored local.properties or MAPS_API_KEY at build
+time; no real key is written by this configurator. Firebase provider files and
+signing credentials remain local and untracked.
 """
 from __future__ import annotations
 
@@ -47,9 +49,18 @@ def configure_android() -> None:
     application = manifest.find("application")
     if application is None:
         raise SystemExit("Android application element missing.")
-    for node in list(application.findall("meta-data")):
+    maps_metadata = None
+    for node in application.findall("meta-data"):
         if node.get(android_attr("name")) == "com.google.android.geo.API_KEY":
-            application.remove(node)
+            maps_metadata = node
+            break
+    if maps_metadata is None:
+        maps_metadata = ET.SubElement(application, "meta-data")
+        maps_metadata.set(
+            android_attr("name"),
+            "com.google.android.geo.API_KEY",
+        )
+    maps_metadata.set(android_attr("value"), "${MAPS_API_KEY}")
     tree.write(manifest_path, encoding="utf-8", xml_declaration=True)
     obsolete = ROOT / "android/app/src/main/res/values/commride_maps.xml"
     obsolete.unlink(missing_ok=True)
@@ -62,6 +73,57 @@ def configure_android() -> None:
         content = path.read_text(encoding="utf-8")
         content = content.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
         content = content.replace("minSdkVersion flutter.minSdkVersion", "minSdkVersion 24")
+        content = content.replace("JavaVersion.VERSION_11", "JavaVersion.VERSION_17")
+
+        if gradle_name == "build.gradle.kts":
+            if "import java.util.Properties" not in content:
+                content = "import java.util.Properties\n\n" + content
+            if "commRideMapsApiKey" not in content:
+                preamble = """val commRideLocalProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val commRideMapsApiKey =
+    System.getenv("MAPS_API_KEY")
+        ?: commRideLocalProperties.getProperty("MAPS_API_KEY")
+        ?: "UNCONFIGURED"
+
+"""
+                import_end = content.find("\n\n")
+                content = content[: import_end + 2] + preamble + content[import_end + 2 :]
+            if 'manifestPlaceholders["MAPS_API_KEY"]' not in content:
+                match = re.search(
+                    r'(applicationId\s*=\s*"[^"]+"\s*\n)',
+                    content,
+                )
+                if match is None:
+                    raise SystemExit(
+                        "Unexpected Android applicationId block; refusing unsafe patch."
+                    )
+                content = (
+                    content[: match.end()]
+                    + '        manifestPlaceholders["MAPS_API_KEY"] = commRideMapsApiKey\n'
+                    + content[match.end() :]
+                )
+            if "isCoreLibraryDesugaringEnabled = true" not in content:
+                marker = "compileOptions {"
+                if marker not in content:
+                    raise SystemExit(
+                        "Android compileOptions block missing; refusing unsafe patch."
+                    )
+                content = content.replace(
+                    marker,
+                    marker + "\n        isCoreLibraryDesugaringEnabled = true",
+                    1,
+                )
+            if 'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")' not in content:
+                content += (
+                    '\n\ndependencies {\n'
+                    '    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")\n'
+                    '}\n'
+                )
         content, count = re.subn(
             r'(applicationId\s*=?\s*)[\"\'][^\"\']+[\"\']',
             lambda match: match[1] + '"' + ANDROID_APPLICATION_ID + '"',

@@ -98,6 +98,7 @@ class RouteOption {
     required this.distanceMeters,
     required this.durationSeconds,
     required this.encodedPolyline,
+    required this.routeToken,
     required this.legs,
   });
 
@@ -106,6 +107,7 @@ class RouteOption {
   final int distanceMeters;
   final int durationSeconds;
   final String encodedPolyline;
+  final String? routeToken;
   final List<RouteLeg> legs;
 
   factory RouteOption.fromJson(Map<String, Object?> json) {
@@ -117,6 +119,7 @@ class RouteOption {
       distanceMeters: json['distanceMeters'] as int,
       durationSeconds: json['durationSeconds'] as int,
       encodedPolyline: json['encodedPolyline'] as String,
+      routeToken: json['routeToken'] as String?,
       legs: (json['legs'] as List<Object?>)
           .map(
             (Object? value) => RouteLeg.fromJson(value as Map<String, Object?>),
@@ -317,6 +320,7 @@ class SavedRoutePlan {
         distanceMeters: distanceMeters,
         durationSeconds: durationSeconds,
         encodedPolyline: json['encodedPolyline'] as String,
+        routeToken: null,
         legs: const <RouteLeg>[],
       ),
       stops: (json['stops'] as List<Object?>)

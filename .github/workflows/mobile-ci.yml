@@ -81,17 +81,23 @@ jobs:
         run: flutter test
 
       - name: Build Android debug APK
+        env:
+          MAPS_API_KEY: CI_UNCONFIGURED
         run: |
           flutter build apk --debug \
             --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
-            --dart-define=COMMRIDE_MAPS_ENABLED=false
+            --dart-define=COMMRIDE_MAPS_ENABLED=false \
+            --dart-define=COMMRIDE_NAVIGATION_ENABLED=false
 
       - name: Build Android release AAB
+        env:
+          MAPS_API_KEY: CI_UNCONFIGURED
         run: |
           flutter build appbundle --release \
             --dart-define=COMMRIDE_ENV=production \
             --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
-            --dart-define=COMMRIDE_MAPS_ENABLED=false
+            --dart-define=COMMRIDE_MAPS_ENABLED=false \
+            --dart-define=COMMRIDE_NAVIGATION_ENABLED=false
 
       - name: Upload Android build artifacts
         uses: actions/upload-artifact@v4
