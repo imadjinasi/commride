@@ -24,6 +24,12 @@ as geographic truth. No database migration is required for this provider change.
 ## Backend behavior and limits
 
 - `GEOAPIFY_API_KEY` is the server secret; no Google key fallback.
+- Pilot backend requests use Geoapify's documented EU API origin
+  `https://api-eu.geoapify.com`. Runtime evidence on 21 September 2026 showed
+  Cloudflare Worker outbound fetches to the default Cloudflare-backed
+  `api.geoapify.com` failing before any HTTP response was received. The EU
+  origin uses the same API paths/key contract through Geoapify's EU delivery
+  configuration and avoids adding an automatic duplicate provider retry.
 - Autocomplete uses Geoapify geocoding; place resolution uses Place Details.
 - `two_wheeler` maps to `motorcycle`, `drive` remains `drive`.
 - Route requests use ordered waypoints and metric GeoJSON responses.

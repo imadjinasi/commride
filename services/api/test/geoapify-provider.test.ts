@@ -28,6 +28,7 @@ describe('GeoapifyProvider', () => {
   it('normalizes autocomplete and keeps the key only in provider requests', async () => {
     const provider = new GeoapifyProvider('fixture-key', async (request, init) => {
       const url = new URL(request.toString());
+      expect(url.origin).toBe('https://api-eu.geoapify.com');
       expect(url.pathname).toBe('/v1/geocode/autocomplete');
       expect(url.searchParams.get('apiKey')).toBe('fixture-key');
       expect(url.searchParams.get('limit')).toBe('8');
