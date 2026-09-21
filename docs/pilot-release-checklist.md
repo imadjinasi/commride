@@ -17,8 +17,8 @@ Required before handing the build to pilot Riders:
 - API typecheck, tests, and migration validation PASS.
 - Mobile format, analyze, tests, native bootstrap, Android debug APK, and
   Android release AAB build PASS.
-- No Firebase service-account key, Maps API key, APNs key, signing keystore, or
-  password committed.
+- No Firebase service-account key, map-provider API key, APNs key, signing
+  keystore, or password committed.
 - Active Ride uses one shared authenticated realtime session per signed-in app.
 - GPS starts only after explicit Rider action.
 - Stale/Offline positions remain visibly non-Live.
@@ -29,19 +29,31 @@ Required before handing the build to pilot Riders:
 - sampled location retention is bounded and tested.
 - normal client cadence stays below realtime abuse ceilings.
 
-## 2. Firebase / identity operator gate
+## 2. Application identity and Firebase operator gate
 
-Before distributing a real build:
+Recorded operator evidence on 21 September 2026:
 
-- create/verify the production or pilot Firebase project;
-- register the final Android application ID and iOS bundle ID;
-- configure Email/Password authentication for the current MVP flow;
-- supply real Android/iOS Firebase application configuration using the official
-  FlutterFire/native workflow;
+- Android application ID is fixed for the pilot baseline as
+  `io.github.imadjinasi.commride`;
+- Firebase project `commride-pilot` exists;
+- Android Firebase app `CommRide` is registered with that application ID;
+- Firebase Email/Password authentication is enabled;
+- Android `google-services.json` was downloaded locally and must remain
+  untracked.
+
+Still required before a real pilot build is accepted:
+
+- decide and record the final iOS bundle ID before iOS provider registration;
+- treat Android/iOS identifiers as long-lived release identity, not website
+  URLs;
+- complete the official FlutterFire/native Android integration using the real
+  local provider file;
+- register/configure iOS Firebase only after its bundle ID is final;
 - configure FCM HTTP v1 service-account credentials only in the API deployment
   secret store;
 - rotate any credential that was ever copied into an insecure location;
-- verify Firebase token audience matches `FIREBASE_PROJECT_ID`.
+- verify Firebase token audience matches `FIREBASE_PROJECT_ID`;
+- verify a real installed CommRide build can sign in to Firebase.
 
 For iOS push delivery:
 
@@ -49,21 +61,38 @@ For iOS push delivery:
 - connect the actual APNs key/certificate to Firebase;
 - verify the signed build contains the correct `aps-environment` entitlement.
 
-## 3. Maps operator gate
+## 3. Map provider gate — MapLibre + Geoapify pilot
 
-Before enabling `COMMRIDE_MAPS_ENABLED=true`:
+The accepted pilot target is **MapLibre + Geoapify**. Google Maps is deferred
+and is not a pilot billing/credential prerequisite.
 
-- use separate server and mobile Maps credentials;
-- restrict the server key to only required web-service APIs and the appropriate
-  server-side restriction supported by the deployment;
-- restrict the Android key to the final application ID + signing certificate;
-- restrict the iOS key to the final bundle ID;
-- enable only the Maps/Routes/Places APIs actually used by CommRide;
-- configure provider billing budgets/alerts before the first real Club Ride;
-- keep Search Along Route on-demand and keep the existing RoutePlan stop/result
-  caps.
+Repository reality remains important: the integrated source still contains the
+earlier Google Maps provider/runtime. Before map runtime can be accepted:
 
-Never put the server Google Maps Platform key in mobile Dart defines.
+- land a separate reviewed provider-migration PR rather than hiding the
+  migration inside deployment-readiness work;
+- use MapLibre for mobile map rendering;
+- adapt the backend provider boundary to Geoapify for autocomplete/geocoding,
+  place lookup/search, and motorcycle routing;
+- keep Geoapify response models inside provider adapters and return CommRide
+  DTOs to domain/mobile code;
+- use separate server and mobile map credentials/trust boundaries where
+  practical;
+- keep the server provider key only in the Cloudflare secret store;
+- keep any mobile tile/style credential out of Git and do not reuse the server
+  key in the app;
+- keep Search Along Route on-demand and preserve existing RoutePlan
+  stop/result caps;
+- if Geoapify has no single Google-equivalent along-route primitive, compose the
+  feature server-side from route/polyline corridor sampling + Places queries,
+  then deduplicate and rank;
+- expose route alternatives only when they are materially different rather
+  than pretending Geoapify behavior is Google-identical;
+- verify the current Geoapify plan/quota and provider restrictions before the
+  first real Club Ride.
+
+Do not enable the pilot map runtime merely because the Geoapify account/key
+exists; source integration must be implemented and tested first.
 
 ## 4. Cloudflare operator gate
 
@@ -73,7 +102,8 @@ Provision verified resources and update deployment configuration with real IDs:
 - Active Ride Durable Object binding/migration;
 - Worker environment variables;
 - FCM secrets;
-- Google Maps server key;
+- Geoapify server/provider key after the provider-migration environment
+  contract is implemented;
 - daily scheduled trigger.
 
 Apply D1 migrations in order and record the exact deployed commit.
@@ -153,7 +183,7 @@ Test at minimum:
 - OEM battery-optimization behavior on at least one aggressive Android vendor;
 - foreground location service notification remains visible while tracking;
 - FCM SOS/Need Help/Leader announcement receipt;
-- Google Maps marker/freshness rendering;
+- MapLibre/Geoapify marker and freshness rendering;
 - End Ride stops location sharing;
 - sign-out stops the local Ride runtime;
 - battery drain recorded for a representative Ride duration.
@@ -173,7 +203,7 @@ On a signed physical iPhone:
 - APNs/FCM receipt;
 - app foreground/background transitions;
 - temporary network loss/recovery;
-- Google Maps rendering with restricted iOS key;
+- MapLibre/Geoapify rendering with the final iOS configuration;
 - End Ride and sign-out teardown;
 - representative battery drain.
 
@@ -203,15 +233,18 @@ Record evidence for:
 
 Before pilot:
 
-- enable Google Cloud billing alerts/budgets appropriate to the pilot;
-- verify API quotas for Routes/Places/Maps are intentionally bounded;
+- verify the current Geoapify plan limits/quotas in the provider console;
+- keep route/place/Search Along Route calls intentionally bounded and
+  on-demand;
 - inspect Cloudflare request, D1, and Durable Object usage after each test Ride;
+- observe both mobile map tile/style traffic and backend Geoapify API traffic;
 - record notification send volume;
 - record sampled-location row count per Rider-hour;
 - keep the first pilot Club/Ride size deliberately small.
 
 After each pilot Ride, calculate an observed cost-per-Active-Ride estimate from
-actual provider usage rather than assuming a theoretical free tier.
+actual provider usage rather than assuming that any free tier will always cover
+usage.
 
 ## 11. Pilot evidence record
 

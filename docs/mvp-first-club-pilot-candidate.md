@@ -1,36 +1,48 @@
-# MVP First-Club Pilot Candidate
+# MVP First-Club Pilot Repository Baseline
 
-This document records the repository-only integration candidate for the first
-CommRide real-Club pilot.
+This document records the repository-side baseline for the first CommRide
+real-Club pilot.
 
-Candidate integration commit:
+## Integrated main baseline
 
-`d9e725ca675411230a2fda3232ab51081a627060`
+As verified on 21 September 2026, the integrated repository baseline is:
 
-The commit has two parents:
+`a5d5f33c38b6815da4272380119c36180b6245c8`
 
-- mobile pilot-hardening line;
-- backend notification-completion line.
+That baseline includes:
 
-It does **not** mean either parent PR, or this integration candidate, has been
-merged to `main`.
+- PR #65, which assembled the first-Club pilot integration candidate and merged
+  as `d8cd3f3fcc0ecab94db5e1efc5f12b471f507331`;
+- PR #66, which restored the Rider-owned Vehicle API omitted by the initial
+  integration and merged as the current baseline
+  `a5d5f33c38b6815da4272380119c36180b6245c8`.
+
+API CI passed on the exact current baseline. Mobile CI passed on the exact
+mobile source tree inherited from PR #65; PR #66 changed backend/documentation
+files only.
+
+This evidence proves repository readiness only. It does not prove that a
+Cloudflare/Firebase/map-provider environment has been deployed or that
+physical-device and convoy acceptance has passed.
 
 ## Included product flow
 
-The integrated repository now contains the end-to-end MVP path:
+The integrated repository contains the end-to-end MVP path:
 
 **Account / Rider profile → Vehicle → Club → Ride → Route Planner →
 Briefing / Ready → Start Ride → Live Group → Quick Actions → Checkpoints →
 Private Comms → SOS → End Ride → Ride Recap**
 
-Repository-side supporting behavior also includes:
+Repository-side supporting behavior includes:
 
 - authenticated Active Ride WebSocket room;
 - native Android/iOS platform bootstrap;
 - explicit contextual location permission;
 - background-capable location-session declarations;
 - Live/Stale/Offline Rider presence semantics;
-- Google Maps Live Group adapter guarded by runtime config;
+- guarded Live Group map rendering currently implemented with Google Maps in
+  the integrated source; the accepted pilot migration to MapLibre + Geoapify is
+  still pending;
 - shared Active Ride realtime ownership;
 - server-derived convoy-separation attention;
 - low-frequency Completed Ride journey sampling;
@@ -45,34 +57,38 @@ Repository-side supporting behavior also includes:
 
 ## Repository acceptance boundary
 
-The candidate may be called **repository-complete for first-club pilot**
-only when both API CI and Mobile CI pass on this exact integration head.
-
-That statement means:
+Repository readiness means:
 
 - source compiles/analyzes;
 - automated unit/widget tests pass;
 - D1 migrations validate;
 - generated native declarations validate;
-- Android debug APK builds;
-- Android release AAB builds;
-- CI contains no tracked provider/signing secret files.
+- Android debug APK builds in CI;
+- Android release AAB builds in CI;
+- obvious provider/signing secret files are rejected by CI.
 
-It does **not** mean the application has passed real-device or production
-provider validation.
+It does **not** mean the application has passed real-device, provider,
+store-signing, or field validation.
 
 ## Operator / device gates still required
 
-Before inviting real Riders, complete the checklist in
-`docs/pilot-release-checklist.md`, including:
+Before inviting real Riders, complete
+[`pilot-release-checklist.md`](pilot-release-checklist.md) and the
+[`pilot operator runbook`](deployment/pilot-operator-runbook.md), including:
 
+- keep the accepted Android application ID
+  `io.github.imadjinasi.commride` stable and finalize the iOS bundle ID before
+  iOS provider registration;
 - real Cloudflare D1 / Durable Object resources and deployment;
-- real Firebase Android/iOS app registration;
-- API FCM service-account secrets;
+- complete FlutterFire/native Android integration against the existing
+  `commride-pilot` Firebase project;
+- register/configure the iOS Firebase app only after its bundle ID is final;
+- API FCM service-account secrets in the deployment secret store;
 - real APNs configuration and signed iOS entitlement;
-- restricted Android/iOS Maps keys;
-- restricted server-side Maps key;
-- final application/bundle identifiers;
+- a separate reviewed source migration from the existing Google Maps runtime to
+  MapLibre + Geoapify;
+- separate Geoapify trust boundaries for the server provider key and the mobile
+  map/style key where required;
 - Android/iOS physical-device background tracking;
 - notification receipt on real devices;
 - lock-screen and network-recovery tests;
@@ -80,6 +96,9 @@ Before inviting real Riders, complete the checklist in
 - actual battery-drain measurement;
 - real convoy field test;
 - provider usage/cost observation.
+
+Google Maps billing/credential setup is not a first-pilot acceptance gate after
+the provider decision change.
 
 CI must never be used as evidence that those gates passed.
 
@@ -97,19 +116,3 @@ The first pilot does not claim:
 
 CommRide remains a group coordination product; it is not represented as an
 emergency-response service.
-
-## Traceability
-
-Recent completion stack includes:
-
-- #54 native Live Ride / Live Group map runtime;
-- #56 backend MVP finish + Ride Recap;
-- #57 mobile Completed Ride Recap;
-- #60 backend FCM notification lifecycle;
-- #61 mobile explicit notification opt-in;
-- #62 backend pilot hardening;
-- #63 mobile build/native hardening;
-- #64 Ride reminder + Recap notification completion.
-
-Those PRs remain independent review units. This integration branch exists so
-the combined result can be validated before any decision to merge.

@@ -60,23 +60,62 @@ The planned early stack is:
 - Durable Objects for Active Ride realtime rooms;
 - Cloudflare R2 for object storage when needed;
 - Firebase Authentication and FCM;
-- Google Maps / Routes / Places through provider adapters.
+- MapLibre for mobile map rendering;
+- Geoapify for map style/tiles and server-side geocoding, place search, and
+  motorcycle routing through CommRide provider adapters.
+
+The integrated MVP source still contains the earlier Google Maps
+adapter/runtime. The accepted pilot direction is MapLibre + Geoapify, but that
+source migration is **not yet implemented** and belongs in a separate focused
+PR. Google Maps is deferred for the pilot.
 
 The architecture intentionally targets **near-zero fixed recurring infrastructure cost at low usage** and keeps full turn-by-turn navigation outside the MVP.
 
 ## Status
 
-CommRide is currently in **product definition / pre-implementation**.
+CommRide is **repository-complete for the first-Club pilot candidate**.
 
-The product baseline and UX foundation are being documented before feature code so behavior, privacy boundaries, routing interactions, Active Ride operations, and MVP scope are explicit before implementation.
+The end-to-end MVP source now covers Account / Rider profile, Vehicle, Club,
+Ride, Route Planner, Briefing / Ready, Active Ride, Live Group, Quick Actions,
+Checkpoints, private Ride communication, persistent SOS, End Ride, and Ride
+Recap. API and mobile repository CI have passed on the integrated source.
 
-The next implementation sequence is:
+Operator evidence also records basic Firebase Android setup: Firebase project
+`commride-pilot`, Android application ID
+`io.github.imadjinasi.commride`, and Email/Password authentication. A Geoapify
+project named `CommRide Pilot` also exists. These are provider-setup facts,
+not proof of FlutterFire, MapLibre/Geoapify runtime integration, FCM delivery,
+or a deployed API.
 
-1. Flutter app scaffold
-2. Worker/API scaffold
-3. environment and CI conventions
-4. authentication
-5. initial D1 schema
-6. Rider profile vertical slice
-7. Club and Ride lifecycle
-8. Route Planner
+Real provider/runtime and physical-device evidence are still required before
+the first Club pilot can be accepted, including the separate MapLibre +
+Geoapify source migration, Cloudflare/D1 deployment, FlutterFire integration,
+Firebase/FCM secret configuration, Android/iOS signing, background location
+validation, notification delivery, and a real convoy field test.
+
+See:
+
+- [First-Club Pilot Repository Baseline](docs/mvp-first-club-pilot-candidate.md)
+- [First-Club Pilot Checklist](docs/pilot-release-checklist.md)
+- [Pilot Operator Runbook](docs/deployment/pilot-operator-runbook.md)
+
+
+
+CommRide is **repository-complete for the first-Club pilot candidate**.
+
+The end-to-end MVP source now covers Account / Rider profile, Vehicle, Club,
+Ride, Route Planner, Briefing / Ready, Active Ride, Live Group, Quick Actions,
+Checkpoints, private Ride communication, persistent SOS, End Ride, and Ride
+Recap. API and mobile repository CI have passed on the integrated source.
+
+This status is deliberately narrower than production readiness. Real provider
+configuration and physical-device evidence are still required before the first
+Club pilot can be accepted, including Cloudflare deployment, Firebase/FCM,
+restricted Google Maps credentials, Android/iOS signing, background location
+validation, notification delivery, and a real convoy field test.
+
+See:
+
+- [First-Club Pilot Repository Baseline](docs/mvp-first-club-pilot-candidate.md)
+- [First-Club Pilot Checklist](docs/pilot-release-checklist.md)
+- [Pilot Operator Runbook](docs/deployment/pilot-operator-runbook.md)

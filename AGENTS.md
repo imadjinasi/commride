@@ -32,18 +32,37 @@ If a requested implementation introduces behavior not covered by the current pro
 
 ## Current project stage
 
-CommRide is in product-definition / pre-implementation.
+CommRide has an integrated **repository-side MVP candidate for the first-Club
+pilot**. Repository CI can prove source, tests, migration validation, generated
+native declarations, and CI Android build gates.
 
-Do not treat proposed architecture as deployed reality.
+Operator evidence recorded on 21 September 2026 additionally confirms:
+
+- Firebase project `commride-pilot` exists;
+- Android Firebase app `CommRide` is registered for
+  `io.github.imadjinasi.commride`;
+- Firebase Email/Password authentication is enabled;
+- Geoapify project `CommRide Pilot` exists.
+
+Those facts prove only basic provider account/registration setup. They do not
+prove native mobile integration, real push delivery, map-provider source
+integration, Cloudflare deployment, physical-device behavior, or convoy field
+acceptance.
+
+Do not treat repository readiness or provider-account setup as deployed or
+field-tested reality.
 
 Do not claim:
-- production infrastructure exists;
-- external provider accounts are configured;
-- Google Maps billing/keys exist;
-- Firebase or Cloudflare projects exist;
-- mobile builds were tested;
 
-unless verified by repository evidence or explicitly supplied runtime evidence.
+- Cloudflare Worker/D1/Durable Object pilot runtime is deployed;
+- FlutterFire/native Firebase integration works in a real installed app;
+- FCM delivery is verified;
+- MapLibre + Geoapify source integration is complete;
+- a store-signed mobile build exists;
+- background GPS, push delivery, or convoy behavior passed on physical devices;
+
+unless verified by repository evidence or explicitly supplied runtime/operator
+evidence.
 
 ## MVP boundaries
 
@@ -89,13 +108,36 @@ Do not state or imply that SOS contacts public emergency services unless such in
 
 ## Map/provider rules
 
-The initial direction uses Google Maps Platform, but product logic should use clear provider boundaries.
+The accepted first-pilot direction is **MapLibre + Geoapify**. The integrated
+source still contains the earlier Google Maps implementation and must not be
+described as migrated until a separate provider-migration PR is implemented,
+tested, and reviewed.
+
+Pilot target:
+
+- MapLibre for mobile map rendering;
+- Geoapify map style/tile service for the MapLibre surface;
+- Geoapify server APIs for autocomplete/geocoding, place lookup/search, and
+  motorcycle routing;
+- CommRide API/provider adapters remain the application boundary.
+
+Google Maps is deferred for the pilot and remains only a possible future
+provider option.
 
 Do not scatter provider-specific response types through core domain logic.
 
 MVP should rely on external navigation apps for full turn-by-turn navigation.
 
+Search Along Route may need to be composed server-side from the selected route
+or polyline by sampling a corridor, querying Places around relevant points,
+deduplicating, ranking, and returning CommRide DTOs. Do not claim Geoapify
+behavior is identical to Google.
+
+Route alternatives should expose useful materially different choices only; the
+pilot does not need to manufacture Google-identical alternatives.
+
 Expensive API actions such as Search Along Route should be:
+
 - deliberate/on-demand;
 - rate controlled;
 - not redundantly repeated per Rider when shared Ride results are sufficient.
@@ -110,7 +152,8 @@ Use adaptive/sampled history and define retention behavior explicitly before pro
 
 ## Architecture constraints
 
-Initial direction:
+Pilot direction:
+
 - Flutter mobile app;
 - Cloudflare Workers;
 - Cloudflare D1;
@@ -118,9 +161,16 @@ Initial direction:
 - R2 for object storage where needed;
 - Firebase Authentication;
 - FCM for push;
-- Google Maps/Routes/Places behind adapters.
+- MapLibre for mobile map rendering;
+- Geoapify behind provider adapters for map tiles/style and server-side
+  place/routing capabilities.
 
-Avoid premature infrastructure expansion without an evidenced product or scale need.
+The repository still contains the previous Google Maps implementation until the
+focused provider-migration work lands. Preserve provider boundaries so the
+domain does not depend on Geoapify-specific response shapes.
+
+Avoid premature infrastructure expansion without an evidenced product or scale
+need.
 
 ## UX constraints
 
