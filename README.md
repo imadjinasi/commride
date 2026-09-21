@@ -66,17 +66,21 @@ The architecture intentionally targets **near-zero fixed recurring infrastructur
 
 ## Status
 
-CommRide is currently in **product definition / pre-implementation**.
+CommRide is **repository-complete for the first-Club pilot candidate**.
 
-The product baseline and UX foundation are being documented before feature code so behavior, privacy boundaries, routing interactions, Active Ride operations, and MVP scope are explicit before implementation.
+The end-to-end MVP source now covers Account / Rider profile, Vehicle, Club,
+Ride, Route Planner, Briefing / Ready, Active Ride, Live Group, Quick Actions,
+Checkpoints, private Ride communication, persistent SOS, End Ride, and Ride
+Recap. API and mobile repository CI have passed on the integrated source.
 
-The next implementation sequence is:
+This status is deliberately narrower than production readiness. Real provider
+configuration and physical-device evidence are still required before the first
+Club pilot can be accepted, including Cloudflare deployment, Firebase/FCM,
+restricted Google Maps credentials, Android/iOS signing, background location
+validation, notification delivery, and a real convoy field test.
 
-1. Flutter app scaffold
-2. Worker/API scaffold
-3. environment and CI conventions
-4. authentication
-5. initial D1 schema
-6. Rider profile vertical slice
-7. Club and Ride lifecycle
-8. Route Planner
+See:
+
+- [First-Club Pilot Repository Baseline](docs/mvp-first-club-pilot-candidate.md)
+- [First-Club Pilot Checklist](docs/pilot-release-checklist.md)
+- [Pilot Operator Runbook](docs/deployment/pilot-operator-runbook.md)
