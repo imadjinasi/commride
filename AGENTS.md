@@ -65,7 +65,7 @@ The first beta targets the Ride lifecycle:
 **Plan -> Ride -> Coordinate -> Regroup -> Finish -> Review**
 
 MVP does not require:
-- embedded turn-by-turn navigation;
+- a production voice-media/SFU provider before its dedicated acceptance gate;
 - microservices;
 - Kubernetes;
 - competitive speed ranking;
@@ -131,9 +131,10 @@ to an honest unavailable/fallback state, never a fabricated pass.
 - Maps must not request a second GPS stream or recenter automatically.
 - Preserve list fallback, freshness labels and provider/data attribution.
 
-Google Maps remains a possible future provider. Google billing and keys are not
-pilot prerequisites. External navigation links remain independent of the embedded
-map; full turn-by-turn guidance stays outside MVP.
+Google navigation is the accepted next provider path, but Google billing and
+restricted keys are not prerequisites for keeping the current Geoapify fallback
+operational. External navigation links remain available as fallback and do not
+replace embedded-guidance acceptance evidence.
 
 Expensive provider actions must be deliberate, bounded and not automatically
 repeated by every Rider for shared planning state. Account quotas and operational
@@ -157,8 +158,11 @@ Pilot direction:
 - R2 for object storage where needed;
 - Firebase Authentication;
 - FCM for push;
-- MapLibre for mobile rendering;
-- Geoapify place/routing adapters and client map style/tiles.
+- MapLibre + Geoapify as the working fallback map/place/route path;
+- Google Places + Routes + Navigation SDK as the feature-gated navigation-first
+  Active Ride path;
+- WebRTC/SFU-class media architecture for voice, with provider selection handled
+  separately from the Ride control channel.
 
 Avoid premature infrastructure expansion without an evidenced product or scale need.
 

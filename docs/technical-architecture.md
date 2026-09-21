@@ -117,10 +117,10 @@ Search Along Route may be implemented by sampling a bounded route/polyline
 corridor, querying Places around relevant points, deduplicating, ranking, and
 returning provider-independent CommRide DTOs.
 
-Embedded turn-by-turn navigation is not required for MVP.
-
-The app may still deep-link to external navigation apps such as Google Maps,
-Waze, or Apple Maps on iOS for turn-by-turn guidance.
+Embedded turn-by-turn navigation is now part of the accepted next Active Ride
+implementation when the Google navigation gate is enabled. External navigation
+deep links remain available as a fallback rather than the primary Active Ride
+experience.
 
 ## 3. Provider abstraction
 

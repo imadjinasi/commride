@@ -291,7 +291,7 @@ Completed Ride:
 Quick Actions, Checkpoints, convoy separation, Ride End, and future SOS remain
 typed operational state. They are not flattened into ordinary chat messages.
 
-## 16. Voice Intercom
+## 17. Voice Intercom
 
 Normal Active Ride:
 1. Rider joins the Ride voice room in Group Intercom mode by default.
@@ -305,7 +305,7 @@ Normal Active Ride:
 8. Standard headset/TWS play/pause remains media playback control. Distinct
    supported hardware inputs may be mapped to Mic Toggle/PTT separately.
 
-## 17. SOS
+## 18. SOS
 
 Active Ride participant:
 
@@ -351,7 +351,7 @@ Completed Ride:
 An Active SOS must be explicitly cancelled or resolved before End Ride may
 complete in the initial policy.
 
-## 17. Mandatory Regroup
+## 19. Mandatory Regroup
 
 1. Riders approach checkpoint
 2. arrival states update
@@ -364,7 +364,7 @@ complete in the initial policy.
 6. next Segment becomes active
 7. Riders notified
 
-## 18. Rider goes offline
+## 20. Rider goes offline
 
 1. realtime connection drops
 2. last valid position remains visible
@@ -376,7 +376,7 @@ complete in the initial policy.
 
 Never animate stale position as though it is live.
 
-## 19. Rider deviates from Route
+## 21. Rider deviates from Route
 
 MVP:
 1. server/client detects basic deviation threshold
@@ -387,7 +387,7 @@ MVP:
 Future:
 - recommended rejoin/intercept point.
 
-## 20. End Ride
+## 22. End Ride
 
 Leader:
 
@@ -406,7 +406,7 @@ Rider:
 A server `ride.ended` realtime event has the same local stop effect as the
 Leader completing the Ride through the normal lifecycle command.
 
-## 21. Ride Recap
+## 23. Ride Recap
 
 1. Completed Ride
 2. show:
@@ -419,14 +419,14 @@ Leader completing the Ride through the normal lifecycle command.
 3. Leader/Club may publish recap to timeline
 4. eligible achievements awarded
 
-## 22. Follow Club
+## 24. Follow Club
 
 1. Open Club profile
 2. Follow
 3. Club activity may enter Home feed
 4. Follow does not grant membership or location access
 
-## 23. Badge award
+## 25. Badge award
 
 1. trusted Ride/Club event occurs
 2. achievement rules evaluate
@@ -436,7 +436,7 @@ Leader completing the Ride through the normal lifecycle command.
 
 No badge should depend on unsafe speed behavior.
 
-## 24. Failure-state principles
+## 26. Failure-state principles
 
 Every core flow must define behavior for:
 - no signal;
