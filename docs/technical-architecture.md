@@ -165,15 +165,39 @@ Rider GPS
 ### Why
 A group with many Riders can generate large numbers of coordinates. Realtime operational state and permanent history have different requirements.
 
+### Mobile location-session boundary
+
+Ride domain state, OS permission state, location-provider runtime, and realtime
+connection state are separate concerns.
+
+The Flutter layer owns an explicit Ride location-session controller with states
+such as inactive, permission-required, starting, active, degraded, stopping,
+stopped-by-Ride-end, denied, and error.
+
+The controller:
+- starts only for an Active Ride;
+- never requests location during authentication, onboarding, Club browsing, or route planning;
+- requests permission only after a Rider explicitly enables Active Ride tracking;
+- preserves the original observation timestamp when network delivery is delayed;
+- keeps only a small bounded pending presence buffer, preferring the newest
+  operational observation over replaying a long GPS trace;
+- stops location and realtime publishing on local Ride end, server
+  `ride.ended`, or sign-out.
+
+Native Android/iOS platform configuration is not invented in repository-only
+work. The platform projects are generated and verified with a real Flutter SDK
+and real application identifiers before committing manifest, foreground-service,
+Info.plist, or capability changes.
+
 ### Adaptive cadence
 Exact values require field testing.
 
-Potential policy:
-- moving: moderately frequent updates;
-- stopped: slower updates;
-- foreground map: potentially more responsive;
-- weak connection: queue/retry selectively;
-- critical event/SOS: immediate position event.
+Initial controller policy:
+- first valid sample after start/reconnect: send immediately;
+- moving: emit at a moderate cadence rather than every GPS callback;
+- stopped: slower cadence;
+- weak connection: retain only bounded recent unsent state;
+- critical operational actions are not blocked behind a location backlog.
 
 Battery life is a product requirement, not just an implementation detail.
 
@@ -264,7 +288,8 @@ Baseline requirements:
 ## 12. Privacy
 
 Required behaviors:
-- explicit background location permission;
+- explicit contextual location permission;
+- use the minimum platform authorization level that satisfies the accepted Ride lifecycle;
 - visible active tracking state;
 - tracking scoped to a Ride session;
 - Ride end stops live tracking by default;
