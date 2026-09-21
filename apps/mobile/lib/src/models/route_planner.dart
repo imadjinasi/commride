@@ -98,7 +98,7 @@ class RouteOption {
     required this.distanceMeters,
     required this.durationSeconds,
     required this.encodedPolyline,
-    required this.routeToken,
+    this.routeToken,
     required this.legs,
   });
 
