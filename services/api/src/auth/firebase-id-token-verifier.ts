@@ -13,6 +13,7 @@ const FIREBASE_CERTIFICATES_URL =
   'https://www.googleapis.com/robot/v1/metadata/x509/' +
   'securetoken@system.gserviceaccount.com';
 const DEFAULT_CERTIFICATE_CACHE_SECONDS = 300;
+const workerFetch: typeof fetch = (input, init) => fetch(input, init);
 
 type VerificationKey = ReturnType<typeof createPublicKey>;
 
@@ -72,7 +73,7 @@ class CertificateHttpFailure extends VerificationFailure {
 export class FirebaseIdTokenVerifier implements IdentityVerifier {
   constructor(
     private readonly projectId: string,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
     private readonly now: () => number = Date.now,
   ) {
     if (projectId.trim().length === 0) {
