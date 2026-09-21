@@ -32,7 +32,7 @@ describe('GeoapifyProvider', () => {
       expect(url.pathname).toBe('/v1/geocode/autocomplete');
       expect(url.searchParams.get('apiKey')).toBe('fixture-key');
       expect(url.searchParams.get('limit')).toBe('8');
-      expect(init?.redirect).toBe('error');
+      expect(init?.redirect).toBe('manual');
       return json({ results: [{ place_id: 'place-1', formatted: 'Cirebon' }] });
     });
     await expect(provider.autocomplete({ input: 'Cirebon' })).resolves.toEqual([
@@ -142,7 +142,7 @@ describe('GeoapifyProvider', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it.each([401, 403, 429, 500])('redacts provider errors for upstream status %s', async (status) => {
+  it.each([301, 302, 307, 308, 401, 403, 429, 500])('redacts provider errors for upstream status %s', async (status) => {
     const provider = new GeoapifyProvider('hidden-key', async () => json({ message: 'https://api.geoapify.com/?apiKey=hidden-key' }, status));
     const error = await provider.autocomplete({ input: 'Cirebon' }).catch((value: unknown) => value);
     expect(error).toMatchObject({ code: 'maps_provider_error', status: status === 429 ? 429 : status < 500 ? 503 : 502 });

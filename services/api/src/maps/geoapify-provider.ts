@@ -207,14 +207,18 @@ export class GeoapifyProvider implements RoutePlaceProvider {
     });
     const operation = async (): Promise<JsonObject> => {
       const response = await this.fetcher(url, {
-        signal: controller.signal, redirect: 'error', headers: { accept: 'application/json' },
+        signal: controller.signal, redirect: 'manual', headers: { accept: 'application/json' },
       });
       if (!response.ok) {
         const upstreamStatus = response.status;
         void response.body?.cancel().catch(() => {});
-        // Never use upstream text: it can echo request URLs, coordinates or keys.
+        // Never use upstream text or Location: they can expose request details
+        // or move the API key to an unreviewed origin.
         console.warn('geoapify_request_failed', {
-          stage: 'http',
+          stage:
+            upstreamStatus >= 300 && upstreamStatus < 400
+              ? 'redirect'
+              : 'http',
           status: upstreamStatus,
         });
         const status = upstreamStatus === 429 ? 429 :
@@ -248,6 +252,7 @@ export class GeoapifyProvider implements RoutePlaceProvider {
       }
       console.warn('geoapify_request_failed', {
         stage: 'network',
+        errorName: error instanceof Error ? error.name : 'unknown',
       });
       throw new RoutePlaceProviderError('maps_provider_error',
         'The map provider could not be reached.', 502);
