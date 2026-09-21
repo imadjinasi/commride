@@ -45,7 +45,10 @@ interface JwtPayload {
 type FailureStage =
   | 'token_shape'
   | 'header'
-  | 'certificate_fetch'
+  | 'certificate_network'
+  | 'certificate_http'
+  | 'certificate_json'
+  | 'certificate_empty'
   | 'certificate_missing'
   | 'public_key_import'
   | 'signature'
@@ -56,6 +59,13 @@ class VerificationFailure extends Error {
   constructor(readonly stage: FailureStage) {
     super(stage);
     this.name = 'VerificationFailure';
+  }
+}
+
+class CertificateHttpFailure extends VerificationFailure {
+  constructor(readonly status: number) {
+    super('certificate_http');
+    this.name = 'CertificateHttpFailure';
   }
 }
 
@@ -123,9 +133,20 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
           : { emailVerified: payload.email_verified }),
       };
     } catch (error) {
-      const stage =
-        error instanceof VerificationFailure ? error.stage : 'public_key_import';
-      console.warn('firebase_id_token_verification_failed', { stage });
+      if (error instanceof CertificateHttpFailure) {
+        console.warn('firebase_id_token_verification_failed', {
+          stage: error.stage,
+          status: error.status,
+        });
+      } else if (error instanceof VerificationFailure) {
+        console.warn('firebase_id_token_verification_failed', {
+          stage: error.stage,
+        });
+      } else {
+        console.warn('firebase_id_token_verification_failed', {
+          stage: 'public_key_import',
+        });
+      }
 
       throw new InvalidIdentityTokenError();
     }
@@ -173,24 +194,28 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
 
     let response: Response;
     try {
-      response = await this.fetcher(FIREBASE_CERTIFICATES_URL);
+      response = await this.fetcher(FIREBASE_CERTIFICATES_URL, {
+        headers: {
+          accept: 'application/json',
+        },
+      });
     } catch {
-      throw new VerificationFailure('certificate_fetch');
+      throw new VerificationFailure('certificate_network');
     }
 
     if (!response.ok) {
-      throw new VerificationFailure('certificate_fetch');
+      throw new CertificateHttpFailure(response.status);
     }
 
     let body: unknown;
     try {
       body = await response.json();
     } catch {
-      throw new VerificationFailure('certificate_fetch');
+      throw new VerificationFailure('certificate_json');
     }
 
     if (!isRecord(body)) {
-      throw new VerificationFailure('certificate_fetch');
+      throw new VerificationFailure('certificate_json');
     }
 
     const certificates = new Map<string, string>();
@@ -206,7 +231,7 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
     }
 
     if (certificates.size === 0) {
-      throw new VerificationFailure('certificate_fetch');
+      throw new VerificationFailure('certificate_empty');
     }
 
     const cache: CertificateCache = {
