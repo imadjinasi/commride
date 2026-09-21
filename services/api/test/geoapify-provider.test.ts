@@ -145,7 +145,13 @@ describe('GeoapifyProvider', () => {
   it.each([301, 302, 307, 308, 401, 403, 429, 500])('redacts provider errors for upstream status %s', async (status) => {
     const provider = new GeoapifyProvider('hidden-key', async () => json({ message: 'https://api.geoapify.com/?apiKey=hidden-key' }, status));
     const error = await provider.autocomplete({ input: 'Cirebon' }).catch((value: unknown) => value);
-    expect(error).toMatchObject({ code: 'maps_provider_error', status: status === 429 ? 429 : status < 500 ? 503 : 502 });
+    expect(error).toMatchObject({
+      code: 'maps_provider_error',
+      status:
+        status === 429 ? 429 :
+        status === 401 || status === 403 ? 503 :
+        502,
+    });
     expect(String(error)).not.toContain('hidden-key');
     expect(String(error)).not.toContain('https://');
   });
