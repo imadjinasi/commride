@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../active_ride/live_group_map_models.dart';
 import '../active_ride/live_group_models.dart';
 import '../config/app_config.dart';
-import '../models/club_ride.dart';
 import 'latest_map_update.dart';
 import 'map_style_scope.dart';
 

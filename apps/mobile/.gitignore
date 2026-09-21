@@ -18,3 +18,9 @@ ios/Flutter/ephemeral/
 .env
 .env.*
 !.env.example
+
+# Real provider/signing configuration stays on the operator workstation.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+android/key.properties
+pilot-defines.local.json
