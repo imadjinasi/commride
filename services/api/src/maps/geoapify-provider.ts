@@ -210,21 +210,45 @@ export class GeoapifyProvider implements RoutePlaceProvider {
         signal: controller.signal, redirect: 'error', headers: { accept: 'application/json' },
       });
       if (!response.ok) {
+        const upstreamStatus = response.status;
         void response.body?.cancel().catch(() => {});
         // Never use upstream text: it can echo request URLs, coordinates or keys.
-        const status = response.status === 429 ? 429 :
-          response.status === 401 || response.status === 403 ? 503 :
-          response.status >= 400 && response.status < 500 ? 400 : 502;
+        console.warn('geoapify_request_failed', {
+          stage: 'http',
+          status: upstreamStatus,
+        });
+        const status = upstreamStatus === 429 ? 429 :
+          upstreamStatus === 401 || upstreamStatus === 403 ? 503 :
+          upstreamStatus >= 400 && upstreamStatus < 500 ? 400 : 502;
         throw new RoutePlaceProviderError('maps_provider_error',
           status === 429 ? 'The map provider quota is temporarily unavailable.' :
           'The map provider request could not be completed.', status);
       }
-      return await readBoundedJson(response);
+      try {
+        return await readBoundedJson(response);
+      } catch (error) {
+        if (error instanceof RoutePlaceProviderError) {
+          console.warn('geoapify_request_failed', {
+            stage: 'response',
+          });
+        }
+        throw error;
+      }
     };
     try {
       return await Promise.race([operation(), deadline]);
     } catch (error) {
-      if (error instanceof RoutePlaceProviderError) throw error;
+      if (error instanceof RoutePlaceProviderError) {
+        if (error.code === 'maps_provider_timeout') {
+          console.warn('geoapify_request_failed', {
+            stage: 'timeout',
+          });
+        }
+        throw error;
+      }
+      console.warn('geoapify_request_failed', {
+        stage: 'network',
+      });
       throw new RoutePlaceProviderError('maps_provider_error',
         'The map provider could not be reached.', 502);
     } finally {
