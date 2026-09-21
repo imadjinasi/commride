@@ -13,6 +13,7 @@ import 'api/vehicle_api.dart';
 import 'auth/auth_gateway.dart';
 import 'auth/auth_gate.dart';
 import 'config/app_config.dart';
+import 'maps/map_style_scope.dart';
 import 'push/ride_push_messaging.dart';
 import 'screens/setup/setup_required_screen.dart';
 import 'theme/commride_theme.dart';
@@ -58,6 +59,10 @@ class CommRideApp extends StatelessWidget {
       debugShowCheckedModeBanner:
           config.environment != AppEnvironment.production,
       theme: CommRideTheme.light(),
+      builder: (BuildContext context, Widget? child) => MapStyleScope(
+        styleUrl: config.mapStyleUrl,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: AuthGate(
         config: config,
         authGateway: authGateway,

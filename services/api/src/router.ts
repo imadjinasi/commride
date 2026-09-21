@@ -42,7 +42,7 @@ import {
 } from './clubs-rides/repository';
 import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
-import { GoogleMapsPlatformProvider } from './maps/google-maps-platform-provider';
+import { GeoapifyProvider } from './maps/geoapify-provider';
 import { handleMapsRequest, isMapsPath } from './maps/handler';
 import type { RoutePlaceProvider } from './maps/provider';
 import { resolveRequestId } from './request-id';
@@ -895,12 +895,12 @@ function resolveFirebaseVerifier(env: Env): IdentityVerifier | null {
 
 
 function resolveRoutePlaceProvider(env: Env): RoutePlaceProvider | null {
-  const apiKey = env.GOOGLE_MAPS_PLATFORM_API_KEY?.trim();
+  const apiKey = env.GEOAPIFY_API_KEY?.trim();
   if (apiKey == null || apiKey.length === 0) {
     return null;
   }
 
-  return new GoogleMapsPlatformProvider(apiKey);
+  return new GeoapifyProvider(apiKey);
 }
 
 

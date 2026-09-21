@@ -1,0 +1,6 @@
+{
+  "COMMRIDE_ENV": "production",
+  "COMMRIDE_API_BASE_URL": "https://example.invalid",
+  "COMMRIDE_MAPS_ENABLED": false,
+  "COMMRIDE_MAP_STYLE_URL": ""
+}

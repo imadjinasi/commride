@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../active_ride/convoy_separation.dart';
 import '../../active_ride/live_group_controller.dart';
@@ -9,6 +8,7 @@ import '../../active_ride/live_group_map_models.dart';
 import '../../active_ride/live_group_models.dart';
 import '../../active_ride/location_provider.dart';
 import '../../active_ride/realtime_client.dart';
+import '../../maps/live_group_map_view.dart';
 import '../../models/club_ride.dart';
 
 class LiveGroupScreen extends StatefulWidget {
@@ -62,7 +62,8 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
   @override
   Widget build(BuildContext context) {
     final ActiveRideGroupState state = widget.controller.state;
-    final ActiveRideGroupCounts counts = state.counts(_now);
+    final DateTime now = _now;
+    final ActiveRideGroupCounts counts = state.counts(now);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Live Group')),
@@ -102,7 +103,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
                   .take(5)
                   .map(
                     (LiveQuickAction action) =>
-                        _QuickActionCard(action: action, now: _now),
+                        _QuickActionCard(action: action, now: now),
                   ),
             ],
             const SizedBox(height: 18),
@@ -152,11 +153,26 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
                 ),
               )
             else if (widget.mapsEnabled && _showMap)
-              _LiveGroupMapView(state: state, now: _now)
+              LiveGroupMapView(
+                presentation: LiveGroupMapPresentation.fromPresences(
+                  presences: state.presences,
+                  now: now,
+                  separation: state.separation,
+                ),
+                now: now,
+                fallback: Column(
+                  children: state.presences
+                      .map(
+                        (LiveRiderPresence presence) =>
+                            _PresenceCard(presence: presence, now: now),
+                      )
+                      .toList(growable: false),
+                ),
+              )
             else
               ...state.presences.map(
                 (LiveRiderPresence presence) =>
-                    _PresenceCard(presence: presence, now: _now),
+                    _PresenceCard(presence: presence, now: now),
               ),
           ],
         ),
@@ -211,183 +227,6 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
     if (mounted) {
       setState(() {});
     }
-  }
-}
-
-class _LiveGroupMapView extends StatefulWidget {
-  const _LiveGroupMapView({required this.state, required this.now});
-
-  final ActiveRideGroupState state;
-  final DateTime now;
-
-  @override
-  State<_LiveGroupMapView> createState() => _LiveGroupMapViewState();
-}
-
-class _LiveGroupMapViewState extends State<_LiveGroupMapView> {
-  GoogleMapController? _controller;
-  String? _selectedRiderId;
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final LiveGroupMapPresentation presentation =
-        LiveGroupMapPresentation.fromPresences(
-          presences: widget.state.presences,
-          now: widget.now,
-          separation: widget.state.separation,
-        );
-    final LiveGroupMapBounds? bounds = presentation.bounds;
-    if (bounds == null) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(18),
-          child: Text('Belum ada posisi yang dapat ditampilkan di map.'),
-        ),
-      );
-    }
-
-    LiveGroupMapMarker? selected;
-    for (final LiveGroupMapMarker marker in presentation.markers) {
-      if (marker.riderId == _selectedRiderId) {
-        selected = marker;
-        break;
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: 420,
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(bounds.centerLatitude, bounds.centerLongitude),
-                zoom: presentation.markers.length == 1 ? 16 : 12,
-              ),
-              markers: presentation.markers.map(_toGoogleMarker).toSet(),
-              myLocationEnabled: false,
-              myLocationButtonEnabled: false,
-              compassEnabled: true,
-              mapToolbarEnabled: false,
-              onMapCreated: (GoogleMapController controller) {
-                _controller = controller;
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: OutlinedButton.icon(
-            onPressed: _controller == null ? null : () => _fit(presentation),
-            icon: const Icon(Icons.center_focus_strong),
-            label: const Text('Fit Group'),
-          ),
-        ),
-        if (selected != null) ...<Widget>[
-          const SizedBox(height: 8),
-          _SelectedMapRider(marker: selected, now: widget.now),
-        ],
-        const SizedBox(height: 4),
-        Text(
-          'Map tidak mengikuti pergerakan otomatis. Gunakan Fit Group saat '
-          'ingin membingkai ulang rombongan.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-
-  Marker _toGoogleMarker(LiveGroupMapMarker marker) {
-    return Marker(
-      markerId: MarkerId(marker.riderId),
-      position: LatLng(marker.latitude, marker.longitude),
-      icon: BitmapDescriptor.defaultMarkerWithHue(_markerHue(marker)),
-      infoWindow: InfoWindow(
-        title: marker.displayName,
-        snippet:
-            '${marker.role.label} · ${marker.freshness.label}'
-            '${marker.isLastKnown ? ' · posisi terakhir' : ''}',
-      ),
-      onTap: () {
-        setState(() {
-          _selectedRiderId = marker.riderId;
-        });
-      },
-    );
-  }
-
-  Future<void> _fit(LiveGroupMapPresentation presentation) async {
-    final GoogleMapController? controller = _controller;
-    final LiveGroupMapBounds? bounds = presentation.bounds;
-    if (controller == null || bounds == null) {
-      return;
-    }
-
-    if (bounds.south == bounds.north && bounds.west == bounds.east) {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(bounds.centerLatitude, bounds.centerLongitude),
-          16,
-        ),
-      );
-      return;
-    }
-
-    await controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(bounds.south, bounds.west),
-          northeast: LatLng(bounds.north, bounds.east),
-        ),
-        56,
-      ),
-    );
-  }
-
-  double _markerHue(LiveGroupMapMarker marker) {
-    if (marker.attention == LiveGroupMapAttention.separated) {
-      return BitmapDescriptor.hueRose;
-    }
-    if (marker.attention == LiveGroupMapAttention.inspect) {
-      return BitmapDescriptor.hueOrange;
-    }
-    return switch (marker.freshness) {
-      LivePresenceFreshness.live => BitmapDescriptor.hueGreen,
-      LivePresenceFreshness.stale => BitmapDescriptor.hueYellow,
-      LivePresenceFreshness.offline => BitmapDescriptor.hueViolet,
-    };
-  }
-}
-
-class _SelectedMapRider extends StatelessWidget {
-  const _SelectedMapRider({required this.marker, required this.now});
-
-  final LiveGroupMapMarker marker;
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final String age = _formatAge(now.difference(marker.observedAt));
-    return Card(
-      child: ListTile(
-        leading: Icon(_freshnessIcon(marker.freshness)),
-        title: Text(marker.displayName),
-        subtitle: Text(
-          '${marker.role.label} · ${marker.freshness.label} · '
-          '${marker.isLastKnown ? 'posisi terakhir' : 'posisi live'} · '
-          'observasi $age lalu',
-        ),
-      ),
-    );
   }
 }
 

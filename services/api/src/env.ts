@@ -4,6 +4,6 @@ export interface Env {
   readonly FIREBASE_PROJECT_ID?: string;
   readonly FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL?: string;
   readonly FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY?: string;
-  readonly GOOGLE_MAPS_PLATFORM_API_KEY?: string;
+  readonly GEOAPIFY_API_KEY?: string;
   readonly LOCATION_SAMPLE_RETENTION_DAYS?: string;
 }
