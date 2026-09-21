@@ -294,7 +294,7 @@ function decodeJsonObject(encoded: string): Record<string, unknown> {
   }
 }
 
-function decodeBase64Url(value: string): Uint8Array {
+function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) {
     throw new InvalidIdentityTokenError();
   }
@@ -310,7 +310,11 @@ function decodeBase64Url(value: string): Uint8Array {
     throw new InvalidIdentityTokenError();
   }
 
-  return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+  const bytes = new Uint8Array(decoded.length);
+  for (let index = 0; index < decoded.length; index += 1) {
+    bytes[index] = decoded.charCodeAt(index);
+  }
+  return bytes;
 }
 
 function parseMaxAge(cacheControl: string | null): number {
