@@ -61,33 +61,37 @@ Map<String, dynamic> riderMapGeoJson(
 ) {
   return <String, dynamic>{
     'type': 'FeatureCollection',
-    'features': presentation.markers.map((LiveGroupMapMarker marker) {
-      final String color;
-      if (marker.attention == LiveGroupMapAttention.separated) {
-        color = '#C2185B';
-      } else if (marker.attention == LiveGroupMapAttention.inspect) {
-        color = '#EF6C00';
-      } else {
-        color = switch (marker.freshness) {
-          LivePresenceFreshness.live => '#2E7D32',
-          LivePresenceFreshness.stale => '#F9A825',
-          LivePresenceFreshness.offline => '#6A1B9A',
-        };
-      }
-      return <String, dynamic>{
-        'type': 'Feature',
-        'id': marker.riderId,
-        'geometry': <String, dynamic>{
-          'type': 'Point',
-          'coordinates': <double>[marker.longitude, marker.latitude],
-        },
-        'properties': <String, dynamic>{
-          'color': color,
-          'radius': marker.attention == LiveGroupMapAttention.normal ? 9 : 11,
-          'label': riderMapLabel(marker, now),
-        },
-      };
-    }).toList(growable: false),
+    'features': presentation.markers
+        .map((LiveGroupMapMarker marker) {
+          final String color;
+          if (marker.attention == LiveGroupMapAttention.separated) {
+            color = '#C2185B';
+          } else if (marker.attention == LiveGroupMapAttention.inspect) {
+            color = '#EF6C00';
+          } else {
+            color = switch (marker.freshness) {
+              LivePresenceFreshness.live => '#2E7D32',
+              LivePresenceFreshness.stale => '#F9A825',
+              LivePresenceFreshness.offline => '#6A1B9A',
+            };
+          }
+          return <String, dynamic>{
+            'type': 'Feature',
+            'id': marker.riderId,
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[marker.longitude, marker.latitude],
+            },
+            'properties': <String, dynamic>{
+              'color': color,
+              'radius': marker.attention == LiveGroupMapAttention.normal
+                  ? 9
+                  : 11,
+              'label': riderMapLabel(marker, now),
+            },
+          };
+        })
+        .toList(growable: false),
   };
 }
 
@@ -213,39 +217,45 @@ class _NativeLiveGroupMapState extends State<_NativeLiveGroupMap> {
     }
     _initializing = true;
     try {
-      await controller.addGeoJsonSource(_source, <String, dynamic>{
-        'type': 'FeatureCollection',
-        'features': <Object>[],
-      }).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(_source, <String, dynamic>{
+            'type': 'FeatureCollection',
+            'features': <Object>[],
+          })
+          .timeout(_timeout);
       if (!_alive(controller, generation)) {
         return;
       }
-      await controller.addCircleLayer(
-        _source,
-        _circles,
-        const CircleLayerProperties(
-          circleColor: <String>['get', 'color'],
-          circleRadius: <String>['get', 'radius'],
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addCircleLayer(
+            _source,
+            _circles,
+            const CircleLayerProperties(
+              circleColor: <String>['get', 'color'],
+              circleRadius: <String>['get', 'radius'],
+              circleStrokeColor: '#FFFFFF',
+              circleStrokeWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
       if (!_alive(controller, generation)) {
         return;
       }
-      await controller.addSymbolLayer(
-        _source,
-        _labels,
-        const SymbolLayerProperties(
-          textField: <String>['get', 'label'],
-          textSize: 12,
-          textOffset: <double>[0, 1.5],
-          textAnchor: 'top',
-          textColor: '#202020',
-          textHaloColor: '#FFFFFF',
-          textHaloWidth: 2,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addSymbolLayer(
+            _source,
+            _labels,
+            const SymbolLayerProperties(
+              textField: <String>['get', 'label'],
+              textSize: 12,
+              textOffset: <double>[0, 1.5],
+              textAnchor: 'top',
+              textColor: '#202020',
+              textHaloColor: '#FFFFFF',
+              textHaloWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
       if (!_alive(controller, generation)) {
         return;
       }
@@ -352,9 +362,8 @@ class _NativeLiveGroupMapState extends State<_NativeLiveGroupMap> {
                   controller.onFeatureTapped.add(_onFeatureTapped);
                 }
               },
-              onStyleLoadedCallback: () => unawaited(
-                _onStyleLoaded(generation),
-              ),
+              onStyleLoadedCallback: () =>
+                  unawaited(_onStyleLoaded(generation)),
             ),
           ),
         ),

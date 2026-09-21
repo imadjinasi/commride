@@ -11,7 +11,9 @@ class MapStyleScope extends InheritedWidget {
   final String? styleUrl;
 
   static String? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<MapStyleScope>()?.styleUrl;
+    return context
+        .dependOnInheritedWidgetOfExactType<MapStyleScope>()
+        ?.styleUrl;
   }
 
   @override

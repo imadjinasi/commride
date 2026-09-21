@@ -28,10 +28,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        builder: (BuildContext context, Widget? child) => MapStyleScope(
-          styleUrl: 'test-client-style',
-          child: child!,
-        ),
+        builder: (BuildContext context, Widget? child) =>
+            MapStyleScope(styleUrl: 'test-client-style', child: child!),
         home: Builder(
           builder: (BuildContext context) => TextButton(
             onPressed: () => Navigator.of(context).push<void>(
