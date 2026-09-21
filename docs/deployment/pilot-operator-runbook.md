@@ -26,7 +26,7 @@ Before changing provider configuration, record:
 - operator name;
 - date/time;
 - intended environment: `pilot`;
-- Android application ID;
+- Android application ID: `io.github.imadjinasi.commride` (accepted for the pilot baseline);
 - iOS bundle ID;
 - planned API URL;
 - Firebase project ID;
