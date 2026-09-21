@@ -109,15 +109,28 @@ val commRideMapsApiKey =
                 )
             if "isCoreLibraryDesugaringEnabled = true" not in content:
                 marker = "compileOptions {"
-                if marker not in content:
-                    raise SystemExit(
-                        "Android compileOptions block missing; refusing unsafe patch."
+                if marker in content:
+                    content = content.replace(
+                        marker,
+                        marker + "\n        isCoreLibraryDesugaringEnabled = true",
+                        1,
                     )
-                content = content.replace(
-                    marker,
-                    marker + "\n        isCoreLibraryDesugaringEnabled = true",
-                    1,
-                )
+                else:
+                    android_marker = "android {"
+                    if android_marker not in content:
+                        raise SystemExit(
+                            "Android Gradle block missing; refusing unsafe patch."
+                        )
+                    content = content.replace(
+                        android_marker,
+                        android_marker
+                        + "\n    compileOptions {"
+                        + "\n        isCoreLibraryDesugaringEnabled = true"
+                        + "\n        sourceCompatibility = JavaVersion.VERSION_17"
+                        + "\n        targetCompatibility = JavaVersion.VERSION_17"
+                        + "\n    }",
+                        1,
+                    )
             if 'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")' not in content:
                 content += (
                     '\n\ndependencies {\n'
