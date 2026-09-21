@@ -1,4 +1,9 @@
 import {
+  createPublicKey,
+  verify as verifySignature,
+} from 'node:crypto';
+
+import {
   type AuthenticatedIdentity,
   type IdentityVerifier,
   InvalidIdentityTokenError,
@@ -9,6 +14,8 @@ const FIREBASE_CERTIFICATES_URL =
   'securetoken@system.gserviceaccount.com';
 const DEFAULT_CERTIFICATE_CACHE_SECONDS = 300;
 
+type VerificationKey = ReturnType<typeof createPublicKey>;
+
 interface CertificateCache {
   readonly expiresAtMs: number;
   readonly certificates: ReadonlyMap<string, string>;
@@ -16,7 +23,7 @@ interface CertificateCache {
 
 interface ImportedKeyCacheEntry {
   readonly expiresAtMs: number;
-  readonly key: CryptoKey;
+  readonly key: VerificationKey;
 }
 
 interface JwtHeader {
@@ -35,12 +42,21 @@ interface JwtPayload {
   readonly email_verified?: boolean;
 }
 
-interface DerElement {
-  readonly tag: number;
-  readonly start: number;
-  readonly contentStart: number;
-  readonly end: number;
-  readonly next: number;
+type FailureStage =
+  | 'token_shape'
+  | 'header'
+  | 'certificate_fetch'
+  | 'certificate_missing'
+  | 'public_key_import'
+  | 'signature'
+  | 'payload'
+  | 'claims';
+
+class VerificationFailure extends Error {
+  constructor(readonly stage: FailureStage) {
+    super(stage);
+    this.name = 'VerificationFailure';
+  }
 }
 
 export class FirebaseIdTokenVerifier implements IdentityVerifier {
@@ -64,27 +80,25 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
         segments.length !== 3 ||
         segments.some((segment) => segment.length === 0)
       ) {
-        throw new InvalidIdentityTokenError();
+        throw new VerificationFailure('token_shape');
       }
 
       const [encodedHeader, encodedPayload, encodedSignature] = segments;
       const header = readHeader(encodedHeader);
       if (header.alg !== 'RS256' || header.kid.length === 0) {
-        throw new InvalidIdentityTokenError();
+        throw new VerificationFailure('header');
       }
 
       const key = await this.keyForId(header.kid);
-      const verified = await crypto.subtle.verify(
-        {
-          name: 'RSASSA-PKCS1-v1_5',
-        },
+      const verified = verifySignature(
+        'RSA-SHA256',
+        new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
         key,
         decodeBase64Url(encodedSignature),
-        new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
       );
 
       if (!verified) {
-        throw new InvalidIdentityTokenError();
+        throw new VerificationFailure('signature');
       }
 
       const payload = readPayload(encodedPayload);
@@ -93,11 +107,12 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
         payload.aud !== this.projectId ||
         payload.iss !== `https://securetoken.google.com/${this.projectId}` ||
         payload.sub.length === 0 ||
+        payload.sub.length > 128 ||
         payload.exp <= nowSeconds ||
         payload.iat > nowSeconds ||
         payload.auth_time > nowSeconds
       ) {
-        throw new InvalidIdentityTokenError();
+        throw new VerificationFailure('claims');
       }
 
       return {
@@ -108,15 +123,15 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
           : { emailVerified: payload.email_verified }),
       };
     } catch (error) {
-      if (error instanceof InvalidIdentityTokenError) {
-        throw error;
-      }
+      const stage =
+        error instanceof VerificationFailure ? error.stage : 'public_key_import';
+      console.warn('firebase_id_token_verification_failed', { stage });
 
       throw new InvalidIdentityTokenError();
     }
   }
 
-  private async keyForId(keyId: string): Promise<CryptoKey> {
+  private async keyForId(keyId: string): Promise<VerificationKey> {
     const existing = this.importedKeys.get(keyId);
     if (existing != null && existing.expiresAtMs > this.now()) {
       return existing.key;
@@ -133,20 +148,15 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
     }
 
     if (certificate == null) {
-      throw new InvalidIdentityTokenError();
+      throw new VerificationFailure('certificate_missing');
     }
 
-    const spki = extractSubjectPublicKeyInfo(certificate);
-    const key = await crypto.subtle.importKey(
-      'spki',
-      spki,
-      {
-        name: 'RSASSA-PKCS1-v1_5',
-        hash: 'SHA-256',
-      },
-      false,
-      ['verify'],
-    );
+    let key: VerificationKey;
+    try {
+      key = createPublicKey(certificate);
+    } catch {
+      throw new VerificationFailure('public_key_import');
+    }
 
     this.importedKeys.set(keyId, {
       expiresAtMs: cache.expiresAtMs,
@@ -161,18 +171,26 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
       return existing;
     }
 
-    const response = await this.fetcher(FIREBASE_CERTIFICATES_URL);
-    if (!response.ok) {
-      throw new InvalidIdentityTokenError(
-        'Firebase signing keys are temporarily unavailable.',
-      );
+    let response: Response;
+    try {
+      response = await this.fetcher(FIREBASE_CERTIFICATES_URL);
+    } catch {
+      throw new VerificationFailure('certificate_fetch');
     }
 
-    const body: unknown = await response.json();
+    if (!response.ok) {
+      throw new VerificationFailure('certificate_fetch');
+    }
+
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      throw new VerificationFailure('certificate_fetch');
+    }
+
     if (!isRecord(body)) {
-      throw new InvalidIdentityTokenError(
-        'Firebase signing keys are temporarily unavailable.',
-      );
+      throw new VerificationFailure('certificate_fetch');
     }
 
     const certificates = new Map<string, string>();
@@ -188,9 +206,7 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
     }
 
     if (certificates.size === 0) {
-      throw new InvalidIdentityTokenError(
-        'Firebase signing keys are temporarily unavailable.',
-      );
+      throw new VerificationFailure('certificate_fetch');
     }
 
     const cache: CertificateCache = {
@@ -204,140 +220,31 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
   }
 }
 
-function extractSubjectPublicKeyInfo(certificatePem: string): Uint8Array<ArrayBuffer> {
-  const der = decodeCertificatePem(certificatePem);
-  const certificate = readDerElement(der, 0);
-  requireTag(certificate, 0x30);
-
-  if (certificate.next !== der.length) {
-    throw new InvalidIdentityTokenError();
-  }
-
-  const tbsCertificate = readDerElement(der, certificate.contentStart);
-  requireTag(tbsCertificate, 0x30);
-
-  let offset = tbsCertificate.contentStart;
-  let field = readDerElement(der, offset);
-
-  if (field.tag === 0xa0) {
-    offset = field.next;
-    field = readDerElement(der, offset);
-  }
-
-  requireTag(field, 0x02);
-  offset = field.next;
-
-  field = readDerElement(der, offset);
-  requireTag(field, 0x30);
-  offset = field.next;
-
-  field = readDerElement(der, offset);
-  requireTag(field, 0x30);
-  offset = field.next;
-
-  field = readDerElement(der, offset);
-  requireTag(field, 0x30);
-  offset = field.next;
-
-  field = readDerElement(der, offset);
-  requireTag(field, 0x30);
-  offset = field.next;
-
-  const subjectPublicKeyInfo = readDerElement(der, offset);
-  requireTag(subjectPublicKeyInfo, 0x30);
-
-  if (subjectPublicKeyInfo.next > tbsCertificate.end) {
-    throw new InvalidIdentityTokenError();
-  }
-
-  const result = new Uint8Array(
-    subjectPublicKeyInfo.next - subjectPublicKeyInfo.start,
-  );
-  result.set(
-    der.subarray(subjectPublicKeyInfo.start, subjectPublicKeyInfo.next),
-  );
-  return result;
-}
-
-function readDerElement(bytes: Uint8Array, offset: number): DerElement {
-  if (offset < 0 || offset + 2 > bytes.length) {
-    throw new InvalidIdentityTokenError();
-  }
-
-  const tag = bytes[offset];
-  const firstLengthByte = bytes[offset + 1];
-
-  let length = 0;
-  let contentStart = offset + 2;
-
-  if ((firstLengthByte & 0x80) === 0) {
-    length = firstLengthByte;
-  } else {
-    const lengthBytes = firstLengthByte & 0x7f;
-    if (
-      lengthBytes === 0 ||
-      lengthBytes > 4 ||
-      contentStart + lengthBytes > bytes.length
-    ) {
-      throw new InvalidIdentityTokenError();
-    }
-
-    for (let index = 0; index < lengthBytes; index += 1) {
-      length = length * 256 + bytes[contentStart + index];
-    }
-    contentStart += lengthBytes;
-
-    if (length < 128) {
-      throw new InvalidIdentityTokenError();
-    }
-  }
-
-  const end = contentStart + length;
-  if (end > bytes.length) {
-    throw new InvalidIdentityTokenError();
-  }
-
-  return {
-    tag,
-    start: offset,
-    contentStart,
-    end,
-    next: end,
-  };
-}
-
-function requireTag(element: DerElement, expected: number): void {
-  if (element.tag !== expected) {
-    throw new InvalidIdentityTokenError();
-  }
-}
-
-function decodeCertificatePem(value: string): Uint8Array<ArrayBuffer> {
-  const base64 = value
-    .replace('-----BEGIN CERTIFICATE-----', '')
-    .replace('-----END CERTIFICATE-----', '')
-    .replace(/\s+/g, '');
-
-  if (base64.length === 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
-    throw new InvalidIdentityTokenError();
-  }
-
-  return decodeBase64(base64);
-}
-
 function readHeader(encoded: string): JwtHeader {
-  const value = decodeJsonObject(encoded);
+  let value: Record<string, unknown>;
+  try {
+    value = decodeJsonObject(encoded);
+  } catch {
+    throw new VerificationFailure('header');
+  }
+
   const alg = value.alg;
   const kid = value.kid;
   if (typeof alg !== 'string' || typeof kid !== 'string') {
-    throw new InvalidIdentityTokenError();
+    throw new VerificationFailure('header');
   }
 
   return { alg, kid };
 }
 
 function readPayload(encoded: string): JwtPayload {
-  const value = decodeJsonObject(encoded);
+  let value: Record<string, unknown>;
+  try {
+    value = decodeJsonObject(encoded);
+  } catch {
+    throw new VerificationFailure('payload');
+  }
+
   const { aud, iss, sub, exp, iat, auth_time: authTime } = value;
 
   if (
@@ -351,7 +258,7 @@ function readPayload(encoded: string): JwtPayload {
     typeof authTime !== 'number' ||
     !Number.isFinite(authTime)
   ) {
-    throw new InvalidIdentityTokenError();
+    throw new VerificationFailure('payload');
   }
 
   const email =
@@ -376,39 +283,29 @@ function readPayload(encoded: string): JwtPayload {
 }
 
 function decodeJsonObject(encoded: string): Record<string, unknown> {
-  try {
-    const value: unknown = JSON.parse(
-      new TextDecoder().decode(decodeBase64Url(encoded)),
-    );
-    if (!isRecord(value)) {
-      throw new InvalidIdentityTokenError();
-    }
-    return value;
-  } catch (error) {
-    if (error instanceof InvalidIdentityTokenError) {
-      throw error;
-    }
-    throw new InvalidIdentityTokenError();
+  const value: unknown = JSON.parse(
+    new TextDecoder().decode(decodeBase64Url(encoded)),
+  );
+  if (!isRecord(value)) {
+    throw new Error('JWT section must be an object.');
   }
+  return value;
 }
 
 function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) {
-    throw new InvalidIdentityTokenError();
+    throw new Error('Invalid base64url.');
   }
 
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded =
     normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4);
-  return decodeBase64(padded);
-}
 
-function decodeBase64(value: string): Uint8Array<ArrayBuffer> {
   let decoded: string;
   try {
-    decoded = atob(value);
+    decoded = atob(padded);
   } catch {
-    throw new InvalidIdentityTokenError();
+    throw new Error('Invalid base64url.');
   }
 
   const bytes = new Uint8Array(decoded.length);
