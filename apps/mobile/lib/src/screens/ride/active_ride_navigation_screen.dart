@@ -6,6 +6,7 @@ import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 
 import '../../active_ride/active_ride_runtime.dart';
 import '../../active_ride/live_group_models.dart';
+import '../../active_ride/navigation_route_matcher.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
 import '../../models/route_planner.dart';
@@ -266,12 +267,14 @@ class _ActiveRideNavigationScreenState
             ),
             stops: plan.stops,
             travelMode: plan.travelMode,
-            computeAlternatives: false,
+            computeAlternatives: plan.stops.isEmpty,
           );
-      if (refreshed.isEmpty || refreshed.first.routeToken == null) {
+      final RouteOption? matchedRoute = selectNavigationRoute(plan, refreshed);
+      if (matchedRoute == null) {
         throw const _NavigationPreparationException(
-          'Route Google untuk navigasi belum tersedia. Aktifkan provider '
-          'Google lalu hitung ulang RoutePlan ini.',
+          'Rute navigasi terbaru sudah berbeda dari RoutePlan tersimpan. '
+          'Review dan simpan ulang rute sebelum mulai agar CommRide tidak '
+          'diam-diam mengganti jalur pilihan Anda.',
         );
       }
 
@@ -281,7 +284,7 @@ class _ActiveRideNavigationScreenState
 
       if (!mounted) return;
       setState(() {
-        _prepared = _PreparedNavigation(plan: plan, route: refreshed.first);
+        _prepared = _PreparedNavigation(plan: plan, route: matchedRoute);
         _preparing = false;
       });
     } on _NavigationPreparationException catch (error) {
