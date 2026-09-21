@@ -203,7 +203,7 @@ describe('maps API', () => {
     expect(provider.computeInput).toBeNull();
   });
 
-  it('does not fake motorcycle Search Along Route with DRIVE results', async () => {
+  it('forwards motorcycle Search Along Route without substituting DRIVE', async () => {
     const provider = new RecordingProvider();
 
     const response = await handleRequest(
@@ -212,20 +212,25 @@ describe('maps API', () => {
         encodedPolyline: 'encoded-route',
         travelMode: 'two_wheeler',
         modifiers: {
-          avoidTolls: true,
+          avoidTolls: false,
+          avoidHighways: false,
+          avoidFerries: true,
         },
       }),
       {},
       overrides(provider),
     );
 
-    expect(response.status).toBe(400);
-    expect(provider.searchInput).toBeNull();
-
-    const body = await response.json() as {
-      error: { code: string };
-    };
-    expect(body.error.code).toBe('search_along_route_mode_not_supported');
+    expect(response.status).toBe(200);
+    expect(provider.searchInput).toMatchObject({
+      textQuery: 'fuel',
+      travelMode: 'two_wheeler',
+      modifiers: {
+        avoidTolls: false,
+        avoidHighways: false,
+        avoidFerries: true,
+      },
+    });
   });
 
   it('searches along a DRIVE route with a bounded result count', async () => {

@@ -256,15 +256,6 @@ async function searchAlongRoute(
     );
   }
 
-  if (travelMode === 'two_wheeler') {
-    return errorResponse(
-      'search_along_route_mode_not_supported',
-      'Search Along Route currently supports drive mode only with the configured provider.',
-      400,
-      requestId,
-    );
-  }
-
   const input: SearchAlongRouteInput = {
     textQuery,
     encodedPolyline,
