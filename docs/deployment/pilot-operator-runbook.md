@@ -232,17 +232,15 @@ the Firebase project issuing the mobile ID tokens.
 Validate locally/CI first:
 
 ```bash
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run typecheck
 npm test
 python3 scripts/validate_migrations.py
 npx wrangler deploy --dry-run
 ```
 
-A real `services/api/package-lock.json` was generated on the operator machine
-but is not yet committed. Do not fabricate a replacement. Once that exact
-lockfile is reviewed and committed, switch dependency installation in CI and
-this runbook to `npm ci --no-audit --no-fund`.
+The API dependency lockfile is committed and CI uses `npm ci` so dependency
+resolution is reproducible from the reviewed lockfile.
 
 Then deploy the real pilot Worker:
 
