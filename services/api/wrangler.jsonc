@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-18",
 
+  // New Durable Object class lifecycle uses Cloudflare's declarative exports
+  // model; the namespace is provisioned from the ActiveRideRoom export.
   "durable_objects": {
     "bindings": [
       {
