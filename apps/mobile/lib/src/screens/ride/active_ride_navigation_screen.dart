@@ -194,10 +194,7 @@ class _ActiveRideNavigationScreenState
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                ),
+                child: Text(_error!, textAlign: TextAlign.center),
               ),
             ),
           ),
@@ -284,10 +281,7 @@ class _ActiveRideNavigationScreenState
 
       if (!mounted) return;
       setState(() {
-        _prepared = _PreparedNavigation(
-          plan: plan,
-          route: refreshed.first,
-        );
+        _prepared = _PreparedNavigation(plan: plan, route: refreshed.first);
         _preparing = false;
       });
     } on _NavigationPreparationException catch (error) {
@@ -300,9 +294,7 @@ class _ActiveRideNavigationScreenState
     }
   }
 
-  Future<void> _onViewCreated(
-    GoogleNavigationViewController controller,
-  ) async {
+  Future<void> _onViewCreated(GoogleNavigationViewController controller) async {
     _viewController = controller;
     try {
       await controller.setMyLocationEnabled(true);
@@ -363,8 +355,8 @@ class _ActiveRideNavigationScreenState
               ),
               routeTokenOptions: RouteTokenOptions(
                 routeToken: routeToken,
-                travelMode: prepared.plan.travelMode ==
-                        RouteTravelMode.twoWheeler
+                travelMode:
+                    prepared.plan.travelMode == RouteTravelMode.twoWheeler
                     ? NavigationTravelMode.twoWheeler
                     : NavigationTravelMode.driving,
               ),
@@ -442,32 +434,33 @@ class _ActiveRideNavigationScreenState
         await controller.clearMarkers();
         if (presences.isNotEmpty) {
           await controller.addMarkers(
-            presences.map((LiveRiderPresence presence) {
-              final LivePresenceFreshness freshness =
-                  presence.effectiveFreshness(now);
-              final double alpha = switch (freshness) {
-                LivePresenceFreshness.live => 1,
-                LivePresenceFreshness.stale => 0.65,
-                LivePresenceFreshness.offline => 0.4,
-              };
-              return MarkerOptions(
-                position: LatLng(
-                  latitude: presence.latitude,
-                  longitude: presence.longitude,
-                ),
-                alpha: alpha,
-                zIndex: presence.role == RideRole.leader ||
-                        presence.role == RideRole.sweeper
-                    ? 2
-                    : 1,
-                infoWindow: InfoWindow(
-                  title:
-                      presence.role.label + ' · ' + presence.displayName,
-                  snippet:
-                      freshness.label + ' · ' + presence.movement.name,
-                ),
-              );
-            }).toList(growable: false),
+            presences
+                .map((LiveRiderPresence presence) {
+                  final LivePresenceFreshness freshness = presence
+                      .effectiveFreshness(now);
+                  final double alpha = switch (freshness) {
+                    LivePresenceFreshness.live => 1,
+                    LivePresenceFreshness.stale => 0.65,
+                    LivePresenceFreshness.offline => 0.4,
+                  };
+                  return MarkerOptions(
+                    position: LatLng(
+                      latitude: presence.latitude,
+                      longitude: presence.longitude,
+                    ),
+                    alpha: alpha,
+                    zIndex:
+                        presence.role == RideRole.leader ||
+                            presence.role == RideRole.sweeper
+                        ? 2
+                        : 1,
+                    infoWindow: InfoWindow(
+                      title: presence.role.label + ' · ' + presence.displayName,
+                      snippet: freshness.label + ' · ' + presence.movement.name,
+                    ),
+                  );
+                })
+                .toList(growable: false),
           );
         }
       } while (_markerSyncPending);
@@ -523,16 +516,14 @@ class _GroupStatusBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
         child: Row(
           children: <Widget>[
-            Icon(
-              connected ? Icons.wifi : Icons.wifi_off,
-              size: 18,
-            ),
+            Icon(connected ? Icons.wifi : Icons.wifi_off, size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                role.label + ' · $total Rider · $live Live'
-                + (stale > 0 ? ' · $stale Stale' : '')
-                + (offline > 0 ? ' · $offline Offline' : ''),
+                role.label +
+                    ' · $total Rider · $live Live' +
+                    (stale > 0 ? ' · $stale Stale' : '') +
+                    (offline > 0 ? ' · $offline Offline' : ''),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -644,11 +635,7 @@ class _DockButton extends StatelessWidget {
       style: TextButton.styleFrom(foregroundColor: foreground),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon),
-          const SizedBox(height: 2),
-          Text(label),
-        ],
+        children: <Widget>[Icon(icon), const SizedBox(height: 2), Text(label)],
       ),
     );
   }
