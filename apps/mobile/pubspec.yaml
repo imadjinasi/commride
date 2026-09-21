@@ -18,6 +18,11 @@ dependencies:
   geolocator_android: ^5.0.3
   geolocator_apple: ^2.3.14
   google_navigation_flutter: ^0.11.1
+  # 2.0.35 requires compileSdk 36 inside the Navigation plugin, while
+  # google_navigation_flutter 0.11.1 currently compiles its Android library
+  # against API 35. Keep the compatible transitive version until upstream
+  # aligns its compileSdk.
+  flutter_plugin_android_lifecycle: 2.0.34
   maplibre_gl: 0.27.1
   url_launcher: ^6.3.2
 
