@@ -143,6 +143,8 @@ class _AppShellState extends State<AppShell> {
         rideRecapApi: widget.rideRecapApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
+        navigationEnabled: widget.config.navigationEnabled,
+        voiceIntercomEnabled: widget.config.voiceIntercomEnabled,
       ),
       const ExploreScreen(),
       ClubsScreen(
@@ -155,6 +157,8 @@ class _AppShellState extends State<AppShell> {
         rideRecapApi: widget.rideRecapApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
+        navigationEnabled: widget.config.navigationEnabled,
+        voiceIntercomEnabled: widget.config.voiceIntercomEnabled,
       ),
       ProfileScreen(
         riderProfile: widget.riderProfile,

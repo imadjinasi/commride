@@ -31,6 +31,8 @@ class RideDetailScreen extends StatefulWidget {
     this.rideRecapApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
+    this.navigationEnabled = false,
+    this.voiceIntercomEnabled = false,
     required this.onChanged,
     super.key,
   });
@@ -45,6 +47,8 @@ class RideDetailScreen extends StatefulWidget {
   final RideRecapApi? rideRecapApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
+  final bool navigationEnabled;
+  final bool voiceIntercomEnabled;
   final VoidCallback onChanged;
 
   @override
@@ -219,7 +223,10 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
   Future<void> _openActiveRide() async {
     final ActiveRideRuntimeManager? runtimeManager =
         widget.activeRideRuntimeManager;
-    if (runtimeManager == null || _item.ride.status != RideStatus.active) {
+    final RideMembership? membership = _item.membership;
+    if (runtimeManager == null ||
+        membership == null ||
+        _item.ride.status != RideStatus.active) {
       return;
     }
 
@@ -227,8 +234,13 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
       MaterialPageRoute<void>(
         builder: (BuildContext context) => ActiveRideCommandCenterScreen(
           ride: _item.ride,
+          membership: membership,
           runtimeManager: runtimeManager,
+          routePlannerApi: widget.routePlannerApi,
+          rideSosApi: widget.rideSosApi,
           mapsEnabled: widget.mapsEnabled,
+          navigationEnabled: widget.navigationEnabled,
+          voiceIntercomEnabled: widget.voiceIntercomEnabled,
         ),
       ),
     );
