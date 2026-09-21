@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
 
 import '../../active_ride/active_ride_runtime.dart';
+import '../../active_ride/ride_sos_controller.dart';
+import '../../api/ride_sos_api.dart';
+import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
+import 'active_ride_navigation_screen.dart';
 import 'active_ride_tracking_screen.dart';
 import 'live_group_screen.dart';
+import 'ride_sos_screen.dart';
 
 class ActiveRideCommandCenterScreen extends StatefulWidget {
   const ActiveRideCommandCenterScreen({
     required this.ride,
+    required this.membership,
     required this.runtimeManager,
+    required this.routePlannerApi,
+    required this.rideSosApi,
     required this.mapsEnabled,
+    required this.navigationEnabled,
+    required this.voiceIntercomEnabled,
     super.key,
   });
 
   final Ride ride;
+  final RideMembership membership;
   final ActiveRideRuntimeManager runtimeManager;
+  final RoutePlannerApi routePlannerApi;
+  final RideSosApi rideSosApi;
   final bool mapsEnabled;
+  final bool navigationEnabled;
+  final bool voiceIntercomEnabled;
 
   @override
   State<ActiveRideCommandCenterScreen> createState() =>
@@ -61,6 +76,19 @@ class _ActiveRideCommandCenterScreenState
             }
 
             final ActiveRideRuntime runtime = snapshot.data!;
+            if (widget.navigationEnabled) {
+              return ActiveRideNavigationScreen(
+                ride: widget.ride,
+                membership: widget.membership,
+                runtime: runtime,
+                routePlannerApi: widget.routePlannerApi,
+                voiceIntercomEnabled: widget.voiceIntercomEnabled,
+                onOpenLiveGroup: () => _openLiveGroup(runtime),
+                onOpenTracking: () => _openTracking(runtime),
+                onOpenSos: () => _openSos(runtime),
+              );
+            }
+
             return Scaffold(
               appBar: AppBar(title: const Text('Active Ride')),
               body: SafeArea(
@@ -146,4 +174,23 @@ class _ActiveRideCommandCenterScreenState
       ),
     );
   }
+
+  Future<void> _openSos(ActiveRideRuntime runtime) async {
+    final RideSosController controller = RideSosController(
+      rideId: widget.ride.id,
+      api: widget.rideSosApi,
+      realtimeClient: runtime.realtimeClient,
+    );
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideSosScreen(
+          ride: widget.ride,
+          membership: widget.membership,
+          controller: controller,
+        ),
+      ),
+    );
+  }
+
 }
