@@ -99,6 +99,8 @@ Ownership is always derived from the authenticated Rider. Updating or deleting
 another Rider's Vehicle returns `vehicle_not_found` rather than exposing
 cross-Rider ownership details.
 
+The persistence table is the existing `vehicles` table from migration `0001`; this corrective restore does not require a new migration.
+
 
 Unknown endpoints return a structured error:
 
