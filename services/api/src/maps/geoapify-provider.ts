@@ -601,7 +601,7 @@ function decodePolyline(encoded: string): GeoPoint[] {
 
 function decodeSigned(
   encoded: string,
-  startIndex: number;
+  startIndex: number,
 ): { readonly value: number; readonly nextIndex: number } {
   let result = 0;
   let shift = 0;
@@ -617,7 +617,7 @@ function decodeSigned(
     shift += 5;
     if (byte < 0x20) {
       const value = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
-      retur { value, nextIndex: index };
+      return { value, nextIndex: index };
     }
     if (shift > 30) {
       throw new Error('invalid_polyline');
