@@ -24,6 +24,11 @@ Operator evidence on 21 September 2026 already records:
 - Email/Password authentication enabled;
 - Android google-services.json downloaded locally;
 - Geoapify project `CommRide Pilot` created;
+- Cloudflare OAuth login verified for the operator account;
+- D1 database `commride-pilot` created in APAC with database ID
+  `b03592b1-10b1-40c9-a252-faa4ab568810`;
+- repository runtime config uses the required `DB` binding name and does not
+  default local development to the remote pilot database;
 - local API typecheck/tests and Wrangler dry-run passed on the earlier readiness source;
 - local migration validation did not run because Python was unavailable;
 - real npm lockfile generated locally and committed; API CI now uses npm ci.
@@ -71,28 +76,23 @@ actual exit/result before changing npm policy.
 
 ## 2. Provision the actual Cloudflare resources
 
-Only after the source gate is accepted, from `services/api`:
+Cloudflare login and D1 provisioning were completed by the operator on
+21 September 2026. The repository now records the real pilot D1 resource:
 
-```powershell
-npx wrangler login
-npx wrangler d1 create commride-pilot --location apac
-```
+- binding: `DB`;
+- database: `commride-pilot`;
+- database ID: `b03592b1-10b1-40c9-a252-faa4ab568810`;
+- region: APAC.
 
-Record the returned real database ID, then add the `DB` binding to Wrangler:
+The source already declares `ACTIVE_RIDE_ROOM` and the SQLite-backed
+`ActiveRideRoom` export; do not replace it with an unrelated
+lifecycle/migration model.
 
-```jsonc
-"d1_databases": [
-  {
-    "binding": "DB",
-    "database_name": "commride-pilot",
-    "database_id": "<REAL_DATABASE_ID>"
-  }
-]
-```
-
-The placeholder is not a real resource. Do not invent an ID. The source already
-declares `ACTIVE_RIDE_ROOM` and the SQLite-backed ActiveRideRoom export; do not
-replace it with an unrelated lifecycle/migration model.
+Wrangler's interactive create flow offered to configure a lowercase
+`commride_pilot` binding and remote-local access. That local generated
+configuration is **not** the application contract. CommRide requires the `DB`
+binding, and shared pilot D1 must not become the default local-development
+database.
 
 Review and apply the existing D1 migrations in order:
 

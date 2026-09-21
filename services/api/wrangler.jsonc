@@ -22,25 +22,25 @@
   },
 
   "vars": {
+    "FIREBASE_PROJECT_ID": "commride-pilot",
     "LOCATION_SAMPLE_RETENTION_DAYS": "30"
   },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "commride-pilot",
+      "database_id": "b03592b1-10b1-40c9-a252-faa4ab568810"
+    }
+  ],
 
   "triggers": {
     "crons": ["17 3 * * *", "*/15 * * * *"]
   }
 
-  // D1 is intentionally not configured until the real pilot resource exists.
-  // Do not invent or commit a database ID.
-  //
-  // D1 example after provisioning:
-  // "d1_databases": [
-  //   {
-  //     "binding": "DB",
-  //     "database_name": "commride-pilot",
-  //     "database_id": "<real-database-id>"
-  //   }
-  // ]
-  //
   // Provider credentials remain deployment secrets. Never put Firebase
   // service-account private keys or map-provider server keys in this file.
+  //
+  // Intentionally omit D1 `remote: true`: local development must not
+  // default to writing against the shared pilot database.
 }
