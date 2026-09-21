@@ -90,6 +90,14 @@ import {
   D1RiderRepository,
   type RiderRepository,
 } from './riders/rider-repository';
+import {
+  handleVehicleRequest,
+  isVehicleRequestPath,
+} from './vehicles/vehicle-handler';
+import {
+  D1VehicleRepository,
+  type VehicleRepository,
+} from './vehicles/vehicle-repository';
 
 const SERVICE_NAME = 'commride-api';
 const SERVICE_VERSION = '0.1.0';
@@ -99,6 +107,7 @@ const firebaseVerifiers = new Map<string, FirebaseIdTokenVerifier>();
 export interface RouterOverrides {
   readonly identityVerifier?: IdentityVerifier;
   readonly riderRepository?: RiderRepository;
+  readonly vehicleRepository?: VehicleRepository;
   readonly clubRideRepository?: ClubRideRepository;
   readonly clubRideReadRepository?: ClubRideReadRepository;
   readonly routePlaceProvider?: RoutePlaceProvider;
@@ -731,6 +740,51 @@ export async function handleRequest(
             undefined,
           idFactory: overrides.idFactory,
           now: overrides.now,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isVehicleRequestPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const vehicleRepository =
+        overrides.vehicleRepository ??
+        (env.DB == null ? null : new D1VehicleRepository(env.DB));
+
+      if (riderRepository == null || vehicleRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Vehicle persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleVehicleRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          vehicleRepository,
+          idFactory: overrides.idFactory,
         },
       );
 
