@@ -26,6 +26,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set up Java for MapLibre Android
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -38,12 +44,15 @@ jobs:
 
       - name: Reject tracked provider or signing secrets
         run: |
-          tracked="$(git ls-files --             'android/app/google-services.json'             'ios/Runner/GoogleService-Info.plist'             'android/key.properties'             'android/app/*.jks'             'android/app/*.keystore')"
+          tracked="$(git ls-files -- 'android/app/google-services.json' 'ios/Runner/GoogleService-Info.plist' 'android/key.properties' 'android/app/*.jks' 'android/app/*.keystore')"
           test -z "$tracked" || {
             echo "Forbidden provider/signing files are tracked:"
             echo "$tracked"
             exit 1
           }
+
+      - name: Test native configurator and verifier
+        run: python tool/test_platforms.py
 
       - name: Generate native platform projects
         run: |

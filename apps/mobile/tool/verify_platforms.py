@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Verify generated CommRide Android/iOS declarations without real secrets."""
-
+"""Verify generated Android/iOS declarations without real provider secrets."""
 from __future__ import annotations
 
 import plistlib
+import re
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -16,97 +16,71 @@ def android_attr(name: str) -> str:
 
 
 def verify_android() -> None:
-    manifest_path = ROOT / "android/app/src/main/AndroidManifest.xml"
-    tree = ET.parse(manifest_path)
+    tree = ET.parse(ROOT / "android/app/src/main/AndroidManifest.xml")
     manifest = tree.getroot()
-
     permissions = {
         node.get(android_attr("name"))
         for node in manifest.findall("uses-permission")
     }
     required = {
+        "android.permission.INTERNET",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.POST_NOTIFICATIONS",
     }
-    missing = required - permissions
-    if missing:
-        raise SystemExit(f"Missing Android permissions: {sorted(missing)}")
-
+    if required - permissions:
+        raise SystemExit(f"Missing Android permissions: {sorted(required - permissions)}")
     if "android.permission.ACCESS_BACKGROUND_LOCATION" in permissions:
-        raise SystemExit(
-            "ACCESS_BACKGROUND_LOCATION is not part of the accepted MVP policy."
-        )
-
+        raise SystemExit("ACCESS_BACKGROUND_LOCATION is not part of the accepted MVP policy.")
     application = manifest.find("application")
     if application is None:
         raise SystemExit("Android application element missing.")
-
-    maps_metadata = [
-        node
-        for node in application.findall("meta-data")
-        if node.get(android_attr("name")) == "com.google.android.geo.API_KEY"
-    ]
-    if len(maps_metadata) != 1:
-        raise SystemExit("Google Maps Android metadata is missing or duplicated.")
-
-    if maps_metadata[0].get(android_attr("value")) != "@string/google_maps_key":
-        raise SystemExit("Google Maps Android key must come from a resource hook.")
-
+    if any(node.get(android_attr("name")) == "com.google.android.geo.API_KEY"
+           for node in application.findall("meta-data")):
+        raise SystemExit("Obsolete native Google Maps key hook remains.")
+    if (ROOT / "android/app/src/main/res/values/commride_maps.xml").exists():
+        raise SystemExit("Obsolete Google Maps key resource remains.")
     gradle = ROOT / "android/app/build.gradle.kts"
-    legacy_gradle = ROOT / "android/app/build.gradle"
-    gradle_path = gradle if gradle.exists() else legacy_gradle
-    content = gradle_path.read_text(encoding="utf-8")
+    if not gradle.exists():
+        gradle = ROOT / "android/app/build.gradle"
+    content = gradle.read_text(encoding="utf-8")
     if "minSdk = 24" not in content and "minSdkVersion 24" not in content:
         raise SystemExit("Android minSdk 24 declaration missing.")
+    app_id = re.findall(r'applicationId\s*=?\s*[\"\']([^\"\']+)[\"\']', content)
+    if app_id != ["io.github.imadjinasi.commride"]:
+        raise SystemExit("Android application ID does not match the accepted Firebase registration.")
 
 
 def verify_ios() -> None:
-    plist_path = ROOT / "ios/Runner/Info.plist"
-    with plist_path.open("rb") as handle:
+    with (ROOT / "ios/Runner/Info.plist").open("rb") as handle:
         plist = plistlib.load(handle)
-
-    if not plist.get("NSLocationWhenInUseUsageDescription"):
-        raise SystemExit("iOS When In Use location explanation missing.")
-    if not plist.get("NSLocationAlwaysAndWhenInUseUsageDescription"):
-        raise SystemExit("iOS background location explanation missing.")
-
-    modes = set(plist.get("UIBackgroundModes", []))
-    required_modes = {"location", "remote-notification"}
-    missing_modes = required_modes - modes
-    if missing_modes:
-        raise SystemExit(
-            f"Missing iOS background modes: {sorted(missing_modes)}"
-        )
-
-    if "COMMRIDE_MAPS_API_KEY" not in plist:
-        raise SystemExit("iOS Maps key hook missing.")
-
-    app_delegate = (
-        ROOT / "ios/Runner/AppDelegate.swift"
-    ).read_text(encoding="utf-8")
-    if "GMSServices.provideAPIKey" not in app_delegate:
-        raise SystemExit("iOS Google Maps setup missing.")
-    if "configureNotificationCenterDelegate()" not in app_delegate:
+    for name in ("NSLocationWhenInUseUsageDescription", "NSLocationAlwaysAndWhenInUseUsageDescription"):
+        if not plist.get(name):
+            raise SystemExit("iOS location explanation missing.")
+    missing = {"location", "remote-notification"} - set(plist.get("UIBackgroundModes", []))
+    if missing:
+        raise SystemExit(f"Missing iOS background modes: {sorted(missing)}")
+    if "COMMRIDE_MAPS_API_KEY" in plist:
+        raise SystemExit("Obsolete iOS Google Maps key remains.")
+    delegate = (ROOT / "ios/Runner/AppDelegate.swift").read_text(encoding="utf-8")
+    if "GoogleMaps" in delegate or "GMSServices" in delegate:
+        raise SystemExit("Obsolete iOS Google Maps setup remains.")
+    if "configureNotificationCenterDelegate()" not in delegate:
         raise SystemExit("FlutterFire notification delegate setup missing.")
 
 
 def verify_no_checked_in_provider_secrets() -> None:
-    forbidden = (
-        ROOT / "android/app/google-services.json",
-        ROOT / "ios/Runner/GoogleService-Info.plist",
-        ROOT / "android/key.properties",
-        ROOT / "android/app/upload-keystore.jks",
-    )
-    for path in forbidden:
-        if path.exists():
-            # Generated local files may exist during real-device work. This
-            # verifier is used by CI after clean checkout, so finding one here
-            # means the repository bootstrap unexpectedly carries a secret-ish
-            # provider/signing file.
-            raise SystemExit(f"Provider/signing file must not be in CI source: {path}")
+    # Run this clean-source verifier before local provider/signing setup.
+    for relative in (
+        "android/app/google-services.json",
+        "ios/Runner/GoogleService-Info.plist",
+        "android/key.properties",
+        "android/app/upload-keystore.jks",
+    ):
+        if (ROOT / relative).exists():
+            raise SystemExit(f"Provider/signing file must not be in CI source: {relative}")
 
 
 def main() -> None:
