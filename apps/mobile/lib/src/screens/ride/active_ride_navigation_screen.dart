@@ -364,8 +364,9 @@ class _ActiveRideNavigationScreenState
           );
 
       if (status != NavigationRouteStatus.statusOk) {
+        final String statusName = status.name;
         throw _NavigationPreparationException(
-          'Google Navigation menolak rute (' + status.name + ').',
+          'Google Navigation menolak rute ($statusName).',
         );
       }
 
@@ -443,6 +444,10 @@ class _ActiveRideNavigationScreenState
                     LivePresenceFreshness.stale => 0.65,
                     LivePresenceFreshness.offline => 0.4,
                   };
+                  final String roleLabel = presence.role.label;
+                  final String riderName = presence.displayName;
+                  final String freshnessLabel = freshness.label;
+                  final String movementLabel = presence.movement.name;
                   return MarkerOptions(
                     position: LatLng(
                       latitude: presence.latitude,
@@ -455,8 +460,8 @@ class _ActiveRideNavigationScreenState
                         ? 2
                         : 1,
                     infoWindow: InfoWindow(
-                      title: presence.role.label + ' · ' + presence.displayName,
-                      snippet: freshness.label + ' · ' + presence.movement.name,
+                      title: '$roleLabel · $riderName',
+                      snippet: '$freshnessLabel · $movementLabel',
                     ),
                   );
                 })
@@ -511,6 +516,9 @@ class _GroupStatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int total = live + stale + offline;
+    final String roleLabel = role.label;
+    final String staleLabel = stale > 0 ? ' · $stale Stale' : '';
+    final String offlineLabel = offline > 0 ? ' · $offline Offline' : '';
     return Material(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
@@ -520,10 +528,7 @@ class _GroupStatusBar extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                role.label +
-                    ' · $total Rider · $live Live' +
-                    (stale > 0 ? ' · $stale Stale' : '') +
-                    (offline > 0 ? ' · $offline Offline' : ''),
+                '$roleLabel · $total Rider · $live Live$staleLabel$offlineLabel',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
