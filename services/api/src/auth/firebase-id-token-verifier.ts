@@ -4,23 +4,19 @@ import {
   InvalidIdentityTokenError,
 } from './identity';
 
-const FIREBASE_JWKS_URL =
-  'https://www.googleapis.com/service_accounts/v1/jwk/' +
+const FIREBASE_CERTIFICATES_URL =
+  'https://www.googleapis.com/robot/v1/metadata/x509/' +
   'securetoken@system.gserviceaccount.com';
-const DEFAULT_KEY_CACHE_SECONDS = 300;
+const DEFAULT_CERTIFICATE_CACHE_SECONDS = 300;
 
-interface FirebaseJwk {
-  readonly kid: string;
-  readonly kty: 'RSA';
-  readonly alg: 'RS256';
-  readonly use?: 'sig';
-  readonly n: string;
-  readonly e: string;
+interface CertificateCache {
+  readonly expiresAtMs: number;
+  readonly certificates: ReadonlyMap<string, string>;
 }
 
-interface KeyCache {
+interface ImportedKeyCacheEntry {
   readonly expiresAtMs: number;
-  readonly keys: ReadonlyMap<string, FirebaseJwk>;
+  readonly key: CryptoKey;
 }
 
 interface JwtHeader {
@@ -39,6 +35,14 @@ interface JwtPayload {
   readonly email_verified?: boolean;
 }
 
+interface DerElement {
+  readonly tag: number;
+  readonly start: number;
+  readonly contentStart: number;
+  readonly end: number;
+  readonly next: number;
+}
+
 export class FirebaseIdTokenVerifier implements IdentityVerifier {
   constructor(
     private readonly projectId: string,
@@ -50,8 +54,8 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
     }
   }
 
-  private keyCache: KeyCache | null = null;
-  private readonly importedKeys = new Map<string, CryptoKey>();
+  private certificateCache: CertificateCache | null = null;
+  private readonly importedKeys = new Map<string, ImportedKeyCacheEntry>();
 
   async verify(token: string): Promise<AuthenticatedIdentity> {
     try {
@@ -114,32 +118,28 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
 
   private async keyForId(keyId: string): Promise<CryptoKey> {
     const existing = this.importedKeys.get(keyId);
-    if (existing != null) {
-      return existing;
+    if (existing != null && existing.expiresAtMs > this.now()) {
+      return existing.key;
     }
+    this.importedKeys.delete(keyId);
 
-    let cache = await this.getKeyCache();
-    let jwk = cache.keys.get(keyId);
-    if (jwk == null) {
-      this.keyCache = null;
+    let cache = await this.getCertificateCache();
+    let certificate = cache.certificates.get(keyId);
+    if (certificate == null) {
+      this.certificateCache = null;
       this.importedKeys.clear();
-      cache = await this.getKeyCache();
-      jwk = cache.keys.get(keyId);
+      cache = await this.getCertificateCache();
+      certificate = cache.certificates.get(keyId);
     }
 
-    if (jwk == null) {
+    if (certificate == null) {
       throw new InvalidIdentityTokenError();
     }
 
+    const spki = extractSubjectPublicKeyInfo(certificate);
     const key = await crypto.subtle.importKey(
-      'jwk',
-      {
-        kty: jwk.kty,
-        n: jwk.n,
-        e: jwk.e,
-        alg: jwk.alg,
-        use: jwk.use ?? 'sig',
-      },
+      'spki',
+      spki,
       {
         name: 'RSASSA-PKCS1-v1_5',
         hash: 'SHA-256',
@@ -148,17 +148,20 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
       ['verify'],
     );
 
-    this.importedKeys.set(keyId, key);
+    this.importedKeys.set(keyId, {
+      expiresAtMs: cache.expiresAtMs,
+      key,
+    });
     return key;
   }
 
-  private async getKeyCache(): Promise<KeyCache> {
-    const existing = this.keyCache;
+  private async getCertificateCache(): Promise<CertificateCache> {
+    const existing = this.certificateCache;
     if (existing != null && existing.expiresAtMs > this.now()) {
       return existing;
     }
 
-    const response = await this.fetcher(FIREBASE_JWKS_URL);
+    const response = await this.fetcher(FIREBASE_CERTIFICATES_URL);
     if (!response.ok) {
       throw new InvalidIdentityTokenError(
         'Firebase signing keys are temporarily unavailable.',
@@ -166,35 +169,160 @@ export class FirebaseIdTokenVerifier implements IdentityVerifier {
     }
 
     const body: unknown = await response.json();
-    if (!isRecord(body) || !Array.isArray(body.keys)) {
+    if (!isRecord(body)) {
       throw new InvalidIdentityTokenError(
         'Firebase signing keys are temporarily unavailable.',
       );
     }
 
-    const keys = new Map<string, FirebaseJwk>();
-    for (const candidate of body.keys) {
-      const jwk = readFirebaseJwk(candidate);
-      if (jwk != null) {
-        keys.set(jwk.kid, jwk);
+    const certificates = new Map<string, string>();
+    for (const [keyId, certificate] of Object.entries(body)) {
+      if (
+        keyId.length > 0 &&
+        typeof certificate === 'string' &&
+        certificate.includes('-----BEGIN CERTIFICATE-----') &&
+        certificate.includes('-----END CERTIFICATE-----')
+      ) {
+        certificates.set(keyId, certificate);
       }
     }
 
-    if (keys.size === 0) {
+    if (certificates.size === 0) {
       throw new InvalidIdentityTokenError(
         'Firebase signing keys are temporarily unavailable.',
       );
     }
 
-    const cache: KeyCache = {
+    const cache: CertificateCache = {
       expiresAtMs:
         this.now() +
         parseMaxAge(response.headers.get('cache-control')) * 1000,
-      keys,
+      certificates,
     };
-    this.keyCache = cache;
+    this.certificateCache = cache;
     return cache;
   }
+}
+
+function extractSubjectPublicKeyInfo(certificatePem: string): Uint8Array<ArrayBuffer> {
+  const der = decodeCertificatePem(certificatePem);
+  const certificate = readDerElement(der, 0);
+  requireTag(certificate, 0x30);
+
+  if (certificate.next !== der.length) {
+    throw new InvalidIdentityTokenError();
+  }
+
+  const tbsCertificate = readDerElement(der, certificate.contentStart);
+  requireTag(tbsCertificate, 0x30);
+
+  let offset = tbsCertificate.contentStart;
+  let field = readDerElement(der, offset);
+
+  if (field.tag === 0xa0) {
+    offset = field.next;
+    field = readDerElement(der, offset);
+  }
+
+  requireTag(field, 0x02);
+  offset = field.next;
+
+  field = readDerElement(der, offset);
+  requireTag(field, 0x30);
+  offset = field.next;
+
+  field = readDerElement(der, offset);
+  requireTag(field, 0x30);
+  offset = field.next;
+
+  field = readDerElement(der, offset);
+  requireTag(field, 0x30);
+  offset = field.next;
+
+  field = readDerElement(der, offset);
+  requireTag(field, 0x30);
+  offset = field.next;
+
+  const subjectPublicKeyInfo = readDerElement(der, offset);
+  requireTag(subjectPublicKeyInfo, 0x30);
+
+  if (subjectPublicKeyInfo.next > tbsCertificate.end) {
+    throw new InvalidIdentityTokenError();
+  }
+
+  const result = new Uint8Array(
+    subjectPublicKeyInfo.next - subjectPublicKeyInfo.start,
+  );
+  result.set(
+    der.subarray(subjectPublicKeyInfo.start, subjectPublicKeyInfo.next),
+  );
+  return result;
+}
+
+function readDerElement(bytes: Uint8Array, offset: number): DerElement {
+  if (offset < 0 || offset + 2 > bytes.length) {
+    throw new InvalidIdentityTokenError();
+  }
+
+  const tag = bytes[offset];
+  const firstLengthByte = bytes[offset + 1];
+
+  let length = 0;
+  let contentStart = offset + 2;
+
+  if ((firstLengthByte & 0x80) === 0) {
+    length = firstLengthByte;
+  } else {
+    const lengthBytes = firstLengthByte & 0x7f;
+    if (
+      lengthBytes === 0 ||
+      lengthBytes > 4 ||
+      contentStart + lengthBytes > bytes.length
+    ) {
+      throw new InvalidIdentityTokenError();
+    }
+
+    for (let index = 0; index < lengthBytes; index += 1) {
+      length = length * 256 + bytes[contentStart + index];
+    }
+    contentStart += lengthBytes;
+
+    if (length < 128) {
+      throw new InvalidIdentityTokenError();
+    }
+  }
+
+  const end = contentStart + length;
+  if (end > bytes.length) {
+    throw new InvalidIdentityTokenError();
+  }
+
+  return {
+    tag,
+    start: offset,
+    contentStart,
+    end,
+    next: end,
+  };
+}
+
+function requireTag(element: DerElement, expected: number): void {
+  if (element.tag !== expected) {
+    throw new InvalidIdentityTokenError();
+  }
+}
+
+function decodeCertificatePem(value: string): Uint8Array<ArrayBuffer> {
+  const base64 = value
+    .replace('-----BEGIN CERTIFICATE-----', '')
+    .replace('-----END CERTIFICATE-----', '')
+    .replace(/\s+/g, '');
+
+  if (base64.length === 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
+    throw new InvalidIdentityTokenError();
+  }
+
+  return decodeBase64(base64);
 }
 
 function readHeader(encoded: string): JwtHeader {
@@ -247,36 +375,6 @@ function readPayload(encoded: string): JwtPayload {
   };
 }
 
-function readFirebaseJwk(value: unknown): FirebaseJwk | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const { kid, kty, alg, use, n, e } = value;
-  if (
-    typeof kid !== 'string' ||
-    kid.length === 0 ||
-    kty !== 'RSA' ||
-    alg !== 'RS256' ||
-    (use != null && use !== 'sig') ||
-    typeof n !== 'string' ||
-    n.length === 0 ||
-    typeof e !== 'string' ||
-    e.length === 0
-  ) {
-    return null;
-  }
-
-  return {
-    kid,
-    kty,
-    alg,
-    ...(use === 'sig' ? { use } : {}),
-    n,
-    e,
-  };
-}
-
 function decodeJsonObject(encoded: string): Record<string, unknown> {
   try {
     const value: unknown = JSON.parse(
@@ -302,10 +400,13 @@ function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded =
     normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4);
+  return decodeBase64(padded);
+}
 
+function decodeBase64(value: string): Uint8Array<ArrayBuffer> {
   let decoded: string;
   try {
-    decoded = atob(padded);
+    decoded = atob(value);
   } catch {
     throw new InvalidIdentityTokenError();
   }
@@ -319,14 +420,14 @@ function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
 
 function parseMaxAge(cacheControl: string | null): number {
   if (cacheControl == null) {
-    return DEFAULT_KEY_CACHE_SECONDS;
+    return DEFAULT_CERTIFICATE_CACHE_SECONDS;
   }
 
   const match = /(?:^|,)\s*max-age=(\d+)/i.exec(cacheControl);
   const parsed = match == null ? Number.NaN : Number(match[1]);
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return DEFAULT_KEY_CACHE_SECONDS;
+    return DEFAULT_CERTIFICATE_CACHE_SECONDS;
   }
 
   return parsed;
