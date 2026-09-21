@@ -42,5 +42,5 @@
   // ]
   //
   // Provider credentials remain deployment secrets. Never put Firebase
-  // service-account private keys or Google Maps server keys in this file.
+  // service-account private keys or map-provider server keys in this file.
 }

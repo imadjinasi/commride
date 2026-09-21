@@ -1,7 +1,7 @@
 # CommRide Technical Architecture v0.1
 
-Status: Proposed  
-Date: 18 September 2026
+Status: Pilot architecture direction  
+Date: 21 September 2026
 
 ## 1. Goals
 
@@ -12,7 +12,7 @@ The first architecture should:
 - scale down when no Ride is active;
 - support background location;
 - support realtime Ride rooms;
-- avoid excessive Google Maps API usage;
+- avoid excessive map/route provider API usage;
 - avoid premature microservices;
 - preserve an escape path from any individual map provider.
 
@@ -82,29 +82,40 @@ Future use:
 Do not upload large media in the first implementation unless required.
 
 ### Maps and route provider
-Initial provider: **Google Maps Platform**
+Accepted first-pilot target:
 
-Expected capabilities:
-- Maps SDK;
-- Places autocomplete/search;
-- Routes;
-- route alternatives;
+- **MapLibre** for mobile map rendering;
+- **Geoapify** map style/tile service for the mobile map;
+- **Geoapify APIs** behind the CommRide server adapter for
+  autocomplete/geocoding, place lookup/search, and motorcycle routing.
+
+The integrated source still contains the earlier Google Maps implementation.
+That is implementation history, not the accepted pilot target. The migration to
+MapLibre + Geoapify should be a separate focused PR and must preserve the
+provider abstraction.
+
+Expected pilot capabilities:
+
+- map rendering;
+- Places-style autocomplete/search;
+- motorcycle routing;
+- route alternatives when materially different;
 - Add Stop/waypoints;
 - Nearby Search;
-- Search Along Route.
+- Search Along Route composed server-side when necessary.
 
-Embedded Navigation SDK is not required for MVP.
+Search Along Route may be implemented by sampling a bounded route/polyline
+corridor, querying Places around relevant points, deduplicating, ranking, and
+returning provider-independent CommRide DTOs.
 
-The app may deep-link to:
-- Google Maps;
-- Waze;
-- Apple Maps on iOS;
+Embedded turn-by-turn navigation is not required for MVP.
 
-for turn-by-turn guidance.
+The app may still deep-link to external navigation apps such as Google Maps,
+Waze, or Apple Maps on iOS for turn-by-turn guidance.
 
 ## 3. Provider abstraction
 
-Business logic should not directly depend on Google-specific APIs throughout the codebase.
+Business logic should not directly depend on provider-specific APIs throughout the codebase.
 
 Conceptual interfaces:
 
@@ -134,7 +145,7 @@ Flutter App
 Cloudflare Worker API
   |-- D1
   |-- R2
-  |-- Google Maps/Routes/Places
+  |-- Geoapify place/routing APIs
   |-- Firebase notification integration
   |
   | WebSocket / Ride channel
@@ -226,7 +237,10 @@ Simple computations can run in application code:
 - convoy spread;
 - gap heuristics.
 
-Complex discovery such as “fuel stations along this route” remains the map provider's job.
+Complex discovery such as “fuel stations along this route” remains behind the
+map/place provider boundary. When the provider does not expose a single
+along-route primitive, the CommRide server adapter may compose bounded corridor
+queries and return normalized results.
 
 If future analytics require serious spatial querying, the persistence layer can evolve toward PostgreSQL/PostGIS.
 
@@ -281,7 +295,7 @@ Baseline requirements:
 - live location access is not implied by social follow;
 - server controls role-sensitive actions;
 - secrets remain server-side;
-- map keys restricted by platform/API where possible;
+- map/provider credentials restricted to the minimum trust boundary and API use where possible;
 - rate limits on expensive external API actions;
 - SOS/incident writes audited.
 

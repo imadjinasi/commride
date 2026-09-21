@@ -11,7 +11,7 @@ Three different statements must stay separate:
 
 1. **Repository PASS** — source, tests, migrations, native declarations, and CI
    build gates passed.
-2. **Provider/runtime PASS** — real Firebase, Google Maps, Cloudflare, D1, and
+2. **Provider/runtime PASS** — real Firebase, Geoapify, Cloudflare, D1, and
    Worker configuration were created and verified.
 3. **Device/field PASS** — a signed real build passed physical-device and convoy
    scenarios.
@@ -20,35 +20,45 @@ Do not use one class of evidence to claim another class passed.
 
 ## 0. Record the pilot baseline
 
-Before changing provider configuration, record:
+Before changing provider/runtime configuration, record:
 
 - exact Git commit SHA;
 - operator name;
 - date/time;
 - intended environment: `pilot`;
-- Android application ID: `io.github.imadjinasi.commride` (accepted for the pilot baseline);
-- iOS bundle ID;
+- Android application ID:
+  `io.github.imadjinasi.commride` (accepted for the pilot baseline);
+- iOS bundle ID once finalized;
 - planned API URL;
-- Firebase project ID;
-- Google Cloud project ID.
+- Firebase project ID: `commride-pilot`;
+- pilot map provider: MapLibre + Geoapify;
+- Geoapify project: `CommRide Pilot`;
+- provider migration state: not yet implemented until the separate source PR
+  lands.
 
 The Android application ID and iOS bundle ID are technical application
-identifiers, not website URLs. They are long-lived identifiers used by Firebase,
-Google Maps restrictions, Android/iOS signing, and store distribution.
+identifiers, not website URLs. They are long-lived identifiers used by
+Firebase, provider restrictions, Android/iOS signing, and store distribution.
 
-Do not register provider applications until these identifiers are final.
+Google Maps is deferred for this pilot; do not block the runbook on Google
+billing or a replacement payment card.
 
-## 1. Create the Firebase pilot project
+## 1. Complete the Firebase pilot integration
 
-In Firebase Console:
+Recorded operator evidence already confirms:
 
-1. Create or select a dedicated CommRide pilot project.
-2. Enable **Authentication > Sign-in method > Email/Password**.
-3. Register the Android app using the final Android application ID.
-4. Register the iOS app using the final iOS bundle ID.
-5. Do not commit provider configuration or private credentials to the repository.
+- Firebase project display name `CommRide Pilot`;
+- Firebase project ID `commride-pilot`;
+- Android Firebase app `CommRide`;
+- Android application ID `io.github.imadjinasi.commride`;
+- Email/Password authentication enabled;
+- Android `google-services.json` downloaded locally.
 
-On the mobile development workstation:
+Do not recreate those resources unless a mismatch is discovered. The local
+provider file must remain untracked and must never be copied into GitHub,
+documentation, screenshots, or chat.
+
+Still required on the mobile development workstation:
 
 ```bash
 firebase login
@@ -69,8 +79,8 @@ python tool/verify_platforms.py
 The verifier above is a clean-source/native-declaration check. Run it **before**
 placing local Firebase provider files into the generated native directories.
 
-After the final application identifiers have been applied to the native
-projects, connect Firebase:
+Then connect the real Android Firebase configuration and run the official
+FlutterFire/native workflow:
 
 ```bash
 flutterfire configure
@@ -81,11 +91,13 @@ flutter test
 
 Expected evidence:
 
-- Email/Password provider enabled;
-- Android Firebase app exists with the final application ID;
-- iOS Firebase app exists with the final bundle ID;
-- CommRide sign-in reaches Firebase on a real/dev build;
-- no service-account private key is tracked in Git.
+- the installed/dev CommRide build reaches Firebase Email/Password auth;
+- Android native configuration resolves for
+  `io.github.imadjinasi.commride`;
+- no Firebase service-account private key is tracked in Git.
+
+iOS Firebase registration remains pending until the final iOS bundle ID is
+accepted.
 
 ### iOS push prerequisite
 
@@ -97,45 +109,50 @@ Before iOS FCM acceptance:
 - connect the APNs key to Firebase;
 - verify the signed app has the expected APNs entitlement.
 
-## 2. Prepare Google Maps Platform
+## 2. Prepare MapLibre + Geoapify for the pilot
 
-Use separate credentials for separate trust boundaries.
+The accepted pilot map direction is:
 
-Create:
+- MapLibre for mobile map rendering;
+- Geoapify for map style/tiles;
+- Geoapify server APIs for autocomplete/geocoding, place search/lookup, and
+  motorcycle routing;
+- CommRide API/provider adapters as the boundary between provider payloads and
+  domain DTOs.
 
-1. **Server Maps key** — used only by the CommRide API for Routes/Places web
-   services.
-2. **Android Maps key** — restricted to the final Android application ID and
-   signing-certificate fingerprint.
-3. **iOS Maps key** — restricted to the final iOS bundle ID.
+The Geoapify project `CommRide Pilot` already exists. Do not paste its API key
+into GitHub, documentation, screenshots, or chat.
 
-Enable only APIs actually needed by the pilot:
+**Repository reality:** the current integrated source still uses the earlier
+Google Maps provider/runtime. Do not call map-provider setup PASS until a
+separate source migration PR replaces that implementation and its tests pass.
 
-- Routes API;
-- Places API used by the server adapter;
-- Maps SDK for Android;
-- Maps SDK for iOS when iOS testing begins.
+Prefer two trust boundaries:
 
-Before the pilot:
+1. **Server/provider key** — backend Geoapify calls only; store as a Cloudflare
+   secret after the migration PR defines the runtime environment contract.
+2. **Mobile map key** — only for the MapLibre map/style/tile surface where a
+   client credential is required; keep it out of Git and do not reuse the
+   server key.
 
-- attach billing;
-- configure budget alerts;
-- configure conservative API quotas;
-- confirm Search Along Route remains on-demand;
-- keep the existing route stop/result caps.
+The backend migration should support:
 
-Never place the server key in a mobile Dart define.
+- autocomplete/geocoding;
+- place lookup/search;
+- motorcycle routing;
+- provider-independent route summaries/alternatives;
+- on-demand Search Along Route.
 
-For generated native projects, local mobile keys are supplied through the
-existing platform configuration hooks:
+If Search Along Route has no single provider primitive, implement it on the
+server from the selected route/polyline by selecting a bounded corridor/sample
+set, querying relevant Places areas, deduplicating, ranking, and returning
+CommRide DTOs.
 
-```bash
-export COMMRIDE_MAPS_ANDROID_API_KEY="<android-key>"
-export COMMRIDE_MAPS_IOS_API_KEY="<ios-key>"
-python tool/configure_platforms.py
-```
+Do not fabricate Google-identical route alternatives. Return useful alternatives
+only when they materially differ.
 
-On PowerShell use `$env:NAME="value"` instead of `export`.
+Google Maps remains a future provider option; it is not required for the first
+pilot.
 
 ## 3. Provision Cloudflare pilot resources
 
@@ -183,25 +200,29 @@ Record the migration output and exact Git SHA.
 
 Non-secret operational configuration includes:
 
-- `FIREBASE_PROJECT_ID`;
+- `FIREBASE_PROJECT_ID=commride-pilot`;
 - `LOCATION_SAMPLE_RETENTION_DAYS` (repository default: 30).
 
 Secrets include:
 
 - `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL`;
 - `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`;
-- `GOOGLE_MAPS_PLATFORM_API_KEY`.
+- the Geoapify server/provider key.
 
-Use Cloudflare secrets for secret values. Example:
+The separate provider-migration PR should define one stable backend environment
+name for the Geoapify key (recommended: `GEOAPIFY_API_KEY`) before production
+configuration is applied.
+
+Use Cloudflare secrets for secret values. After the source contract exists:
 
 ```bash
 npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL
 npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY
-npx wrangler secret put GOOGLE_MAPS_PLATFORM_API_KEY
+npx wrangler secret put GEOAPIFY_API_KEY
 ```
 
 Do not paste those secret values into GitHub issues, PR comments, screenshots,
-or this repository.
+documentation, or chat.
 
 Before deployment, verify the Firebase project ID configured by the API matches
 the Firebase project issuing the mobile ID tokens.
@@ -217,6 +238,11 @@ npm test
 python3 scripts/validate_migrations.py
 npx wrangler deploy --dry-run
 ```
+
+A real `services/api/package-lock.json` was generated on the operator machine
+but is not yet committed. Do not fabricate a replacement. Once that exact
+lockfile is reviewed and committed, switch dependency installation in CI and
+this runbook to `npm ci --no-audit --no-fund`.
 
 Then deploy the real pilot Worker:
 
@@ -245,7 +271,8 @@ Do not call the environment PASS if only `/health` works.
 
 ## 6. Build the Android pilot app
 
-From `apps/mobile`, after Firebase and Maps native configuration are present:
+From `apps/mobile`, after Firebase is integrated and the separate
+MapLibre/Geoapify source migration has landed:
 
 ```bash
 flutter pub get
@@ -321,7 +348,7 @@ On Android, record at minimum:
 - OEM battery-optimization behavior;
 - visible foreground-location notification;
 - FCM SOS/Need Help/Leader-announcement delivery;
-- Maps marker and freshness state;
+- MapLibre/Geoapify marker and freshness state;
 - End Ride stops sharing;
 - sign-out stops local Ride runtime;
 - battery percentage at start/end.
@@ -377,12 +404,12 @@ Battery start/end:
 GPS/background result:
 Live/Stale/Offline result:
 FCM/APNs result:
-Maps result:
+MapLibre/Geoapify map result:
 SOS result:
 Checkpoint result:
 Provider/runtime errors:
 Cloudflare usage:
-Maps usage:
+Geoapify usage:
 Approximate cost:
 GitHub defects/issues:
 Operator:

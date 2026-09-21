@@ -22,8 +22,8 @@ mobile source tree inherited from PR #65; PR #66 changed backend/documentation
 files only.
 
 This evidence proves repository readiness only. It does not prove that a
-Cloudflare/Firebase/Maps environment has been deployed or that physical-device
-and convoy acceptance has passed.
+Cloudflare/Firebase/map-provider environment has been deployed or that
+physical-device and convoy acceptance has passed.
 
 ## Included product flow
 
@@ -40,7 +40,9 @@ Repository-side supporting behavior includes:
 - explicit contextual location permission;
 - background-capable location-session declarations;
 - Live/Stale/Offline Rider presence semantics;
-- guarded Google Maps Live Group rendering;
+- guarded Live Group map rendering currently implemented with Google Maps in
+  the integrated source; the accepted pilot migration to MapLibre + Geoapify is
+  still pending;
 - shared Active Ride realtime ownership;
 - server-derived convoy-separation attention;
 - low-frequency Completed Ride journey sampling;
@@ -74,13 +76,19 @@ Before inviting real Riders, complete
 [`pilot-release-checklist.md`](pilot-release-checklist.md) and the
 [`pilot operator runbook`](deployment/pilot-operator-runbook.md), including:
 
-- final Android application ID and iOS bundle ID;
+- keep the accepted Android application ID
+  `io.github.imadjinasi.commride` stable and finalize the iOS bundle ID before
+  iOS provider registration;
 - real Cloudflare D1 / Durable Object resources and deployment;
-- real Firebase Android/iOS app registration;
-- API FCM service-account secrets;
+- complete FlutterFire/native Android integration against the existing
+  `commride-pilot` Firebase project;
+- register/configure the iOS Firebase app only after its bundle ID is final;
+- API FCM service-account secrets in the deployment secret store;
 - real APNs configuration and signed iOS entitlement;
-- restricted Android/iOS Maps keys;
-- restricted server-side Maps key;
+- a separate reviewed source migration from the existing Google Maps runtime to
+  MapLibre + Geoapify;
+- separate Geoapify trust boundaries for the server provider key and the mobile
+  map/style key where required;
 - Android/iOS physical-device background tracking;
 - notification receipt on real devices;
 - lock-screen and network-recovery tests;
@@ -88,6 +96,9 @@ Before inviting real Riders, complete
 - actual battery-drain measurement;
 - real convoy field test;
 - provider usage/cost observation.
+
+Google Maps billing/credential setup is not a first-pilot acceptance gate after
+the provider decision change.
 
 CI must never be used as evidence that those gates passed.
 
