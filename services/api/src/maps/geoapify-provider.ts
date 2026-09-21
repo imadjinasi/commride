@@ -17,6 +17,7 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const SEARCH_RADIUS_METERS = 5000;
 const MAX_SEARCH_CENTERS = 6;
 const MAX_PER_CENTER = 5;
+const workerFetch: typeof fetch = (input, init) => fetch(input, init);
 
 type JsonObject = Record<string, unknown>;
 type RouteKind = 'balanced' | 'short';
@@ -26,7 +27,7 @@ interface Candidate extends AlongRoutePlace { readonly routeDistance: number }
 export class GeoapifyProvider implements RoutePlaceProvider {
   constructor(
     private readonly apiKey: string,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
   ) {
     if (apiKey.trim().length === 0) throw new Error('Geoapify API key must not be empty.');
   }
