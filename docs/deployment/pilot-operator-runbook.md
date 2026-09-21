@@ -1,171 +1,84 @@
 # CommRide Pilot Operator Runbook
 
-This runbook turns the repository-ready CommRide MVP into a real provider-backed
-pilot build. It is intentionally operator-driven: provider accounts, secrets,
-signing credentials, and physical-device evidence must never be invented from
-repository state.
+This runbook applies to the MapLibre + Geoapify implementation in PR #68 on top of
+readiness PR #67. Repository implementation is not a deployed provider-backed app.
+Follow the approved exact source revision; do not deploy an unreviewed draft.
 
 ## Evidence rule
 
-Three different statements must stay separate:
+Keep four independent gates:
 
-1. **Repository PASS** — source, tests, migrations, native declarations, and CI
-   build gates passed.
-2. **Provider/runtime PASS** — real Firebase, Geoapify, Cloudflare, D1, and
-   Worker configuration were created and verified.
-3. **Device/field PASS** — a signed real build passed physical-device and convoy
-   scenarios.
+1. Repository PASS: source, dependencies, tests, migrations and CI build checks.
+2. Provider/runtime PASS: actual Firebase, Geoapify, Cloudflare/D1 and Worker behavior.
+3. Device PASS: installed signed build, permissions, map/GPS/push and battery evidence.
+4. Field convoy PASS: observed group behavior in a safely conducted real Ride.
 
-Do not use one class of evidence to claim another class passed.
+No gate substitutes for another. Do not close #33, #52, #55, #58 or #59 on CI alone.
 
-## 0. Record the pilot baseline
+## 0. Known setup and what must not be repeated
 
-Before changing provider/runtime configuration, record:
+Operator evidence on 21 September 2026 already records:
 
-- exact Git commit SHA;
-- operator name;
-- date/time;
-- intended environment: `pilot`;
-- Android application ID:
-  `io.github.imadjinasi.commride` (accepted for the pilot baseline);
-- iOS bundle ID once finalized;
-- planned API URL;
-- Firebase project ID: `commride-pilot`;
-- pilot map provider: MapLibre + Geoapify;
-- Geoapify project: `CommRide Pilot`;
-- provider migration state: not yet implemented until the separate source PR
-  lands.
-
-The Android application ID and iOS bundle ID are technical application
-identifiers, not website URLs. They are long-lived identifiers used by
-Firebase, provider restrictions, Android/iOS signing, and store distribution.
-
-Google Maps is deferred for this pilot; do not block the runbook on Google
-billing or a replacement payment card.
-
-## 1. Complete the Firebase pilot integration
-
-Recorded operator evidence already confirms:
-
-- Firebase project display name `CommRide Pilot`;
-- Firebase project ID `commride-pilot`;
-- Android Firebase app `CommRide`;
-- Android application ID `io.github.imadjinasi.commride`;
+- Firebase project `CommRide Pilot`, ID `commride-pilot`;
+- Android Firebase app `CommRide` registered for `io.github.imadjinasi.commride`;
 - Email/Password authentication enabled;
-- Android `google-services.json` downloaded locally.
+- Android google-services.json downloaded locally;
+- Geoapify project `CommRide Pilot` created;
+- local API typecheck/tests and Wrangler dry-run passed on the earlier readiness source;
+- local migration validation did not run because Python was unavailable;
+- real npm lockfile generated locally and committed; API CI now uses npm ci.
 
-Do not recreate those resources unless a mismatch is discovered. The local
-provider file must remain untracked and must never be copied into GitHub,
-documentation, screenshots, or chat.
+Do not recreate these resources without a mismatch. The Android application ID is
+a long-lived technical identity, not a website URL. iOS Bundle ID/registration
+remains unfinalized; do not create it by assumption.
 
-Still required on the mobile development workstation:
+Google Maps is deferred. Do not block the pilot on Google billing or another card.
+There is no Cloudflare/D1 deployment, real provider acceptance, installed Firebase
+integration, FCM delivery, device or convoy PASS in the setup evidence above.
 
-```bash
-firebase login
-dart pub global activate flutterfire_cli
+## 1. Source gate and baseline record
+
+Record exact Git SHA, operator, date/time and intended `pilot` environment. Check
+both API and Mobile CI on the selected revision. PR #68 must not be merged without
+explicit authorization. An unprotected main branch is not a reason to skip review.
+
+In PowerShell, check local changes before switching or pulling:
+
+```powershell
+git status
+git branch --show-current
+git fetch origin
 ```
 
-First generate the native platform projects from `apps/mobile`:
-
-```bash
-flutter create \
-  --platforms=android,ios \
-  --project-name commride_mobile \
-  --org io.github.imadjinasi .
-python tool/configure_platforms.py
-python tool/verify_platforms.py
-```
-
-The verifier above is a clean-source/native-declaration check. Run it **before**
-placing local Firebase provider files into the generated native directories.
-
-Then connect the real Android Firebase configuration and run the official
-FlutterFire/native workflow:
-
-```bash
-flutterfire configure
-flutter pub get
-flutter analyze
-flutter test
-```
-
-Expected evidence:
-
-- the installed/dev CommRide build reaches Firebase Email/Password auth;
-- Android native configuration resolves for
-  `io.github.imadjinasi.commride`;
-- no Firebase service-account private key is tracked in Git.
-
-iOS Firebase registration remains pending until the final iOS bundle ID is
-accepted.
-
-### iOS push prerequisite
-
-Before iOS FCM acceptance:
-
-- enable **Push Notifications** capability in Xcode;
-- enable the required background notification mode;
-- create/use an APNs authentication key in the Apple Developer account;
-- connect the APNs key to Firebase;
-- verify the signed app has the expected APNs entitlement.
-
-## 2. Prepare MapLibre + Geoapify for the pilot
-
-The accepted pilot map direction is:
-
-- MapLibre for mobile map rendering;
-- Geoapify for map style/tiles;
-- Geoapify server APIs for autocomplete/geocoding, place search/lookup, and
-  motorcycle routing;
-- CommRide API/provider adapters as the boundary between provider payloads and
-  domain DTOs.
-
-The Geoapify project `CommRide Pilot` already exists. Do not paste its API key
-into GitHub, documentation, screenshots, or chat.
-
-**Repository reality:** the current integrated source still uses the earlier
-Google Maps provider/runtime. Do not call map-provider setup PASS until a
-separate source migration PR replaces that implementation and its tests pass.
-
-Prefer two trust boundaries:
-
-1. **Server/provider key** — backend Geoapify calls only; store as a Cloudflare
-   secret after the migration PR defines the runtime environment contract.
-2. **Mobile map key** — only for the MapLibre map/style/tile surface where a
-   client credential is required; keep it out of Git and do not reuse the
-   server key.
-
-The backend migration should support:
-
-- autocomplete/geocoding;
-- place lookup/search;
-- motorcycle routing;
-- provider-independent route summaries/alternatives;
-- on-demand Search Along Route.
-
-If Search Along Route has no single provider primitive, implement it on the
-server from the selected route/polyline by selecting a bounded corridor/sample
-set, querying relevant Places areas, deduplicating, ranking, and returning
-CommRide DTOs.
-
-Do not fabricate Google-identical route alternatives. Return useful alternatives
-only when they materially differ.
-
-Google Maps remains a future provider option; it is not required for the first
-pilot.
-
-## 3. Provision Cloudflare pilot resources
+Preserve local files and use fast-forward-only updates. Do not use reset/clean or
+blindly stage all files. Read the
+[provider migration contract](maplibre-geoapify-pilot.md) and
+[pilot checklist](../pilot-release-checklist.md).
 
 From `services/api`:
 
-```bash
+```powershell
+npm ci --no-audit --no-fund
+npm run typecheck
+npm test
+npx wrangler deploy --dry-run --outdir "$env:TEMP\commride-worker"
+```
+
+Stop on a failed command. Run `python scripts/validate_migrations.py` once Python
+is installed, or retain CI migration evidence clearly labeled as CI rather than a
+local result. A dependency-script warning alone is not a failed test; inspect the
+actual exit/result before changing npm policy.
+
+## 2. Provision the actual Cloudflare resources
+
+Only after the source gate is accepted, from `services/api`:
+
+```powershell
 npx wrangler login
 npx wrangler d1 create commride-pilot --location apac
 ```
 
-Record the returned real D1 database ID.
-
-Add the real D1 binding to the deployment configuration:
+Record the returned real database ID, then add the `DB` binding to Wrangler:
 
 ```jsonc
 "d1_databases": [
@@ -177,242 +90,195 @@ Add the real D1 binding to the deployment configuration:
 ]
 ```
 
-Do not invent an ID.
+The placeholder is not a real resource. Do not invent an ID. The source already
+declares `ACTIVE_RIDE_ROOM` and the SQLite-backed ActiveRideRoom export; do not
+replace it with an unrelated lifecycle/migration model.
 
-The repository already declares the Active Ride Durable Object binding and the
-declarative SQLite-backed `ActiveRideRoom` export.
+Review and apply the existing D1 migrations in order:
 
-Check unapplied D1 migrations:
-
-```bash
+```powershell
 npx wrangler d1 migrations list commride-pilot --remote
-```
-
-Apply them:
-
-```bash
 npx wrangler d1 migrations apply commride-pilot --remote
 ```
 
-Record the migration output and exact Git SHA.
+Record exact SHA, database ID and migration output. A dry-run alone does not prove
+login, provisioning, remote migrations or deployment.
 
-## 4. Configure API variables and secrets
+## 3. Runtime variables and secret boundaries
 
-Non-secret operational configuration includes:
+Non-secret configuration:
 
 - `FIREBASE_PROJECT_ID=commride-pilot`;
-- `LOCATION_SAMPLE_RETENTION_DAYS` (repository default: 30).
+- `LOCATION_SAMPLE_RETENTION_DAYS=30` unless an approved value in 1..365 is required.
 
-Secrets include:
+Set the Firebase project ID in the actual Worker variables, not just in a document.
+It must match the issuer/audience of mobile Firebase ID tokens.
 
-- `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL`;
-- `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`;
-- the Geoapify server/provider key.
+Use a dedicated Geoapify backend key in Cloudflare's secret store:
 
-The separate provider-migration PR should define one stable backend environment
-name for the Geoapify key (recommended: `GEOAPIFY_API_KEY`) before production
-configuration is applied.
-
-Use Cloudflare secrets for secret values. After the source contract exists:
-
-```bash
-npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL
-npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY
+```powershell
 npx wrangler secret put GEOAPIFY_API_KEY
 ```
 
-Do not paste those secret values into GitHub issues, PR comments, screenshots,
-documentation, or chat.
+The backend now consumes that exact name; it does not fall back to a Google key.
+Use the Wrangler prompt locally, never paste a value into chat or GitHub.
 
-Before deployment, verify the Firebase project ID configured by the API matches
-the Firebase project issuing the mobile ID tokens.
+After the Cloudflare secret store is ready, configure FCM HTTP v1 credentials:
 
-## 5. Deploy and smoke-test the API
-
-Validate locally/CI first:
-
-```bash
-npm ci --no-audit --no-fund
-npm run typecheck
-npm test
-python3 scripts/validate_migrations.py
-npx wrangler deploy --dry-run
+```powershell
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY
 ```
 
-The API dependency lockfile is committed and CI uses `npm ci` so dependency
-resolution is reproducible from the reviewed lockfile.
+Keep service-account JSON/private keys outside the checkout and never commit them.
+No service-account private key is needed solely for Firebase ID-token verification.
+FCM failures must not undo authoritative Ride/SOS/Briefing/Checkpoint persistence.
 
-Then deploy the real pilot Worker:
+Use a separate client map key for Geoapify styles/tiles. A mobile key can be
+recovered from an APK; do not reuse the backend key. Confirm the actual Geoapify
+restriction options and account quotas instead of assuming Google-style Android
+certificate or API restrictions. Check per-second limits as well as daily usage;
+request caps are not a global provider quota guarantee.
 
-```bash
+## 4. Deploy and verify the Worker
+
+After reviewing variables, bindings, migrations and secrets:
+
+```powershell
 npx wrangler deploy
 ```
 
-Record:
+Record exact Git SHA, real Worker URL, Worker deployment/version identifier, D1
+ID, Firebase project ID, provider configuration state and deployment time.
 
-- exact Git SHA;
-- Worker URL;
-- Worker deployment/version identifier;
-- D1 database ID;
-- Firebase project ID;
-- deployment date/time.
+Verify the real URL without inventing it:
 
-Smoke tests:
+- GET /health succeeds;
+- GET /version returns the expected service version;
+- real Firebase-authenticated GET /v1/me works, or returns the expected new-Rider
+  onboarding 404 before PUT /v1/me;
+- joined Active Ride upgrades to its authenticated WebSocket;
+- daily retention and 15-minute reminder triggers are configured and their actual
+  execution is verified separately.
 
-1. `GET /health` returns success.
-2. `GET /version` returns the expected deployed version/baseline.
-3. A real Firebase-authenticated `GET /v1/me` reaches the API.
-4. An Active Ride can upgrade to the authenticated WebSocket room.
-5. Scheduled retention/reminder configuration is visible and later verified.
+The current /version response is not a Git SHA attestation. Record the selected
+SHA and Worker version together; do not infer exact source from service version
+0.1.0. A working /health alone is not runtime PASS.
 
-Do not call the environment PASS if only `/health` works.
+## 5. Verify Geoapify behavior before distributing a build
 
-## 6. Build the Android pilot app
+Using authenticated CommRide API requests with the actual provider configuration:
 
-From `apps/mobile`, after Firebase is integrated and the separate
-MapLibre/Geoapify source migration has landed:
+- autocomplete and resolve a real place;
+- compute a motorcycle route with no car substitution;
+- add/reorder Stops and recompute/save a RoutePlan revision;
+- inspect recommended/shortest alternatives when materially distinct;
+- exercise Fuel/Food/Rest/Hotel/custom Search Along Route;
+- verify invalid-key/quota failures do not expose provider credentials;
+- observe account usage and ensure pilot concurrent load stays within real limits.
 
-```bash
+Search Along Route is approximate sampled-area search: up to six distance-spaced
+5 km circles, not an exhaustive corridor or proof of road access. Long routes can
+have gaps. Detour distance/time remains unavailable until actual recomputation
+through the selected Stop. Do not present this as Google-identical behavior.
+
+## 6. Complete local Android Firebase and map integration
+
+Only after backend/provider setup, prepare the actual mobile build. The accepted
+Android application ID remains `io.github.imadjinasi.commride`.
+
+From `apps/mobile`, with Flutter/Android SDK/Java 21 and Python installed:
+
+```powershell
+flutter create --platforms=android,ios --project-name commride_mobile --org io.github.imadjinasi .
+python tool/configure_platforms.py
+python tool/verify_platforms.py
+```
+
+Run the clean-source verifier before placing provider files. The configurator
+sets the Android application ID, release Internet permission and location/FCM
+declarations; it does not perform Firebase registration or finalize iOS identity.
+
+Complete the official local FlutterFire/native Android configuration against
+`commride-pilot`. Select Android only until iOS identity is accepted. Keep the
+local google-services.json and generated Firebase options out of Git. Verify an
+installed build really signs in; producing configuration files is not auth PASS.
+
+Copy the example defines file in PowerShell:
+
+```powershell
+Copy-Item pilot-defines.example.json pilot-defines.local.json
+notepad pilot-defines.local.json
+```
+
+In that ignored local file set the actual Worker URL, request maps and supply an
+HTTPS Geoapify style URL with only the dedicated client map key. Do not put the
+server key, service-account credentials or signing password in Dart defines.
+The example URL is intentionally unusable and maps are disabled until configured.
+
+```powershell
+git check-ignore pilot-defines.local.json
 flutter pub get
 flutter analyze
 flutter test
+flutter build apk --release --dart-define-from-file=pilot-defines.local.json
 ```
 
-Build a pilot release against the real API:
+For Play distribution after actual signing/store setup:
 
-```bash
-flutter build apk --release \
-  --dart-define=COMMRIDE_ENV=production \
-  --dart-define=COMMRIDE_API_BASE_URL=https://<REAL_WORKER_URL> \
-  --dart-define=COMMRIDE_MAPS_ENABLED=true
+```powershell
+flutter build appbundle --release --dart-define-from-file=pilot-defines.local.json
 ```
 
-For Play distribution:
+A CI release AAB is only a build gate, not a Play-signed release or installed-device
+provider acceptance. Never commit the keystore or signing passwords.
 
-```bash
-flutter build appbundle --release \
-  --dart-define=COMMRIDE_ENV=production \
-  --dart-define=COMMRIDE_API_BASE_URL=https://<REAL_WORKER_URL> \
-  --dart-define=COMMRIDE_MAPS_ENABLED=true
-```
+## 7. Two-Rider functional smoke before any road test
 
-A CI release AAB is only a build gate. Store distribution still requires real
-signing and the appropriate store setup.
+Use two separate accounts/devices. Complete Account, Rider profile, Vehicle, Club,
+invite/join, Ride, Route Planner and save, Briefing, both Riders Ready, Start Ride,
+Live Group, Quick Action, Checkpoint check-in/release, private chat, Leader
+announcement, raise SOS, verify End Ride rejection, cancel/resolve SOS, End Ride
+and Ride Recap. Any core blocker stops progression to field testing.
 
-Prefer a controlled internal-testing channel for the first Club pilot.
+## 8. Physical-device acceptance
 
-## 7. Two-Rider functional smoke test
+On Android record fresh install, permission denied/later enabled for notifications
+and location, tracking started only from Active Ride, screen lock for at least
+20 minutes, background/foreground, temporary internet loss/reconnect, Wi-Fi/mobile
+transition, OEM battery optimization, foreground location-service notification,
+FCM receipt, map rendering/freshness/fallback, End Ride/sign-out teardown and
+measured battery start/end over a representative Ride.
 
-Do this before any road test.
+Document force-stop/terminated behavior exactly as observed; never infer it from
+native declarations or unit tests. Opening a map must not independently request
+location or start a second tracking session.
 
-Use two separate accounts/devices and complete:
+Before iOS support is claimed, finalize/register the Bundle ID, configure Firebase
+and APNs, enable Push Notifications capability with actual signing entitlements,
+and repeat equivalent scenarios on a signed physical iPhone. No APNs entitlement
+or provider identity is fabricated by repository bootstrap.
 
-1. Create/sign in account.
-2. Complete Rider profile.
-3. Create Vehicle.
-4. Create Club.
-5. Invite/join the second Rider.
-6. Create Ride.
-7. Invite/join the second Rider.
-8. Create/save Route Plan.
-9. Publish Briefing.
-10. Both Riders acknowledge Ready.
-11. Start Ride.
-12. Confirm both appear in Live Group.
-13. Exercise a Quick Action.
-14. Check in/release a Checkpoint.
-15. Send private Ride chat and Leader announcement.
-16. Raise SOS.
-17. Confirm End Ride is rejected while SOS is active.
-18. Cancel/resolve SOS.
-19. End Ride.
-20. Open Ride Recap.
+## 9. Convoy field acceptance
 
-Any core-flow blocker stops progression to the convoy field test.
+Use at least three vehicles: Leader, Member and Sweeper. Verify all Live, deliberate
+Stale/Offline, last-known timestamps, reconnect only becoming Live after a fresh
+accepted observation, Saya Berhenti, Saya Tertinggal, Butuh Bantuan, separation
+attention, Checkpoints, chat, announcement, SOS with/without GPS, End Ride blocked
+by SOS, SOS closure, successful End Ride and planned-vs-sampled Recap.
 
-## 8. Physical-device GPS and notification test
+Screen interactions must be performed while safely stopped. CommRide is not an
+emergency dispatch service or crash/fall detector.
 
-On Android, record at minimum:
+## 10. Evidence record
 
-- device model and Android version;
-- fresh-install permission flow;
-- notification denied then later enabled;
-- location denied then later enabled;
-- tracking starts only from Active Ride;
-- lock screen for at least 20 minutes;
-- background/foreground app transitions;
-- temporary network loss and recovery;
-- Wi-Fi/mobile-data transition;
-- OEM battery-optimization behavior;
-- visible foreground-location notification;
-- FCM SOS/Need Help/Leader-announcement delivery;
-- MapLibre/Geoapify marker and freshness state;
-- End Ride stops sharing;
-- sign-out stops local Ride runtime;
-- battery percentage at start/end.
+For each test record exact app/API SHA; Worker URL/version; D1 ID; Firebase project;
+app version/build/signing channel; device models/OS; permission states; Rider count;
+Ride duration; network scenarios; battery start/end; GPS/background/freshness
+outcome; map/provider and notification outcomes; SOS/Checkpoint/End Ride/Recap
+results; errors; observed Cloudflare/Geoapify usage; approximate cost; linked
+defects; operator and date/time. Do not include credentials or unneeded raw GPS.
 
-Document force-stop behavior exactly as observed. Do not claim terminated-app
-tracking beyond evidence.
-
-Repeat the equivalent acceptance set on a signed physical iPhone before iOS is
-called supported for the pilot.
-
-## 9. First convoy field test
-
-Use at least three vehicles so Leader / Member / Sweeper and separation behavior
-can be exercised.
-
-Record:
-
-- all Riders become Live;
-- one Rider intentionally becomes Stale/Offline;
-- last-known position remains explicitly stale/offline;
-- reconnect becomes Live only after a fresh accepted observation;
-- Saya Berhenti;
-- Saya Tertinggal;
-- Butuh Bantuan;
-- convoy separation attention;
-- Checkpoint check-in and Leader release;
-- private Ride chat;
-- Leader announcement;
-- SOS with GPS;
-- SOS without GPS if safely reproducible;
-- End Ride rejection while active SOS exists;
-- successful End Ride after SOS closure;
-- Ride Recap planned-vs-sampled distinction.
-
-Interactions that require attention to the screen must be done while safely
-stopped.
-
-## 10. Pilot evidence record
-
-Create one evidence record per test Ride:
-
-```text
-Git SHA:
-API deployment/version:
-App version/build:
-Android/iOS:
-Device models:
-Rider count:
-Ride duration:
-Permission state:
-Network scenarios:
-Battery start/end:
-GPS/background result:
-Live/Stale/Offline result:
-FCM/APNs result:
-MapLibre/Geoapify map result:
-SOS result:
-Checkpoint result:
-Provider/runtime errors:
-Cloudflare usage:
-Geoapify usage:
-Approximate cost:
-GitHub defects/issues:
-Operator:
-Date/time:
-```
-
-The first-Club pilot can be called accepted only after repository, provider,
-device, and field evidence are all explicitly recorded.
+Accept the pilot only when repository, provider/runtime, device and field evidence
+are each explicitly recorded. Deployment/provider/device work remains pending
+until the operator actually performs and verifies these steps.

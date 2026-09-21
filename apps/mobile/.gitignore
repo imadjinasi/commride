@@ -23,4 +23,5 @@ ios/Flutter/ephemeral/
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 android/key.properties
+lib/firebase_options.dart
 pilot-defines.local.json

@@ -32,37 +32,25 @@ If a requested implementation introduces behavior not covered by the current pro
 
 ## Current project stage
 
-CommRide has an integrated **repository-side MVP candidate for the first-Club
-pilot**. Repository CI can prove source, tests, migration validation, generated
-native declarations, and CI Android build gates.
+CommRide has an integrated repository-side MVP candidate for the first-Club pilot.
+PR #68 implements the MapLibre + Geoapify source migration on top of the #67
+readiness baseline. Consult exact-head CI evidence; a previous baseline PASS is
+not automatic acceptance of a new provider implementation.
 
-Operator evidence recorded on 21 September 2026 additionally confirms:
+Operator evidence recorded on 21 September 2026 confirms only basic setup:
 
 - Firebase project `commride-pilot` exists;
-- Android Firebase app `CommRide` is registered for
-  `io.github.imadjinasi.commride`;
+- Android Firebase app `CommRide` is registered for `io.github.imadjinasi.commride`;
 - Firebase Email/Password authentication is enabled;
 - Geoapify project `CommRide Pilot` exists.
 
-Those facts prove only basic provider account/registration setup. They do not
-prove native mobile integration, real push delivery, map-provider source
-integration, Cloudflare deployment, physical-device behavior, or convoy field
-acceptance.
+Do not treat source implementation or provider account setup as deployed or
+field-tested reality. Do not claim Cloudflare/D1 runtime deployment, installed
+FlutterFire integration, live provider requests, real FCM delivery, store signing,
+background GPS, or convoy acceptance without their own evidence.
 
-Do not treat repository readiness or provider-account setup as deployed or
-field-tested reality.
-
-Do not claim:
-
-- Cloudflare Worker/D1/Durable Object pilot runtime is deployed;
-- FlutterFire/native Firebase integration works in a real installed app;
-- FCM delivery is verified;
-- MapLibre + Geoapify source integration is complete;
-- a store-signed mobile build exists;
-- background GPS, push delivery, or convoy behavior passed on physical devices;
-
-unless verified by repository evidence or explicitly supplied runtime/operator
-evidence.
+Keep Repository PASS, Provider/runtime PASS, Device PASS and Field convoy PASS
+separate. Issues #33, #52, #55, #58 and #59 require more than repository CI.
 
 ## MVP boundaries
 
@@ -108,39 +96,31 @@ Do not state or imply that SOS contacts public emergency services unless such in
 
 ## Map/provider rules
 
-The accepted first-pilot direction is **MapLibre + Geoapify**. The integrated
-source still contains the earlier Google Maps implementation and must not be
-described as migrated until a separate provider-migration PR is implemented,
-tested, and reviewed.
+The accepted first-pilot direction is MapLibre + Geoapify. The migration contract
+is `docs/deployment/maplibre-geoapify-pilot.md`; it supersedes old Google-specific
+implementation/setup instructions, not unrelated domain decisions.
 
-Pilot target:
+- MapLibre renders the mobile map using a separately supplied Geoapify client style.
+- Geoapify server APIs handle autocomplete, place resolution/search and routing.
+- `two_wheeler` must use motorcycle routing, never an undisclosed car fallback.
+- `GEOAPIFY_API_KEY` stays in the backend secret store, not mobile configuration.
+- Client map keys are recoverable from apps; do not claim Google-style platform
+  restrictions unless the chosen provider actually offers them.
+- Provider-specific response types stay inside the adapter.
+- Search Along Route is bounded, on-demand sampled-area search, not exhaustive
+  coverage, road-access verification or a measured detour. Unavailable totals
+  stay null; adding a Stop recomputes the route.
+- Route alternatives must materially differ; do not fabricate Google parity.
+- Maps must not request a second GPS stream or recenter automatically.
+- Preserve list fallback, freshness labels and provider/data attribution.
 
-- MapLibre for mobile map rendering;
-- Geoapify map style/tile service for the MapLibre surface;
-- Geoapify server APIs for autocomplete/geocoding, place lookup/search, and
-  motorcycle routing;
-- CommRide API/provider adapters remain the application boundary.
+Google Maps remains a possible future provider. Google billing and keys are not
+pilot prerequisites. External navigation links remain independent of the embedded
+map; full turn-by-turn guidance stays outside MVP.
 
-Google Maps is deferred for the pilot and remains only a possible future
-provider option.
-
-Do not scatter provider-specific response types through core domain logic.
-
-MVP should rely on external navigation apps for full turn-by-turn navigation.
-
-Search Along Route may need to be composed server-side from the selected route
-or polyline by sampling a corridor, querying Places around relevant points,
-deduplicating, ranking, and returning CommRide DTOs. Do not claim Geoapify
-behavior is identical to Google.
-
-Route alternatives should expose useful materially different choices only; the
-pilot does not need to manufacture Google-identical alternatives.
-
-Expensive API actions such as Search Along Route should be:
-
-- deliberate/on-demand;
-- rate controlled;
-- not redundantly repeated per Rider when shared Ride results are sufficient.
+Expensive provider actions must be deliberate, bounded and not automatically
+repeated by every Rider for shared planning state. Account quotas and operational
+abuse controls still need verification before real pilot use.
 
 ## Realtime rules
 
@@ -153,7 +133,6 @@ Use adaptive/sampled history and define retention behavior explicitly before pro
 ## Architecture constraints
 
 Pilot direction:
-
 - Flutter mobile app;
 - Cloudflare Workers;
 - Cloudflare D1;
@@ -161,16 +140,10 @@ Pilot direction:
 - R2 for object storage where needed;
 - Firebase Authentication;
 - FCM for push;
-- MapLibre for mobile map rendering;
-- Geoapify behind provider adapters for map tiles/style and server-side
-  place/routing capabilities.
+- MapLibre for mobile rendering;
+- Geoapify place/routing adapters and client map style/tiles.
 
-The repository still contains the previous Google Maps implementation until the
-focused provider-migration work lands. Preserve provider boundaries so the
-domain does not depend on Geoapify-specific response shapes.
-
-Avoid premature infrastructure expansion without an evidenced product or scale
-need.
+Avoid premature infrastructure expansion without an evidenced product or scale need.
 
 ## UX constraints
 
@@ -201,6 +174,8 @@ Prefer:
 - documentation updates when behavior changes.
 
 Do not merge a PR unless the user explicitly asks for a merge.
+Do not commit provider files, API keys, service-account JSON, signing credentials,
+or local `pilot-defines.local.json`. Do not hand-author dependency lockfiles.
 
 ## Documentation language
 

@@ -1,612 +1,289 @@
 # CommRide API
 
-Cloudflare Worker API scaffold for CommRide.
+Cloudflare Worker API for the first-Club CommRide pilot.
 
-## Current scope
+## Scope and evidence
 
-Implemented:
+Repository source includes health/version, request IDs and structured errors,
+Firebase identity verification, Rider/Vehicle CRUD, Club/Ride lifecycle, RoutePlan,
+Briefing, Checkpoints, Active Ride WebSocket coordination, private Comms, persistent
+SOS, sampled Ride Recap, FCM token lifecycle, scheduled notifications and retention.
 
-- module Worker entry point;
-- `GET /health`;
-- `GET /version`;
-- request IDs;
-- structured JSON errors;
-- optional typed D1/Durable Object bindings;
-- Firebase ID-token verification boundary;
-- authenticated `GET /v1/me` and `PUT /v1/me`;
-- D1 Rider profile repository;
-- authenticated Rider-owned Vehicle profile CRUD;
-- provider-neutral route/place boundary;
-- Google Routes + Places (New) web-service adapter;
-- authenticated route/place planning endpoints;
-- hibernatable Active Ride WebSocket room;
-- persisted Checkpoints, private Ride Comms, persistent SOS, and Ride Recap;
-- low-frequency Ride journey sampling;
-- authenticated FCM device-token lifecycle and best-effort Ride notifications;
-- scheduled privacy retention for sampled location history;
-- realtime event cadence guards;
-- unit tests and migration validation across the implemented MVP API.
+PR #68 uses a Geoapify route/place adapter instead of Google Routes/Places. Provider
+DTOs stay inside the adapter; application endpoints and persisted route coordinates
+remain provider-neutral. No new D1 migration is required for this provider change.
 
-Still environment/operator work:
+Repository CI does not prove provider accounts, real D1/Worker deployment, live
+Geoapify calls, FCM/APNs delivery or physical-device/field acceptance. Basic Firebase
+and Geoapify account setup recorded by the operator is not runtime acceptance.
 
-- production Cloudflare resource identifiers and secrets;
-- production Firebase/APNs configuration;
-- production Google Maps Platform configuration;
-- deployment and real-device verification.
+## Development and runtime configuration
 
-## Local development
-
-Prerequisites:
-
-- Node.js compatible with current Wrangler/Vitest
-- npm
-
-From `services/api`:
+From `services/api`, using the Node toolchain pinned in API CI:
 
 ```bash
-npm install
+npm ci --no-audit --no-fund
 npm run typecheck
 npm test
-npm run dev
+python3 scripts/validate_migrations.py
+npx wrangler deploy --dry-run
 ```
 
-The public health/version endpoints require no secrets.
+On Windows use the installed Python command. Missing Python is not a local PASS;
+CI migration validation is separate evidence. The real npm-generated lockfile is
+committed; do not invent a Flutter lockfile or alter dependency script policy only
+to silence an installation warning.
 
-The Rider profile endpoints require verified runtime bindings:
+`npm run dev` starts Wrangler development. Never use pilot/production secrets in
+an unreviewed development environment.
 
-- `FIREBASE_PROJECT_ID`
-- `DB` (D1)
+Required for authenticated persistence:
 
-The route/place endpoints additionally require:
+- `FIREBASE_PROJECT_ID`: non-secret project configuration (`commride-pilot` for pilot);
+- `DB`: real D1 binding.
 
-- `GOOGLE_MAPS_PLATFORM_API_KEY` — server-side secret/configuration only.
+Additional capabilities:
 
-The repository does not contain a production key. CI uses fake providers and
-mocked HTTP calls.
+- `ACTIVE_RIDE_ROOM`: Durable Object namespace;
+- `GEOAPIFY_API_KEY`: backend provider secret, never a mobile define;
+- `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL` and `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`:
+  FCM deployment secrets;
+- `LOCATION_SAMPLE_RETENTION_DAYS`: bounded retention configuration.
 
-The Firebase project ID is configuration, not a private credential. No Firebase
-service-account private key is required solely for ID-token verification.
+ID-token verification alone does not require a Firebase service-account private
+key. The verifier uses Firebase's published signing certificates and configured
+issuer/audience. Clients supply `Authorization: Bearer <firebase-id-token>`.
 
-## Endpoints
+Wrangler declares the SQLite-backed ActiveRideRoom export and scheduled triggers.
+D1 remains unbound until a real database is created. Do not invent IDs or replace
+the declarative Durable Object configuration with an unrelated deployment model.
+Follow the [operator runbook](../../docs/deployment/pilot-operator-runbook.md).
 
-### GET /health
+## Public diagnostics
 
-Example response:
+`GET /health` returns service `commride-api`, version `0.1.0`, status `ok` and
+request ID. `GET /version` returns service/version/request ID. These endpoints
+require no credentials and do not validate D1, Firebase or provider readiness.
+They do not currently expose an exact Git SHA; record that alongside the actual
+Worker deployment/version identifier rather than inferring it from `0.1.0`.
+Unknown endpoints return a structured `not_found` error with request ID.
 
-```json
-{
-  "status": "ok",
-  "service": "commride-api",
-  "version": "0.1.0",
-  "requestId": "..."
-}
-```
+## Rider and Vehicle
 
-### GET /version
+`GET /v1/me` returns the authenticated Rider profile; a new Firebase account
+without a CommRide profile receives `404 rider_profile_not_found`.
+`PUT /v1/me` accepts profile fields such as displayName, callsign and homeArea;
+authSubject is derived from the verified token, never the request body.
 
-Returns the service name/version and request ID.
+Rider-owned Vehicles:
 
-### Rider Vehicle profile
+- `GET /v1/me/vehicles`
+- `POST /v1/me/vehicles`
+- `PUT /v1/me/vehicles/:vehicleId`
+- `DELETE /v1/me/vehicles/:vehicleId`
 
-Authenticated Rider-owned Vehicle endpoints:
-
-- `GET /v1/me/vehicles` — list only the signed-in Rider's Vehicles;
-- `POST /v1/me/vehicles` — create a Vehicle owned by the signed-in Rider;
-- `PUT /v1/me/vehicles/:vehicleId` — update an owned Vehicle;
-- `DELETE /v1/me/vehicles/:vehicleId` — delete an owned Vehicle.
-
-Ownership is always derived from the authenticated Rider. Updating or deleting
-another Rider's Vehicle returns `vehicle_not_found` rather than exposing
-cross-Rider ownership details.
-
-The persistence table is the existing `vehicles` table from migration `0001`; this corrective restore does not require a new migration.
-
-
-Unknown endpoints return a structured error:
-
-```json
-{
-  "error": {
-    "code": "not_found",
-    "message": "The requested API endpoint does not exist.",
-    "requestId": "..."
-  }
-}
-```
-
-## Bindings
-
-`Env` reserves optional bindings:
-
-- `DB` — future Cloudflare D1 database;
-- `ACTIVE_RIDE_ROOM` — Active Ride Durable Object namespace.
-
-They are intentionally **not bound to invented production identifiers** in
-`wrangler.jsonc`; deployment must use verified Cloudflare resource IDs.
-
-When infrastructure is provisioned, use real resource identifiers and add the required Durable Object migration. Never commit provider secrets.
-
-## Active Ride room
-
-The repository now contains the first versioned Active Ride realtime protocol
-and a hibernatable Cloudflare Durable Object room implementation.
-
-### Public connection endpoint
-
-`GET /v1/rides/:rideId/live?v=1`
-
-Requires:
-- WebSocket upgrade;
-- verified Firebase identity;
-- completed Rider profile;
-- Ride state = `active`;
-- participating RideMembership (not invited/left/finished);
-- configured `ACTIVE_RIDE_ROOM` Durable Object binding.
-
-The Worker derives Rider identity and role from verified server-side state,
-then forwards the original WebSocket upgrade request to the room with internal
-identity headers. Client events cannot select another Rider ID.
-
-### Protocol v1
-
-Client -> room:
-- `presence.update`
-- `quick_action.raise`
-
-Room -> client:
-- `ride.snapshot`
-- `presence.updated`
-- `quick_action.raised`
-- `convoy.separation_updated`
-- `ride.ended`
-- `error`
-
-Presence observations are ordered by `observedAt`. An older queued
-observation cannot replace a newer latest-known position.
-
-`quick_action.raised` is built from the authenticated socket attachment. The
-room derives Rider identity/role server-side and, when available, includes the
-latest server-accepted RiderPresence as optional context. That context preserves
-its timestamps and current Live/Stale/Offline freshness. When no accepted
-presence exists, the action still broadcasts with `presence: null`; quick
-actions do not require GPS availability.
-
-### Cost and retention behavior
-
-CommRide uses the Durable Object WebSocket Hibernation API.
-
-While a Rider socket is connected, latest presence is carried in the
-WebSocket attachment so each GPS update does not create a D1 write or an
-append-only Durable Object location record.
-
-When a Rider disconnects, only that Rider's latest operational presence is
-stored so reconnecting Riders can receive a last-known/offline snapshot. This
-is overwritten operational state, not permanent location history.
-
-Ride completion broadcasts `ride.ended`, closes room sockets, and clears the
-stored offline presence entries. Any long-term LocationSample/history feature
-must use a separate sampled retention policy.
-
-### Convoy separation operational state
-
-The room evaluates the provider-independent convoy graph only from connected
-Live presence.
-
-The current derived state is included in `ride.snapshot` and meaningful
-changes broadcast `convoy.separation_updated`.
-
-To preserve hysteresis across Durable Object hibernation, the compact derived
-state may be stored in Durable Object storage. The room writes it only when
-phase, data sufficiency, component membership, Sweeper context, or hysteresis
-timestamps change. A new GPS sample with the same meaningful separation state
-does not cause another separation storage write.
-
-This is not D1 history and does not persist every GPS calculation.
-
-Initial field-test policy remains 600 m continuity, 20 s split confirmation,
-and 15 s recovery confirmation. It is not presented as final production safety
-truth.
-
-### Ride lifecycle integration
-
-`POST /v1/rides/:rideId/end` remains D1-authoritative. After the Ride becomes
-Completed, the API signals the Active Ride room to terminate. Repeating the
-idempotent End Ride command retries room termination when a room binding is
-available.
-
-The room also periodically checks authoritative Ride status while processing
-messages. New realtime connections are independently rejected by the Worker
-unless the Ride is Active.
-
-The repository still does **not** claim a production Durable Object binding is
-provisioned. `wrangler.jsonc` intentionally contains no invented production
-resource configuration.
-
-## Private Ride communication
-
-The API now defines D1-authoritative private Ride communication.
-
-Endpoints:
-
-- `GET /v1/rides/:rideId/messages` — paginated private history for
-  participating Riders while the Ride is Active or Completed.
-- `POST /v1/rides/:rideId/messages` — participant chat while the Ride is
-  Active.
-- `POST /v1/rides/:rideId/announcements` — Leader-only announcement while
-  the Ride is Active.
-
-Message bodies are trimmed, non-empty, and capped at 1000 Unicode characters.
-
-Each send includes a bounded `clientMessageId`. The unique Ride + sender +
-clientMessageId key makes retries idempotent. Reusing the same key for different
-content returns a conflict.
-
-The API derives sender Rider identity, display name, and Ride role from
-authenticated server state. Client-supplied sender fields are ignored.
-
-After D1 persistence succeeds, the API best-effort signals the Active Ride room,
-which broadcasts `ride.message_created`. If realtime delivery is unavailable,
-the persisted HTTP command still succeeds and clients recover through history.
-
-Completed Ride communication is read-only. Draft/Published Ride chat is not part
-of this initial operational slice.
-
-Message persistence contains no location coordinates. Quick Actions,
-Checkpoints, convoy separation, Ride End, and future SOS remain separate typed
-operational events.
-
-Migration `0005_ride_messages.sql` deliberately follows the Checkpoint stack's
-reserved `0004_checkpoint_coordination.sql`. A branch may temporarily contain
-a numbering gap while these stacked PRs remain unmerged.
-
-## Persistent Ride SOS
-
-SOS is a dedicated persistent incident model; it is not an ordinary Ride
-message and is not the same as the lightweight **Butuh Bantuan** Quick Action.
-
-Endpoints:
-
-- `GET /v1/rides/:rideId/sos` — Active/Completed participating Rider history.
-- `POST /v1/rides/:rideId/sos` — raise a new SOS while the Ride is Active.
-- `POST /v1/rides/:rideId/sos/:sosId/cancel` — raising Rider cancels own
-  Active SOS.
-- `POST /v1/rides/:rideId/sos/:sosId/resolve` — Ride Leader resolves an
-  Active SOS.
-
-Raise requests include a bounded `clientCommandId` for retry idempotency and
-an optional reason. Rider identity, display name, and Ride role are always
-server-derived.
-
-The API best-effort requests the Rider's latest server-accepted presence from
-the Active Ride Durable Object. If available, one trusted snapshot is persisted
-with coordinates, observation/receipt timestamps, movement, and
-Live/Stale/Offline freshness. Missing GPS or an unavailable realtime room never
-blocks SOS persistence.
-
-After persistence, the room may broadcast:
-- `ride.sos_raised`;
-- `ride.sos_cancelled`;
-- `ride.sos_resolved`.
-
-Realtime failure never rolls back the authoritative D1 incident. Clients can
-recover through the read endpoint.
-
-Initial Ride-end policy is conservative: an Active SOS must be cancelled or
-resolved before `POST /v1/rides/:rideId/end` can complete.
-
-CommRide does **not** claim SOS contacts public emergency services. No such
-integration is implemented by this slice.
-
-Migration `0006_ride_sos.sql` stores one incident row and optional trusted
-presence snapshot; it does not introduce permanent high-frequency location
-history.
-
-## Source of truth
-
-- `../../AGENTS.md`
-- `../../docs/technical-architecture.md`
-- `../../docs/development/ai-assisted-workflow.md`
-
-
-## Authentication
-
-Authenticated clients send a Firebase ID token using:
-
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-The Worker validates the token against Firebase's published signing
-certificates and the configured project audience/issuer.
-
-### GET /v1/me
-
-Returns the Rider profile for the authenticated Firebase subject.
-
-A signed-in Firebase account that has not completed CommRide profile onboarding
-receives `404 rider_profile_not_found`.
-
-### PUT /v1/me
-
-Creates or updates only the authenticated Rider's own profile.
-
-Example body:
-
-```json
-{
-  "displayName": "Imad",
-  "callsign": "Sweep",
-  "homeArea": "Cirebon"
-}
-```
-
-The client does not supply `authSubject`; it is derived from the verified
-Firebase token.
-
-Repository code does not prove that a production Firebase project, D1 database,
-or Cloudflare bindings exist. Those remain deployment configuration.
-
+Another Rider's Vehicle returns `vehicle_not_found` for update/delete, without
+revealing cross-Rider ownership. The `vehicles` table belongs to migration `0001`;
+its restored API did not require a new schema migration.
 
 ## Club and Ride lifecycle
 
-The initial lifecycle API is intentionally command-oriented rather than open
-CRUD.
+All commands require authenticated identity and a completed Rider profile.
 
-All endpoints below require an authenticated Rider with a completed CommRide
-Rider profile.
+Club endpoints:
 
-### Club
+- `GET /v1/clubs`: membership-scoped list, including invitations;
+- `POST /v1/clubs`: creator becomes active owner;
+- `POST /v1/clubs/:clubId/members/invite`: active owner/admin invites admin/member;
+- `POST /v1/clubs/:clubId/join`: invited Rider accepts.
 
-- `GET /v1/clubs` — list Clubs where the authenticated Rider has an invited or active membership.
-- `POST /v1/clubs` — create a Club; creator becomes active `owner`.
-- `POST /v1/clubs/:clubId/members/invite` — active owner/admin invites a Rider as `admin` or `member`.
-- `POST /v1/clubs/:clubId/join` — authenticated invited Rider accepts the invitation.
+Ride endpoints:
 
-### Ride
+- `GET /v1/clubs/:clubId/rides`: active Club membership required;
+- `POST /v1/clubs/:clubId/rides`: Club owner/admin creates a Ride and becomes Leader;
+- `POST /v1/rides/:rideId/members/invite`: Leader invites Member/Sweeper/Navigator;
+- `POST /v1/rides/:rideId/join`: invited Rider joins;
+- `POST /v1/rides/:rideId/publish`: Draft -> Published;
+- `POST /v1/rides/:rideId/start`: Published -> Active;
+- `POST /v1/rides/:rideId/end`: Active -> Completed;
+- `POST /v1/rides/:rideId/cancel`: Draft/Published -> Cancelled only.
 
-- `GET /v1/clubs/:clubId/rides` — list Club Rides for an active Club member, including the authenticated Rider's Ride membership when one exists.
-- `POST /v1/clubs/:clubId/rides` — active Club owner/admin creates a Ride and becomes its `leader`.
-- `POST /v1/rides/:rideId/members/invite` — Ride Leader invites a Rider as `member`, `sweeper`, or `navigator`.
-- `POST /v1/rides/:rideId/join` — authenticated invited Rider joins.
-- `POST /v1/rides/:rideId/publish` — `draft -> published`.
-- `POST /v1/rides/:rideId/start` — `published -> active`.
-- `POST /v1/rides/:rideId/end` — `active -> completed`.
-- `POST /v1/rides/:rideId/cancel` — Leader-only `draft|published -> cancelled`; repeating cancellation is idempotent.
-
-Publishing, starting, ending, and cancelling a Ride are Leader-only commands.
-Repeating a successful transition command after the Ride is already in that
-target state is idempotent.
-
-Cancellation is intentionally limited to Draft or Published Rides. Once a Ride
-is Active it must be ended as Completed instead of cancelled so the operational
-record reflects that the Ride actually started.
-
-Club roles and Ride roles are separate. A Club admin who creates a Ride becomes
-Leader of that Ride; a different Club owner does not automatically gain Leader
-authority over it.
-
-The initial API does not yet implement role transfer, Active Ride route
-revision, checkpoint check-in/release, location, chat, or social feed behavior.
-
-
-### Read-model privacy
-
-The Club list is membership-scoped; it is not a public Club directory.
-
-The Ride list requires an active Club membership. It may return a null Ride
-membership when the Rider belongs to the Club but has not joined that Ride.
-These read endpoints are intended to support the authenticated mobile shell,
-not public social discovery.
-
+Lifecycle transitions are Leader-only and idempotent when repeated in the target
+state. Active Rides must finish as Completed, not Cancelled. Club and Ride roles
+are separate; another Club owner does not automatically become this Ride's Leader.
+A Ride list can include null Ride membership for a Club member not joined to the
+Ride. These endpoints are not a public social directory.
 
 ## Route and place API
 
-All endpoints require an authenticated Rider with a completed Rider profile.
+Authenticated Riders with completed profiles use:
 
 - `POST /v1/maps/autocomplete`
 - `POST /v1/maps/resolve-place`
 - `POST /v1/maps/routes`
 - `POST /v1/maps/search-along-route`
 
-The API returns CommRide DTOs rather than raw Google payloads.
+The Geoapify adapter maps autocomplete/place details into CommRide suggestions and
+resolved places. Session-token fields remain compatible but are not Google billing
+sessions. References are opaque lookup values, not persisted geographic truth.
+
+Routing maps `two_wheeler` to `motorcycle` without a car fallback, keeps ordered
+waypoints and converts metric GeoJSON to precision-five encoded geometry. The
+pilot cap remains 10 intermediate Stops. Alternatives are requested before Stops
+only: recommended (`balanced`) and shortest (`short`) when materially different.
+Duplicate/nearly identical alternatives are suppressed; failure of only the
+optional alternative preserves a valid recommended route.
+
+Unsupported motorcycle toll/highway avoidance and mixed stopover/via modes fail
+explicitly. Ordinary mobile Stops are stopovers. Provider avoidance preferences
+are not guarantees of road exclusion, legality or real-world safety.
+
+### Search Along Route limits
+
+Search is user-triggered and capped at 10 results. It samples at most six centers
+spaced by route distance, queries bounded 5 km circles and deduplicates place
+references. Fuel/Food/Hotel use Places categories; custom text, including Rest,
+uses bounded geocoding. Candidates outside the queried area or route corridor are
+excluded; the remaining candidates are ranked by geographic route proximity.
+
+This is approximate sampled-area search, not exhaustive coverage. Long routes can
+have gaps between search circles. Geographic proximity does not establish road
+access, suitability or actual detour distance. `viaPlaceDistanceMeters` and
+`viaPlaceDurationSeconds` remain null. Adding a candidate as a Stop recomputes the
+route through the routing API.
+
+### Failure and cost boundary
+
+Calls have a 15-second deadline and 2 MiB response cap; no automatic paid retry.
+Malformed JSON/coordinates/geometry fail explicitly. The HTTP handler awaits
+provider operations so typed asynchronous failures do not become an unrelated
+internal error. Raw upstream error text and key-containing URLs are never returned
+to clients. Provider quota failures remain 429, provider credential failures 503,
+transport failures 502 and timeouts 504.
+
+No provider query is triggered by GPS updates or map panning. Account quotas,
+provider per-second limits, concurrent-Rider load and edge abuse controls still
+need operator verification; a per-request result/call cap is not a global quota
+or rate-limit guarantee. See the [migration contract](../../docs/deployment/maplibre-geoapify-pilot.md).
+
+## RoutePlan and Briefing
+
+`GET /v1/rides/:rideId/route-plan` is for joined participants, not invited-only
+Riders. `PUT /v1/rides/:rideId/route-plan` is Leader-only while Draft/Published.
+It replaces the entire revision: travel mode, endpoint labels/coordinates,
+selected distance/duration/polyline, ordered Stops and optional Checkpoint metadata.
+Array order defines a unique zero-based Stop sequence. A D1 batch creates a new
+current revision while preserving superseded immutable revisions.
+
+Active Ride RoutePlan replacement is rejected. Dynamic replanning requires a
+separate future operational command, not silent rewriting of the pre-Ride plan.
+
+Briefing endpoints:
+
+- `GET /v1/rides/:rideId/briefing`: joined participants read the current immutable
+  Briefing, referenced RoutePlan revision, current/stale state and Ready counts;
+- `POST /v1/rides/:rideId/briefing/publish`: Leader publishes while Draft/Published,
+  requiring a current RoutePlan; snapshots Leader/Sweeper and optional notes;
+- `POST /v1/rides/:rideId/briefing/acknowledge`: Rider acknowledges the current
+  revision idempotently.
+
+Changed plans leave old Briefings readable with `routePlanIsCurrent: false`.
+Acknowledgement returns `briefing_stale` until republished. Previous
+acknowledgements stay historical and do not count toward a new revision.
+Readiness is advisory, not a Start Ride blocker.
+
+## Active Ride WebSocket room
+
+`GET /v1/rides/:rideId/live?v=1` requires WebSocket upgrade, verified identity,
+completed profile, Active Ride, participating membership (not invited/left/finished)
+and a real Durable Object binding. The Worker derives identity/role server-side
+and forwards internal identity headers; client payloads cannot select Rider identity.
+
+Protocol v1 carries client `presence.update` / `quick_action.raise`, and room
+snapshot, presence, Quick Action, convoy-separation, Comms, SOS, Ride-end and error
+events. Observations remain ordered by observedAt; an older queued observation
+cannot replace a newer latest-known position.
+
+Quick Actions derive Rider identity from the socket and optionally attach the
+last server-accepted presence with original timestamps/freshness. No presence is
+required; absent GPS yields null context rather than fabricated coordinates.
+
+Hibernation/low-write policy: connected latest presence uses socket attachments,
+not a D1 write for every ping. Disconnect stores only the latest operational
+presence for offline/reconnect snapshots. Ride completion closes sockets and
+clears offline presence. This is not permanent GPS history.
+
+Convoy separation is computed only from connected Live positions. Compact state
+is persisted only when phase, data sufficiency, component/Sweeper context or
+hysteresis changes. Initial policy remains 600 m continuity, 20 s split confirmation
+and 15 s recovery confirmation, pending real field validation.
+
+End Ride is D1-authoritative; repeating the idempotent command retries room
+termination when available. The room also checks authoritative Ride state during
+message processing; new connections independently require Active state.
+
+Defensive cadence ceilings reject presence bursts inside 750 ms and distinct Quick
+Actions inside 2 seconds on one socket. Duplicate action IDs remain idempotently
+ignored. These are not global edge/WAF controls; normal mobile cadence is slower.
 
-### Route request guards
+## Private communication and persistent SOS
 
-The MVP accepts at most 10 intermediate stops per route request. Current Google
-Routes documentation allows more, but 11-25 intermediate waypoints are billed
-at a higher tier, so CommRide deliberately stays below that boundary.
+Comms endpoints:
 
-Alternative routes are requested only before intermediate stops are present.
-After Add Stop, the selected route is recomputed rather than pretending that
-the provider can return the same alternatives behavior with intermediates.
+- `GET /v1/rides/:rideId/messages`: paginated private Active/Completed history;
+- `POST /v1/rides/:rideId/messages`: participant chat while Active;
+- `POST /v1/rides/:rideId/announcements`: Leader-only while Active.
 
-### Search Along Route
+Bodies are trimmed, nonempty and capped at 1000 Unicode characters. A bounded
+clientMessageId provides Ride + sender retry idempotency; conflicting content with
+the same key returns conflict. Identity/display name/role are server-derived.
+D1 persists before best-effort realtime `ride.message_created`; HTTP/history
+remains authoritative. Completed communication is read-only. Messages contain no
+location coordinates; operational actions remain separate typed events.
 
-Search Along Route is on-demand and capped at 10 results per request. The
-adapter requests routing summaries so CommRide can compare the total route via
-a candidate place when Google returns both route legs.
+SOS endpoints:
 
-Current provider limitation: Google Places Search Along Route does not support
-`TWO_WHEELER`. CommRide returns
-`search_along_route_mode_not_supported` rather than silently substituting
-DRIVE results for motorcycle routing.
+- `GET /v1/rides/:rideId/sos`: participating Active/Completed history;
+- `POST /v1/rides/:rideId/sos`: raise while Active;
+- `POST /v1/rides/:rideId/sos/:sosId/cancel`: raising Rider cancels;
+- `POST /v1/rides/:rideId/sos/:sosId/resolve`: Leader resolves.
 
-### Provider cost discipline
+A bounded clientCommandId and optional reason are accepted; identity is derived.
+A best-effort room lookup may attach one trusted last-known presence snapshot.
+Missing GPS or room availability never blocks SOS persistence. Realtime failure
+does not roll back the incident; history recovers state. Active SOS must be
+cancelled/resolved before End Ride. SOS is distinct from Butuh Bantuan and never
+claims automatic contact with public emergency services.
 
-- no wildcard field masks in production adapter calls;
-- no continuous Places query while panning a map;
-- no web-service API key in the mobile app;
-- no repeated per-Rider provider query for shared Ride planning state;
-- quotas and billing alerts remain deployment prerequisites.
+Migrations `0005_ride_messages.sql` and `0006_ride_sos.sql` follow Checkpoint
+migration `0004_checkpoint_coordination.sql`; do not invent new migration numbers
+for this provider-only change.
 
+## Push, retention and scheduled work
 
-## RoutePlan persistence
+`POST /v1/me/push-tokens` and `DELETE /v1/me/push-tokens` derive ownership from
+verified identity. FCM HTTP v1 is best-effort; stable push event keys suppress
+repeated fan-out. Failure never rolls back authoritative Ride/SOS/Briefing state.
 
-A Ride can persist one current RoutePlan while retaining superseded immutable
-revisions.
+Completed history samples at most once per Rider per minute, not every live ping.
+The daily maintenance pass purges completed Ride samples beyond the retention
+window and old push-dedupe rows. Default retention is 30 days, allowed
+`LOCATION_SAMPLE_RETENTION_DAYS=1..365`; invalid values fall back to 30. It does not
+silently delete Message/SOS/Recap history.
 
-### GET /v1/rides/:rideId/route-plan
+A separate 15-minute cron considers only Published Rides with a scheduled start
+in the next 60 minutes. Ride ID + exact scheduled start deduplicates reminders.
+First Active -> Completed transition best-effort sends Recap available using Ride
+ID + endedAt. Neither notification delivery nor failure changes Ride state.
 
-Returns the current RoutePlan to a Rider who has already joined the Ride.
-Invited-only Riders cannot read the plan through this endpoint.
+Repository cron configuration is not proof the Worker is deployed or the jobs
+have run. Verify real scheduled execution and observed provider usage after setup.
 
-### PUT /v1/rides/:rideId/route-plan
+## Source of truth and release boundary
 
-Leader-only full-revision replacement while the Ride is Draft or Published.
+Read `../../AGENTS.md`, the technical architecture, development workflow,
+[provider migration contract](../../docs/deployment/maplibre-geoapify-pilot.md),
+[pilot checklist](../../docs/pilot-release-checklist.md) and
+[operator runbook](../../docs/deployment/pilot-operator-runbook.md).
 
-The request contains:
-- travel mode;
-- origin and destination labels/coordinates;
-- selected route distance/duration/polyline;
-- ordered intermediate Stops;
-- optional Checkpoint type and planned duration per Stop.
-
-Stop order is derived from array order and persisted as a unique zero-based
-sequence. The API accepts at most 10 intermediate Stops, matching the route
-provider cost guard.
-
-A successful PUT creates a new revision and makes it current. The prior
-revision becomes superseded but is retained. The persistence operation uses one
-D1 batch so the previous current plan is not intentionally left deactivated
-with only a partial new plan.
-
-The initial MVP rejects RoutePlan replacement once a Ride is Active. Dynamic
-Active Ride replanning requires a later explicit operational command rather
-than silently rewriting the pre-Ride plan.
-
-
-## Ride Briefing and readiness
-
-Ride Briefing is an immutable published snapshot tied to one exact RoutePlan
-revision.
-
-### GET /v1/rides/:rideId/briefing
-
-Returns the current published Briefing to a joined Ride participant.
-
-The response includes:
-
-- the immutable Briefing revision;
-- the RoutePlan revision referenced by that Briefing;
-- whether that RoutePlan is still the Ride's current plan;
-- expected/ready Rider counts;
-- whether the authenticated Rider acknowledged this exact revision.
-
-Invited-only Riders cannot read the private Briefing.
-
-### POST /v1/rides/:rideId/briefing/publish
-
-Leader-only. Allowed while the Ride is Draft or Published.
-
-A current valid RoutePlan is required. Publishing creates a new immutable
-Briefing revision, snapshots the current Leader/Sweeper identity, and makes the
-new revision current.
-
-Optional body:
-
-```json
-{
-  "notes": "Meet at 05:30. Fuel before departure."
-}
-```
-
-If the RoutePlan changes later, the previously published Briefing remains
-readable but is marked stale through `routePlanIsCurrent: false`.
-
-### POST /v1/rides/:rideId/briefing/acknowledge
-
-A joined Rider acknowledges the current Briefing revision for themselves.
-
-Acknowledgement is idempotent for one Rider + Briefing revision.
-
-If the current RoutePlan changed after the Briefing was published,
-acknowledgement is rejected with `briefing_stale` until the Leader publishes a
-new Briefing revision.
-
-Acknowledgements for older Briefing revisions remain historical but do not
-count toward readiness for a newer revision.
-
-Readiness is advisory in the MVP. It is not a server-side Start Ride blocker.
-
-
-## Push notifications
-
-Authenticated Riders register mobile delivery tokens through:
-
-- `POST /v1/me/push-tokens`
-- `DELETE /v1/me/push-tokens`
-
-Only token + platform are accepted from mobile. Rider ownership is derived from
-the verified Firebase identity.
-
-FCM HTTP v1 delivery is best-effort. Notification failure never rolls back
-Ride persistence or realtime state. Stable push event keys suppress duplicate
-fan-out for retried authoritative commands.
-
-Server-side FCM delivery requires deployment secrets:
-
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL`
-- `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`
-
-Do not commit the private key.
-
-## Operational location retention
-
-Realtime RiderPresence remains operational/overwrite state. Completed Ride
-history stores only low-frequency `ride_location_samples`, currently sampled
-at most once per Rider per minute.
-
-The Worker scheduled handler purges sampled location rows for completed Rides
-older than the configured retention window. The default is **30 days**.
-
-Optional configuration:
-
-`LOCATION_SAMPLE_RETENTION_DAYS=1..365`
-
-Unsafe/invalid values fall back to 30 days. The same maintenance pass removes
-old push-delivery dedupe rows. Message/SOS/Recap records are not silently
-deleted by this job.
-
-`wrangler.jsonc` includes a daily cron schedule, but repository configuration
-does not prove that a production Worker has been deployed.
-
-## Realtime abuse guard
-
-The Active Ride room keeps its normal low-write design while rejecting client
-bursts that exceed product cadence:
-
-- presence updates inside 750 ms of the last accepted update on the same socket
-  are rejected;
-- distinct Quick Actions inside 2 seconds of the last accepted Quick Action on
-  the same socket are rejected;
-- duplicate Quick Action event IDs remain idempotently ignored.
-
-These guards are defensive ceilings, not a substitute for edge/WAF abuse
-controls. The normal mobile location cadence is much slower (10 seconds / 25 m
-starting policy).
-
-
-## Scheduled Ride reminders
-
-The Worker has a separate 15-minute cron for normal-priority Ride reminders.
-
-Only Rides that are:
-
-- `published`;
-- have `scheduled_start_at`;
-- scheduled after the current check time; and
-- scheduled within the next 60 minutes
-
-are considered.
-
-The push event key includes Ride ID + exact scheduled-start timestamp, so
-repeated 15-minute checks remain deduplicated by the existing push-event table.
-Draft Rides are not reminded.
-
-When a Ride first transitions Active -> Completed, the lifecycle handler also
-best-effort sends **Ride Recap tersedia** using Ride ID + `endedAt` as the
-stable dedupe key.
-
-As with every CommRide notification, reminder/Recap delivery is non-authoritative:
-failure never changes Ride status or persisted Recap availability.
+Repository PASS != Provider/runtime PASS != Device PASS != Field convoy PASS.

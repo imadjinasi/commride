@@ -68,8 +68,8 @@ export interface AlongRoutePlace {
   readonly formattedAddress: string | null;
   readonly location: GeoPoint | null;
   /**
-   * Total route via the place according to Places routing summary.
-   * Search Along Route normally returns two legs: origin -> place -> destination.
+   * Actual provider-computed route-via-place totals when available; otherwise
+   * null. Geographic corridor proximity must never be presented as a detour.
    */
   readonly viaPlaceDistanceMeters: number | null;
   readonly viaPlaceDurationSeconds: number | null;
