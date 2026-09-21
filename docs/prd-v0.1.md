@@ -113,6 +113,8 @@ Readiness is advisory for MVP. The Leader may see Riders who have not
 acknowledged the current briefing, but Start Ride is not automatically blocked.
 
 #### Live Ride
+- embedded turn-by-turn navigation is the primary Active Ride surface;
+- the navigation map also shows authorized Ride-participant presence;
 - background location sharing while Ride is active;
 - Rider markers;
 - moving/stopped/offline/stale state;
@@ -120,16 +122,29 @@ acknowledged the current briefing, but Start Ride is not automatically blocked.
 - Live Group list;
 - distance/spread summary;
 - next checkpoint;
-- basic off-route/separation awareness.
+- basic off-route/separation awareness;
+- navigation planning and guidance should use the same provider route family
+  when possible, avoiding a planner ETA/geometry that is silently replaced by
+  an unrelated external-navigation route.
 
 #### Communication
-- Ride text chat.
-- Leader announcement/broadcast.
+- always-connected group voice intercom is the default Active Ride voice mode;
+- the Rider owns a persistent Mic On / Mic Off state;
+- Push to Talk (PTT) is an optional mode, not the default;
+- Listen Only is available without leaving the Ride;
+- Rider-local mute and Leader moderator-mute are distinct;
+- a Leader may moderator-mute another Rider but must not remotely enable that
+  Rider's microphone;
+- standard media play/pause controls must not be hijacked for CommRide mic/PTT;
+- Ride text chat remains available for non-driving interaction;
+- Leader announcement/broadcast has elevated audio priority;
 - Quick actions:
   - I'm Stopping
   - I'm Left Behind
   - Need Help
-- SOS action with location and timestamp.
+- SOS action with location and timestamp;
+- SOS may use a high-priority repeated spoken Ride alert, but never claims to
+  contact public emergency services unless a dedicated integration is verified.
 
 #### Checkpoint
 - Rider arrival/check-in state.
@@ -323,12 +338,14 @@ Rider identity, vehicles, Ride history, badges.
 
 When a Ride is Active, the application should foreground the Ride command center.
 
-Suggested Active Ride tabs:
-- Overview
-- Map
-- Route
-- Convoy
-- Comms
+The default Active Ride foreground is a single low-interaction command surface:
+- turn-by-turn navigation and current route;
+- live convoy presence on the same map;
+- compact Leader / Navigator / Sweeper context and attention state;
+- voice intercom controls and SOS.
+
+Overview, Route, Convoy, text Comms and detailed incident views remain secondary
+surfaces rather than competing with the navigation map while moving.
 
 ## 10. Key Active Ride views
 
@@ -439,7 +456,13 @@ without requiring the group to manually recreate the same coordination through m
 
 ## 16. Explicit non-goals for MVP
 
-- embedded full turn-by-turn navigation;
+The original draft excluded embedded full turn-by-turn navigation. That decision
+is superseded for the next Active Ride implementation: embedded navigation is now
+part of the accepted product direction, but activation still depends on Google
+Maps Platform billing/API configuration and device acceptance.
+
+Remaining non-goals:
+
 - social influencer features;
 - speed ranking;
 - complex gamification economy;

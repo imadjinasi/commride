@@ -33,9 +33,15 @@ If a requested implementation introduces behavior not covered by the current pro
 ## Current project stage
 
 CommRide has an integrated repository-side MVP candidate for the first-Club pilot.
-PR #68 implements the MapLibre + Geoapify source migration on top of the #67
-readiness baseline. Consult exact-head CI evidence; a previous baseline PASS is
-not automatic acceptance of a new provider implementation.
+The MapLibre + Geoapify pilot is now proven for real autocomplete/place/route
+requests and remains the working fallback.
+
+A newer explicit product decision accepts the next Active Ride direction:
+embedded Google turn-by-turn navigation + live convoy overlays + always-connected
+group intercom, with optional PTT. Google activation remains gated by billing,
+API credentials and device acceptance. Until those gates pass, do not claim the
+Google path is live or replace working Geoapify runtime evidence with repository
+implementation alone.
 
 Operator evidence recorded on 21 September 2026 confirms only basic setup:
 
@@ -96,12 +102,23 @@ Do not state or imply that SOS contacts public emergency services unless such in
 
 ## Map/provider rules
 
-The accepted first-pilot direction is MapLibre + Geoapify. The migration contract
-is `docs/deployment/maplibre-geoapify-pilot.md`; it supersedes old Google-specific
-implementation/setup instructions, not unrelated domain decisions.
+MapLibre + Geoapify remains the deployed/working fallback described by
+`docs/deployment/maplibre-geoapify-pilot.md`.
 
-- MapLibre renders the mobile map using a separately supplied Geoapify client style.
-- Geoapify server APIs handle autocomplete, place resolution/search and routing.
+The accepted next Active Ride direction uses Google Places + Routes + Navigation
+SDK when explicitly configured. Planning and embedded guidance should use the
+same provider route family and a fresh route token where supported. Provider
+selection must remain explicit; missing Google billing/credentials must degrade
+to an honest unavailable/fallback state, never a fabricated pass.
+
+- MapLibre renders the fallback Live Group map using a separately supplied Geoapify client style.
+- Geoapify server APIs remain a fallback for autocomplete, place resolution/search and routing.
+- Google provider credentials remain separated between server web-service keys
+  and mobile SDK keys with platform/API restrictions.
+- Google route tokens are short-lived transport artifacts and are not persisted
+  as RoutePlan source of truth.
+- Embedded Navigation SDK activation must be feature-gated until real provider
+  setup and device acceptance pass.
 - `two_wheeler` must use motorcycle routing, never an undisclosed car fallback.
 - `GEOAPIFY_API_KEY` stays in the backend secret store, not mobile configuration.
 - Client map keys are recoverable from apps; do not claim Google-style platform

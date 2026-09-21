@@ -202,21 +202,25 @@ Start Ride must be idempotent.
 
 ## 12. Active Ride normal flow
 
-1. App foregrounds Overview
-2. Rider sees next checkpoint
-3. Rider enables tracking if it is not already active
-4. CommRide requests location permission contextually if required
-5. Rider can open Map or external navigation
-6. the local Ride location session continues while the app is backgrounded where platform rules permit
-7. latest observations publish to the authenticated Active Ride room
-8. Leader sees group state
-9. checkpoint approaches
-10. Riders arrive/check in
-11. if Regroup:
-   - Leader sees arrival count
-   - waits as needed
-12. Leader releases group
-13. next Segment becomes active
+1. App foregrounds the Active Ride navigation command center.
+2. Rider sees the next maneuver / checkpoint and route progress.
+3. Rider enables Ride tracking/navigation if it is not already active.
+4. CommRide requests location permission contextually if required.
+5. Embedded turn-by-turn navigation occupies the primary map surface.
+6. Authorized RiderPresence is overlaid on the same map with role and
+   Live/Stale/Offline semantics.
+7. Group Intercom joins as the default voice mode; Mic On/Off remains under the
+   Rider's control.
+8. Navigation prompts and Ride voice coexist according to audio priority.
+9. Latest observations publish to the authenticated Active Ride room.
+10. Leader/Navigator/Sweeper see group attention state without opening a
+    separate tracking dashboard for routine operation.
+11. Checkpoint approaches and Riders arrive/check in.
+12. if Regroup:
+    - Leader sees arrival count;
+    - waits as needed.
+13. Leader releases group.
+14. next Segment becomes active and guidance continues.
 
 ## 13. I'm Stopping
 
@@ -287,7 +291,21 @@ Completed Ride:
 Quick Actions, Checkpoints, convoy separation, Ride End, and future SOS remain
 typed operational state. They are not flattened into ordinary chat messages.
 
-## 16. SOS
+## 16. Voice Intercom
+
+Normal Active Ride:
+1. Rider joins the Ride voice room in Group Intercom mode by default.
+2. Mic On means natural group-call conversation; no button hold is required.
+3. Mic Off keeps the Rider listening without transmitting.
+4. PTT can be selected explicitly for the Rider/Ride when appropriate.
+5. Listen Only disables local transmission while preserving Ride audio.
+6. A Rider may locally mute selected participants.
+7. Leader may moderator-mute a participant for the Ride, but cannot remotely
+   enable that Rider's microphone.
+8. Standard headset/TWS play/pause remains media playback control. Distinct
+   supported hardware inputs may be mapped to Mic Toggle/PTT separately.
+
+## 17. SOS
 
 Active Ride participant:
 

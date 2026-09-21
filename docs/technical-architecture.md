@@ -81,18 +81,27 @@ Future use:
 
 Do not upload large media in the first implementation unless required.
 
-### Maps and route provider
-Accepted first-pilot target:
+### Maps, route and navigation providers
 
-- **MapLibre** for mobile map rendering;
-- **Geoapify** map style/tile service for the mobile map;
-- **Geoapify APIs** behind the CommRide server adapter for
-  autocomplete/geocoding, place lookup/search, and motorcycle routing.
+The deployed pilot may continue using **MapLibre + Geoapify** until Google Maps
+Platform billing and credentials are available. That working runtime remains a
+safe fallback; it is not silently removed.
 
-The integrated source still contains the earlier Google Maps implementation.
-That is implementation history, not the accepted pilot target. The migration to
-MapLibre + Geoapify should be a separate focused PR and must preserve the
-provider abstraction.
+The accepted next Active Ride direction is:
+
+- **Google Places API (New)** for destination/place search;
+- **Google Routes API** for route planning, including motorcycle/two-wheeler
+  routing where supported;
+- a short-lived Google **route token** returned with the selected route and
+  consumed promptly by the compatible Navigation SDK so planning and guidance
+  share the same route family;
+- **Google Navigation for Flutter** for embedded turn-by-turn guidance;
+- CommRide RiderPresence rendered as overlays on the Active Ride navigation map.
+
+Provider-specific payloads remain behind CommRide adapters. Route tokens are
+ephemeral transport artifacts and must not replace persisted coordinates,
+waypoints, encoded geometry, or RoutePlan revisions as geographic source of
+truth.
 
 Expected pilot capabilities:
 
@@ -139,22 +148,28 @@ This does not need an elaborate plugin framework. A clear adapter boundary is en
 
 ```
 Flutter App
+  |-- Google Navigation SDK (when enabled)
+  |-- voice media client (provider/SFU selected separately)
   |
   | HTTPS
   v
 Cloudflare Worker API
   |-- D1
   |-- R2
-  |-- Geoapify place/routing APIs
+  |-- Google Places / Routes or Geoapify fallback
   |-- Firebase notification integration
   |
-  | WebSocket / Ride channel
+  | WebSocket / Ride control channel
   v
 Durable Object: Active Ride Room
   |-- latest Rider presence
   |-- Ride operational state
+  |-- voice signalling/control metadata where needed
   |-- broadcast events
   `-- checkpoint / quick-action realtime events
+
+Voice audio packets do not flow through the Durable Object. Group intercom needs
+a media plane suited to realtime audio (for example WebRTC with an SFU).
 ```
 
 ## 5. Realtime location strategy
@@ -244,7 +259,14 @@ queries and return normalized results.
 
 If future analytics require serious spatial querying, the persistence layer can evolve toward PostgreSQL/PostGIS.
 
-## 8. Route planning flow
+## 8. Route planning and embedded navigation flow
+
+Planning and navigation should not intentionally disagree. When the Google
+provider is enabled, CommRide asks Routes API for the selected route and returns
+the short-lived route token to the current client session. Immediately before
+starting guidance, the client refreshes/recomputes the current RoutePlan when a
+fresh token is required and supplies that token with the same travel mode and
+waypoints to Navigation SDK. A token is never persisted as durable route truth.
 
 Conceptual flow:
 
@@ -257,7 +279,10 @@ Conceptual flow:
 7. Stops may become Checkpoints.
 8. CommRide stores a provider-independent route plan plus enough provider metadata for refresh.
 9. Ride Briefing snapshots the accepted plan.
-10. During Ride, the active route may be revised with explicit revision history.
+10. Active Ride starts embedded guidance from that accepted plan.
+11. RiderPresence overlays are rendered on the same navigation map.
+12. During Ride, route revision is explicit and propagated to affected Riders;
+    navigation is not silently changed behind the shared Ride plan.
 
 ## 9. Search Along Route cost discipline
 
@@ -271,6 +296,32 @@ Rules:
 - configure external API quotas/budgets.
 
 Cost-control behavior is part of architecture.
+
+## 9.5 Active Ride voice intercom
+
+The default voice experience is an always-connected group intercom, closer to a
+group call than a walkie-talkie. Push to Talk remains optional.
+
+Control-state model:
+- group-intercom, PTT and listen-only modes;
+- explicit local mic on/off;
+- per-Rider local mute;
+- Leader moderator-mute, without remote unmute;
+- active-speaker state for UI;
+- Leader broadcast priority;
+- SOS priority voice alert.
+
+Audio priority target:
+**SOS > Leader broadcast > Navigation prompt > Group voice > Music**.
+
+Media controls must preserve ordinary headset/TWS play/pause behavior. CommRide
+may bind a distinct hardware input when the accessory/OS exposes one, but it
+must not redefine standard media play/pause as Mic Toggle or PTT by default.
+
+The Durable Object remains the authoritative Ride control/presence channel. It
+is not an audio relay. Provider/SFU selection, codec policy, echo/noise
+suppression, Bluetooth routing and background-audio behavior require separate
+implementation and actual-device acceptance.
 
 ## 10. Offline/poor signal
 

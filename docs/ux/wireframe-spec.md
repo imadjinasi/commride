@@ -411,3 +411,37 @@ Level should not dominate the profile.
 - Map should be visually subordinate to actionable Ride information when necessary.
 - Cards should be simple, with limited shadow and clear separation.
 - Avoid racing dashboards, speedometer metaphors, military terminology, or game HUD styling.
+
+
+## 19. Active Ride Navigation Command Center — superseding direction
+
+This section supersedes the earlier split Overview/Map-first Active Ride layout
+when embedded navigation is enabled.
+
+```
+┌──────────────────────────────────┐
+│  800 m   ↱ Jl. Siliwangi        │
+│  Leader · 9 Rider · 1 attention  │
+├──────────────────────────────────┤
+│                                  │
+│       TURN-BY-TURN MAP           │
+│                                  │
+│      L●   ●     ●N               │
+│              ◌ stale             │
+│                         S●       │
+│                                  │
+│   42 km · ETA 09:18   [recenter] │
+├──────────────────────────────────┤
+│ 🎙 MIC ON   🔊 GROUP   👥 RIDERS │
+│                                  │
+│ [  Leader broadcast / alert  ]   │
+│                         [ SOS ]   │
+└──────────────────────────────────┘
+```
+
+The map is the main operational surface, not a decorative preview. CommRide
+presence overlays must never obscure the current maneuver. Detailed roster,
+Route, Checkpoints, text Comms and settings open as secondary sheets/screens.
+
+Default voice state is Group Intercom. PTT is optional. SOS requires deliberate
+activation and remains visually distinct.
