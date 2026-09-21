@@ -1,5 +1,6 @@
 import { authenticateRider } from '../auth/authenticated-rider';
 import type { IdentityVerifier } from '../auth/identity';
+import type { ActiveRideGateway } from '../active-ride/gateway';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { GeoPoint, RouteTravelMode } from '../maps/models';
@@ -19,6 +20,7 @@ export interface RoutePlanHandlerDependencies {
   readonly riderRepository: RiderRepository;
   readonly clubRideRepository: ClubRideRepository;
   readonly routePlanRepository: RoutePlanRepository;
+  readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
 }
 
@@ -106,19 +108,23 @@ export async function handleRoutePlanRequest(
     return jsonResponse({ routePlan }, 200, requestId);
   }
 
-  if (membership.role !== 'leader') {
+  if (membership.role !== 'leader' && membership.role !== 'navigator') {
     return errorResponse(
-      'ride_leader_required',
-      'The Ride Leader role is required to replace the RoutePlan.',
+      'ride_route_manager_required',
+      'The Ride Leader or Navigator role is required to replace the RoutePlan.',
       403,
       requestId,
     );
   }
 
-  if (ride.status !== 'draft' && ride.status !== 'published') {
+  if (
+    ride.status !== 'draft' &&
+    ride.status !== 'published' &&
+    ride.status !== 'active'
+  ) {
     return errorResponse(
       'ride_state_conflict',
-      'The initial RoutePlan can only be replaced while the Ride is Draft or Published.',
+      'RoutePlan replacement is unavailable after the Ride is completed or cancelled.',
       409,
       requestId,
     );
@@ -143,7 +149,33 @@ export async function handleRoutePlanRequest(
     inputResult.value,
   );
 
-  return jsonResponse({ routePlan }, 200, requestId);
+  let activeRideBroadcast: boolean | null = null;
+  if (ride.status === 'active') {
+    activeRideBroadcast = false;
+    try {
+      await dependencies.activeRideGateway?.routePlanUpdated?.({
+        rideId,
+        revision: routePlan.revision,
+        updatedByRiderId: rider.id,
+        updatedByRole: membership.role,
+      });
+      activeRideBroadcast =
+        dependencies.activeRideGateway?.routePlanUpdated != null;
+    } catch {
+      // The D1 revision is already authoritative. Return the persisted plan
+      // and expose degraded realtime delivery rather than fabricating rollback.
+      activeRideBroadcast = false;
+    }
+  }
+
+  return jsonResponse(
+    {
+      routePlan,
+      ...(activeRideBroadcast == null ? {} : { activeRideBroadcast }),
+    },
+    200,
+    requestId,
+  );
 }
 
 async function readRoutePlanInput(

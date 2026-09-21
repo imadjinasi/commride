@@ -582,6 +582,10 @@ export async function handleRequest(
           riderRepository,
           clubRideRepository,
           routePlanRepository,
+          activeRideGateway:
+            overrides.activeRideGateway ??
+            resolveActiveRideGateway(env) ??
+            undefined,
           idFactory: overrides.idFactory,
         },
       );

@@ -162,6 +162,61 @@ export class ActiveRideRoom {
       return jsonResponse({ broadcast: true }, 200, requestId);
     }
 
+    if (url.pathname === '/route-plan') {
+      if (request.method !== 'POST') {
+        return errorResponse(
+          'method_not_allowed',
+          'Only POST is supported for this endpoint.',
+          405,
+          requestId,
+        );
+      }
+
+      const rideId = requiredHeader(request, 'x-commride-ride-id');
+      if (rideId == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'Ride identity is required.',
+          400,
+          requestId,
+        );
+      }
+
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return errorResponse(
+          'invalid_internal_request',
+          'RoutePlan broadcast payload must be valid JSON.',
+          400,
+          requestId,
+        );
+      }
+
+      const update = parseInternalRoutePlanUpdate(body, rideId);
+      if (update == null) {
+        return errorResponse(
+          'invalid_internal_request',
+          'RoutePlan broadcast payload is invalid.',
+          400,
+          requestId,
+        );
+      }
+
+      if (await this.state.storage.get<string>(ENDED_AT_KEY)) {
+        return errorResponse(
+          'active_ride_ended',
+          'This Active Ride room has already ended.',
+          409,
+          requestId,
+        );
+      }
+
+      this.broadcast(serverEvent('ride.route_plan_updated', update));
+      return jsonResponse({ broadcast: true }, 200, requestId);
+    }
+
     if (url.pathname === '/message') {
       if (request.method !== 'POST') {
         return errorResponse(
@@ -991,6 +1046,40 @@ function parseRideRole(value: unknown): RideRole | null {
 
 function offlinePresenceKey(riderId: string): string {
   return `${OFFLINE_PRESENCE_PREFIX}${riderId}`;
+}
+
+function parseInternalRoutePlanUpdate(
+  value: unknown,
+  rideId: string,
+): {
+  rideId: string;
+  revision: number;
+  updatedByRiderId: string;
+  updatedByRole: RideRole;
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const role = parseRideRole(value.updatedByRole);
+  if (
+    value.rideId !== rideId ||
+    typeof value.revision !== 'number' ||
+    !Number.isInteger(value.revision) ||
+    value.revision <= 0 ||
+    typeof value.updatedByRiderId !== 'string' ||
+    value.updatedByRiderId.length === 0 ||
+    role == null
+  ) {
+    return null;
+  }
+
+  return {
+    rideId,
+    revision: value.revision,
+    updatedByRiderId: value.updatedByRiderId,
+    updatedByRole: role,
+  };
 }
 
 function parseInternalRideMessage(
