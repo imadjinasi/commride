@@ -23,7 +23,8 @@
 
   "vars": {
     "FIREBASE_PROJECT_ID": "commride-pilot",
-    "LOCATION_SAMPLE_RETENTION_DAYS": "30"
+    "LOCATION_SAMPLE_RETENTION_DAYS": "30",
+    "MAP_PROVIDER": "geoapify"
   },
 
   "d1_databases": [
@@ -38,7 +39,9 @@
     "crons": ["17 3 * * *", "*/15 * * * *"]
   }
 
-  // Provider credentials remain deployment secrets. Never put Firebase
+  // Provider credentials remain deployment secrets. GEOAPIFY_API_KEY is the
+  // working fallback secret. GOOGLE_MAPS_API_KEY is required only after
+  // MAP_PROVIDER is deliberately switched to "google". Never put Firebase
   // service-account private keys or map-provider server keys in this file.
   //
   // Intentionally omit D1 `remote: true`: local development must not

@@ -118,6 +118,28 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
           ),
           const SizedBox(height: 16),
         ],
+        if (_travelMode == RouteTravelMode.twoWheeler) ...<Widget>[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(Icons.info_outline, size: 20),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Rute motor dari penyedia navigasi dapat belum '
+                      'mencakup semua jalan atau pembatasan. Tetap ikuti '
+                      'rambu, aturan setempat, dan kondisi jalan aktual.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _PlaceTile(
           title: 'Titik awal',
           value: _origin?.formattedAddress,

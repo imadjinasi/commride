@@ -10,10 +10,15 @@ Club/Ride lifecycle, Route Planner, Briefing / Ready, Active Ride location shari
 Live Group, Quick Actions, Checkpoints, private Comms, SOS, notifications and Recap.
 Explore/social placeholders do not imply a public feed/follow/badge implementation.
 
-PR #68 replaces the embedded Google Maps SDK with `maplibre_gl` and the backend
-provider with Geoapify. Google Maps billing/native keys are no longer required.
-The migration does not prove actual provider requests, installed-device rendering,
-Firebase integration, background GPS, push delivery, signing or field acceptance.
+MapLibre + Geoapify is the proven fallback path and can operate without Google
+Maps billing. The accepted next Active Ride direction adds a gated Google
+Places + Routes + Navigation SDK path so route planning and embedded guidance can
+share the same provider route family. Google code/configuration must remain OFF
+until billing, restricted credentials and real-device acceptance are complete.
+
+Repository implementation does not prove installed-device Google navigation,
+Firebase integration, background GPS, push delivery, voice intercom, signing or
+field acceptance.
 
 Current provider behavior, limits and acceptance are defined in
 [MapLibre + Geoapify pilot migration](../../docs/deployment/maplibre-geoapify-pilot.md).
@@ -79,6 +84,8 @@ Supported Dart defines:
 - `COMMRIDE_API_BASE_URL`: real reviewed Worker URL
 - `COMMRIDE_MAPS_ENABLED=true|false`
 - `COMMRIDE_MAP_STYLE_URL`: HTTPS Geoapify style URL with a dedicated client map key
+- `COMMRIDE_NAVIGATION_ENABLED=true|false`: gates embedded Google Navigation
+- `COMMRIDE_VOICE_INTERCOM_ENABLED=true|false`: reserved for a verified voice media transport; keep false until one exists
 
 Copy `pilot-defines.example.json` to ignored `pilot-defines.local.json`. Use a local
 editor to set the actual Worker URL and client map style, rather than pasting keys

@@ -37,9 +37,16 @@ Do not recreate these resources without a mismatch. The Android application ID i
 a long-lived technical identity, not a website URL. iOS Bundle ID/registration
 remains unfinalized; do not create it by assumption.
 
-Google Maps is deferred. Do not block the pilot on Google billing or another card.
-There is no Cloudflare/D1 deployment, real provider acceptance, installed Firebase
-integration, FCM delivery, device or convoy PASS in the setup evidence above.
+MapLibre + Geoapify remains the proven fallback and does not require Google
+billing. The accepted next Active Ride path uses Google Places + Routes +
+Navigation SDK, but it stays disabled until billing, API credentials and device
+acceptance are complete. Do not remove the working fallback merely because Google
+source preparation exists.
+
+Cloudflare/D1, Firebase authentication and Geoapify provider/runtime now have
+separate operator evidence recorded after the original setup baseline. FCM
+delivery, Google Navigation device acceptance and convoy field acceptance still
+require their own evidence.
 
 ## 1. Source gate and baseline record
 
@@ -233,7 +240,93 @@ flutter build appbundle --release --dart-define-from-file=pilot-defines.local.js
 A CI release AAB is only a build gate, not a Play-signed release or installed-device
 provider acceptance. Never commit the keystore or signing passwords.
 
-## 7. Two-Rider functional smoke before any road test
+## 7. Activate Google navigation after billing is available
+
+This section is deliberately optional until the operator has a billing-capable
+Google Maps Platform project. Source support may be merged while all Google
+runtime gates stay off.
+
+Use separate trust boundaries:
+
+- a **server web-service key** for Places API (New) and Routes API, stored only
+  as the Cloudflare Worker secret `GOOGLE_MAPS_API_KEY`;
+- an **Android SDK key** for the installed app, restricted to the accepted
+  package `io.github.imadjinasi.commride`, the actual signing certificate
+  fingerprint(s), and only the required Maps/Navigation APIs.
+
+Do not reuse either key as the other and never paste a real key into chat, Git,
+screenshots or Dart source.
+
+In Google Cloud, enable the required APIs for the selected project:
+
+- Places API (New);
+- Routes API;
+- Navigation SDK for Android;
+- Maps SDK for Android when required by the Navigation SDK setup.
+
+Then store the backend key from `services/api`:
+
+```powershell
+npx wrangler secret put GOOGLE_MAPS_API_KEY
+```
+
+The command prompts locally for the value. After the secret exists, change the
+non-secret Worker provider selector from `MAP_PROVIDER=geoapify` to
+`MAP_PROVIDER=google`, deploy the exact reviewed SHA, and verify authenticated
+autocomplete, place resolution, route alternatives, Add Stop and Search Along
+Route before enabling mobile navigation.
+
+For motorcycle Search Along Route, Places can search over the two-wheeler route
+polyline, but CommRide intentionally leaves detour distance/time unavailable
+where the provider cannot calculate a matching two-wheeler routing summary. It
+must never substitute a car detour and label it as motorcycle.
+
+On the operator workstation, keep the Android SDK key in the ignored generated
+project:
+
+```text
+apps/mobile/android/local.properties
+MAPS_API_KEY=<ANDROID_RESTRICTED_KEY>
+```
+
+Do not commit that file. Run the platform configurator after the generated
+Android project exists:
+
+```powershell
+cd C:\Users\sabilulquran\Documents\Projects\commride\apps\mobile
+python tool\configure_platforms.py
+python tool\verify_platforms.py
+```
+
+In ignored `pilot-defines.local.json`, switch only the reviewed runtime gate:
+
+```json
+"COMMRIDE_NAVIGATION_ENABLED": true,
+"COMMRIDE_VOICE_INTERCOM_ENABLED": false
+```
+
+Voice remains off until a real media transport/SFU is implemented and device
+tested. Navigation activation does not imply intercom acceptance.
+
+After Google is active, recompute and save the Ride's RoutePlan with the Google
+provider before testing embedded guidance. CommRide requests a fresh short-lived
+route token immediately before Navigation SDK guidance rather than persisting
+that token in D1.
+
+Build and test on the physical Android device:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug --dart-define-from-file=pilot-defines.local.json
+```
+
+Accept Google navigation only after the same selected route, Stops, ETA/routing
+family, reroute behavior, Bluetooth guidance and CommRide RiderPresence overlays
+are observed on-device. Repository CI is not this acceptance.
+
+## 8. Two-Rider functional smoke before any road test
 
 Use two separate accounts/devices. Complete Account, Rider profile, Vehicle, Club,
 invite/join, Ride, Route Planner and save, Briefing, both Riders Ready, Start Ride,
@@ -241,7 +334,7 @@ Live Group, Quick Action, Checkpoint check-in/release, private chat, Leader
 announcement, raise SOS, verify End Ride rejection, cancel/resolve SOS, End Ride
 and Ride Recap. Any core blocker stops progression to field testing.
 
-## 8. Physical-device acceptance
+## 9. Physical-device acceptance
 
 On Android record fresh install, permission denied/later enabled for notifications
 and location, tracking started only from Active Ride, screen lock for at least
@@ -259,7 +352,7 @@ and APNs, enable Push Notifications capability with actual signing entitlements,
 and repeat equivalent scenarios on a signed physical iPhone. No APNs entitlement
 or provider identity is fabricated by repository bootstrap.
 
-## 9. Convoy field acceptance
+## 10. Convoy field acceptance
 
 Use at least three vehicles: Leader, Member and Sweeper. Verify all Live, deliberate
 Stale/Offline, last-known timestamps, reconnect only becoming Live after a fresh
@@ -270,7 +363,7 @@ by SOS, SOS closure, successful End Ride and planned-vs-sampled Recap.
 Screen interactions must be performed while safely stopped. CommRide is not an
 emergency dispatch service or crash/fall detector.
 
-## 10. Evidence record
+## 11. Evidence record
 
 For each test record exact app/API SHA; Worker URL/version; D1 ID; Firebase project;
 app version/build/signing channel; device models/OS; permission states; Rider count;
