@@ -176,8 +176,6 @@ function normalizeTrip(trip: JsonObject, routeIndex: number): RouteOption {
   const routePoints: GeoPoint[] = [];
   const legs: { distanceMeters: number; durationSeconds: number }[] = [];
   const maneuvers: RouteManeuver[] = [];
-  let shapeOffset = 0;
-
   for (const raw of rawLegs) {
     const leg = object(raw);
     const summary = object(leg.summary);
@@ -187,6 +185,9 @@ function normalizeTrip(trip: JsonObject, routeIndex: number): RouteOption {
     const duplicateFirst = routePoints.length > 0 &&
       routePoints.at(-1)!.latitude === legPoints[0]!.latitude &&
       routePoints.at(-1)!.longitude === legPoints[0]!.longitude;
+    const legShapeOffset = duplicateFirst
+      ? routePoints.length - 1
+      : routePoints.length;
     const firstIndex = duplicateFirst ? 1 : 0;
     routePoints.push(...legPoints.slice(firstIndex));
 
@@ -204,8 +205,8 @@ function normalizeTrip(trip: JsonObject, routeIndex: number): RouteOption {
         type: numberOrText(maneuver.type),
         distanceMeters: kilometersToMeters(maneuver.length),
         durationSeconds: integerMetric(maneuver.time),
-        beginShapeIndex: Math.max(0, shapeOffset + begin - firstIndex),
-        endShapeIndex: Math.max(0, shapeOffset + end - firstIndex),
+        beginShapeIndex: legShapeOffset + begin,
+        endShapeIndex: legShapeOffset + end,
         verbalPreTransitionInstruction:
           optionalText(maneuver.verbal_pre_transition_instruction),
         verbalTransitionInstruction:
@@ -216,7 +217,6 @@ function normalizeTrip(trip: JsonObject, routeIndex: number): RouteOption {
       });
     }
 
-    shapeOffset = routePoints.length - 1;
   }
 
   const encodedPolyline = encodePolyline(routePoints);

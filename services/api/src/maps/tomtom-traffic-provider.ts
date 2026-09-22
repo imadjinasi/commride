@@ -73,6 +73,7 @@ export class TomTomTrafficProvider implements TrafficIncidentProvider {
     );
     url.searchParams.set('apiVersion', '2');
     url.searchParams.set('timeValidity', 'present');
+    url.searchParams.set('language', 'id-ID');
     url.searchParams.set('bbox', boundingBox(points));
 
     const body = await this.request(url);

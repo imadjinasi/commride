@@ -87,6 +87,65 @@ describe('ValhallaRouteProvider', () => {
     expect(decodePolyline(routes[0]!.encodedPolyline)).toHaveLength(3);
   });
 
+  it('offsets maneuver indexes across multiple legs', async () => {
+    const stop: GeoPoint = { latitude: -6.80, longitude: 108.20 };
+    const beforeStop: GeoPoint = { latitude: -6.77, longitude: 108.35 };
+    const afterStop: GeoPoint = { latitude: -6.86, longitude: 107.90 };
+    const provider = new ValhallaRouteProvider(
+      'https://valhalla.example/',
+      async () => json({
+        trip: {
+          summary: { length: 100, time: 7200 },
+          legs: [
+            {
+              summary: { length: 50, time: 3600 },
+              shape: encode6([origin, beforeStop, stop]),
+              maneuvers: [{
+                type: 1,
+                instruction: 'Reach stop.',
+                length: 1,
+                time: 60,
+                begin_shape_index: 1,
+                end_shape_index: 2,
+              }],
+            },
+            {
+              summary: { length: 50, time: 3600 },
+              shape: encode6([stop, afterStop, destination]),
+              maneuvers: [{
+                type: 10,
+                instruction: 'Continue after stop.',
+                length: 1,
+                time: 60,
+                begin_shape_index: 1,
+                end_shape_index: 2,
+              }],
+            },
+          ],
+        },
+      }),
+    );
+
+    const [route] = await provider.computeRoutes({
+      origin,
+      destination,
+      intermediates: [{ location: stop, via: false }],
+      travelMode: 'two_wheeler',
+      computeAlternatives: false,
+      modifiers: {
+        avoidTolls: false,
+        avoidHighways: false,
+        avoidFerries: false,
+      },
+    });
+
+    expect(route?.maneuvers).toMatchObject([
+      { instruction: 'Reach stop.', beginShapeIndex: 1, endShapeIndex: 2 },
+      { instruction: 'Continue after stop.', beginShapeIndex: 3, endShapeIndex: 4 },
+    ]);
+    expect(decodePolyline(route!.encodedPolyline)).toHaveLength(5);
+  });
+
   it('rejects credential-bearing or non-HTTPS base URLs', () => {
     expect(() => new ValhallaRouteProvider('http://example.test'))
       .toThrow();

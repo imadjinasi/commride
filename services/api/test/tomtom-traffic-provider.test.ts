@@ -17,6 +17,7 @@ describe('TomTomTrafficProvider', () => {
           '/maps/orbis/traffic/incidents/details',
         );
         expect(url.searchParams.get('timeValidity')).toBe('present');
+        expect(url.searchParams.get('language')).toBe('id-ID');
         expect(url.toString()).not.toContain('secret-key');
 
         const headers = new Headers(init?.headers);
