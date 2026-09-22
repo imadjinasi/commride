@@ -334,7 +334,9 @@ class CommRideNavigationEngine {
     final double squared = dx * dx + dy * dy;
     final double t = squared == 0
         ? 0
-        : (-((ax * dx) + (ay * dy)) / squared).clamp(0.0, 1.0));
+        : (-((ax * dx) + (ay * dy)) / squared)
+              .clamp(0.0, 1.0)
+              .toDouble();
 
     final double projectedX = ax + t * dx;
     final double projectedY = ay + t * dy;
