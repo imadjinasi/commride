@@ -16,7 +16,10 @@ class PlatformTests(unittest.TestCase):
         self.old_config_root, self.old_verify_root = configure.ROOT, verify.ROOT
         configure.ROOT = verify.ROOT = self.root
         self.write("android/app/src/main/AndroidManifest.xml", '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-<application><meta-data android:name="com.google.android.geo.API_KEY" android:value="@string/google_maps_key"/></application>
+<application>
+<activity android:name=".MainActivity"/>
+<meta-data android:name="com.google.android.geo.API_KEY" android:value="@string/google_maps_key"/>
+</application>
 </manifest>''')
         self.write("android/app/build.gradle.kts", '''android {
     namespace = "io.github.imadjinasi.commride_mobile"
@@ -67,10 +70,22 @@ func application() {
         manifest = (self.root / "android/app/src/main/AndroidManifest.xml").read_text()
         self.assertNotIn("com.google.android.geo.API_KEY", manifest)
         self.assertNotIn("MAPS_API_KEY", manifest)
+        self.assertIn('android:screenOrientation="user"', manifest)
         gradle = (self.root / "android/app/build.gradle.kts").read_text()
         self.assertNotIn("MAPS_API_KEY", gradle)
         self.assertNotIn("commRideMapsApiKey", gradle)
         self.assertNotIn("coreLibraryDesugaring", gradle)
+
+    def test_wrong_orientation_policy_is_rejected(self):
+        configure.main()
+        path = self.root / "android/app/src/main/AndroidManifest.xml"
+        text = path.read_text().replace(
+            'android:screenOrientation="user"',
+            'android:screenOrientation="sensor"',
+        )
+        path.write_text(text)
+        with self.assertRaises(SystemExit):
+            verify.verify_android()
 
     def test_release_internet_permission_is_required(self):
         configure.main()
