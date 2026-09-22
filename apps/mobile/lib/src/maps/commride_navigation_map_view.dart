@@ -605,14 +605,14 @@ Map<String, dynamic> trafficIncidentLineGeoJson(
               'type': 'LineString',
               'coordinates': incident.points
                   .map(
-                    (GeoPoint point) =>
-                        <double>[point.longitude, point.latitude],
+                    (GeoPoint point) => <double>[
+                      point.longitude,
+                      point.latitude,
+                    ],
                   )
                   .toList(growable: false),
             },
-            'properties': <String, dynamic>{
-              'color': _trafficColor(incident),
-            },
+            'properties': <String, dynamic>{'color': _trafficColor(incident)},
           },
         )
         .toList(growable: false),
