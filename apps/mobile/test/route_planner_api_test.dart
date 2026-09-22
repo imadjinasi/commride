@@ -40,7 +40,7 @@ void main() {
       return http.Response(
         '{"routes":[{"routeIndex":0,"labels":["DEFAULT_ROUTE"],'
         '"distanceMeters":120000,"durationSeconds":7200,'
-        '"encodedPolyline":"encoded-route",'
+        '"encodedPolyline":"encoded-route","routeToken":"route-token-1",'
         '"legs":[{"distanceMeters":120000,"durationSeconds":7200}]}]}',
         200,
         headers: <String, String>{'content-type': 'application/json'},
@@ -72,6 +72,7 @@ void main() {
     expect(routes, hasLength(1));
     expect(routes.single.distanceMeters, 120000);
     expect(routes.single.durationSeconds, 7200);
+    expect(routes.single.routeToken, 'route-token-1');
   });
 
   test('fetchRoutePlan maps route_plan_not_found to null', () async {
@@ -120,7 +121,8 @@ void main() {
         '"formattedAddress":"Route Road",'
         '"location":{"latitude":-6.8,"longitude":108.0},'
         '"stopType":"fuel","checkpointType":"fuel",'
-        '"plannedDurationMinutes":15}]}}',
+        '"plannedDurationMinutes":15}]},'
+        '"activeRideBroadcast":false}',
         200,
         headers: <String, String>{'content-type': 'application/json'},
       );
@@ -167,5 +169,6 @@ void main() {
 
     expect(saved.revision, 2);
     expect(saved.stops.single.checkpointType, CheckpointType.fuel);
+    expect(saved.activeRideBroadcast, isFalse);
   });
 }

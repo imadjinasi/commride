@@ -9,6 +9,13 @@ export interface ActiveRideParticipant {
   readonly role: RideRole;
 }
 
+export interface ActiveRideRoutePlanUpdate {
+  readonly rideId: string;
+  readonly revision: number;
+  readonly updatedByRiderId: string;
+  readonly updatedByRole: RideRole;
+}
+
 export interface ActiveRideGateway {
   connect(
     request: Request,
@@ -32,6 +39,10 @@ export interface ActiveRideGateway {
     rideId: string,
     type: 'ride.sos_raised' | 'ride.sos_cancelled' | 'ride.sos_resolved',
     sos: RideSos,
+  ): Promise<void>;
+
+  routePlanUpdated?(
+    update: ActiveRideRoutePlanUpdate,
   ): Promise<void>;
 }
 
@@ -154,6 +165,31 @@ export class DurableObjectActiveRideGateway
     if (!response.ok) {
       throw new Error(
         'Active Ride room did not acknowledge persisted SOS broadcast.',
+      );
+    }
+  }
+
+  async routePlanUpdated(
+    update: ActiveRideRoutePlanUpdate,
+  ): Promise<void> {
+    const stub = this.namespace.get(
+      this.namespace.idFromName(update.rideId),
+    );
+
+    const response = await stub.fetch(
+      new Request('https://active-ride.internal/route-plan', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-commride-ride-id': update.rideId,
+        },
+        body: JSON.stringify(update),
+      }),
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        'Active Ride room did not acknowledge RoutePlan update.',
       );
     }
   }

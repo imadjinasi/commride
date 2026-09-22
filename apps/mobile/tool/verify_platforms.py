@@ -37,9 +37,12 @@ def verify_android() -> None:
     application = manifest.find("application")
     if application is None:
         raise SystemExit("Android application element missing.")
-    if any(node.get(android_attr("name")) == "com.google.android.geo.API_KEY"
-           for node in application.findall("meta-data")):
-        raise SystemExit("Obsolete native Google Maps key hook remains.")
+    maps_metadata = [
+        node for node in application.findall("meta-data")
+        if node.get(android_attr("name")) == "com.google.android.geo.API_KEY"
+    ]
+    if maps_metadata:
+        raise SystemExit("Obsolete Google Maps API-key metadata remains.")
     if (ROOT / "android/app/src/main/res/values/commride_maps.xml").exists():
         raise SystemExit("Obsolete Google Maps key resource remains.")
     gradle = ROOT / "android/app/build.gradle.kts"
@@ -48,6 +51,8 @@ def verify_android() -> None:
     content = gradle.read_text(encoding="utf-8")
     if "minSdk = 24" not in content and "minSdkVersion 24" not in content:
         raise SystemExit("Android minSdk 24 declaration missing.")
+    if "MAPS_API_KEY" in content or "commRideMapsApiKey" in content:
+        raise SystemExit("Obsolete Google Navigation Gradle wiring remains.")
     app_id = re.findall(r'applicationId\s*=?\s*[\"\']([^\"\']+)[\"\']', content)
     if app_id != ["io.github.imadjinasi.commride"]:
         raise SystemExit("Android application ID does not match the accepted Firebase registration.")

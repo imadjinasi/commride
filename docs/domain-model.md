@@ -151,8 +151,11 @@ RoutePlan revision semantics:
 - exactly one revision is current for a Ride;
 - replacing the current plan never mutates the previous revision in place;
 - a failed provider recomputation must not replace the last valid current plan;
-- the initial MVP allows route-plan replacement only while the Ride is Draft or Published;
-- Active Ride replanning requires a future explicit operational command rather than silently changing the pre-Ride plan.
+- before the Ride starts, RoutePlan replacement remains Leader-only while the Ride is Draft or Published;
+- during an Active Ride, Leader or Navigator may deliberately save a new immutable RoutePlan revision;
+- an Active Ride revision is never an automatic silent provider reroute: the save action is explicit and the persisted revision remains authoritative;
+- successful Active Ride saves broadcast the new revision to connected Riders so navigation clients can fetch the persisted plan, obtain a fresh provider route token, and apply it;
+- if realtime broadcast is degraded after persistence succeeds, the saving client must surface that degraded delivery instead of pretending every Rider received the new route.
 
 The system retains provenance so the current plan can be distinguished from superseded revisions.
 

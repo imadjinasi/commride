@@ -1,4 +1,8 @@
-import type { GeoPoint, RouteTravelMode } from '../maps/models';
+import type {
+  GeoPoint,
+  RouteManeuver,
+  RouteTravelMode,
+} from '../maps/models';
 
 export type StopType =
   | 'generic'
@@ -43,6 +47,7 @@ export interface RoutePlan {
   readonly distanceMeters: number;
   readonly durationSeconds: number;
   readonly encodedPolyline: string;
+  readonly maneuvers: readonly RouteManeuver[];
   readonly isCurrent: boolean;
   readonly createdAt: string;
   readonly stops: readonly RouteStop[];
@@ -71,5 +76,6 @@ export interface SaveRoutePlanInput {
   readonly distanceMeters: number;
   readonly durationSeconds: number;
   readonly encodedPolyline: string;
+  readonly maneuvers?: readonly RouteManeuver[];
   readonly stops: readonly SaveRouteStopInput[];
 }

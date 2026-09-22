@@ -5,12 +5,16 @@ class AppConfig {
     required this.environment,
     required this.apiBaseUrl,
     this.mapsEnabled = false,
+    this.navigationEnabled = false,
+    this.voiceIntercomEnabled = false,
     this.mapStyleUrl,
   });
 
   final AppEnvironment environment;
   final Uri? apiBaseUrl;
   final bool mapsEnabled;
+  final bool navigationEnabled;
+  final bool voiceIntercomEnabled;
 
   /// Client map style configuration, never a backend provider credential.
   final String? mapStyleUrl;
@@ -27,6 +31,14 @@ class AppConfig {
       'COMMRIDE_MAPS_ENABLED',
       defaultValue: false,
     );
+    const bool navigationEnabled = bool.fromEnvironment(
+      'COMMRIDE_NAVIGATION_ENABLED',
+      defaultValue: false,
+    );
+    const bool voiceIntercomEnabled = bool.fromEnvironment(
+      'COMMRIDE_VOICE_INTERCOM_ENABLED',
+      defaultValue: false,
+    );
     const String rawMapStyleUrl = String.fromEnvironment(
       'COMMRIDE_MAP_STYLE_URL',
     );
@@ -40,6 +52,8 @@ class AppConfig {
       environment: environment,
       apiBaseUrl: rawApiBaseUrl.isEmpty ? null : Uri.tryParse(rawApiBaseUrl),
       mapsEnabled: mapsEnabled,
+      navigationEnabled: navigationEnabled,
+      voiceIntercomEnabled: voiceIntercomEnabled,
       mapStyleUrl: validateMapStyleUrl(rawMapStyleUrl),
     );
   }

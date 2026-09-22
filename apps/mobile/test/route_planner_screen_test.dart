@@ -66,6 +66,11 @@ class FakeRoutePlannerApi implements RoutePlannerApi {
   }
 
   @override
+  Future<List<TrafficIncident>> fetchTrafficIncidents(RouteOption route) async {
+    return const <TrafficIncident>[];
+  }
+
+  @override
   Future<SavedRoutePlan?> fetchRoutePlan(String rideId) async => plan;
 
   @override

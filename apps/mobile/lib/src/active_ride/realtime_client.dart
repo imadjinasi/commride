@@ -1,7 +1,8 @@
+import '../models/club_ride.dart';
+import '../models/ride_message.dart';
 import 'convoy_separation.dart';
 import 'live_group_models.dart';
 import 'location_provider.dart';
-import '../models/ride_message.dart';
 import '../models/ride_sos.dart';
 
 enum ActiveRideRealtimeConnectionState { disconnected, connecting, connected }
@@ -63,6 +64,20 @@ class ActiveRideSosChanged extends ActiveRideRealtimeEvent {
 
   final String type;
   final RideSos sos;
+}
+
+class ActiveRideRoutePlanUpdated extends ActiveRideRealtimeEvent {
+  const ActiveRideRoutePlanUpdated({
+    required this.rideId,
+    required this.revision,
+    required this.updatedByRiderId,
+    required this.updatedByRole,
+  });
+
+  final String rideId;
+  final int revision;
+  final String updatedByRiderId;
+  final RideRole updatedByRole;
 }
 
 class ActiveRideServerError extends ActiveRideRealtimeEvent {

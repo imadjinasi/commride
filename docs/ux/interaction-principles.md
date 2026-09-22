@@ -29,18 +29,19 @@ Especially during planning:
 
 Avoid forms containing every advanced Ride option at once.
 
-## 3. Active Ride = low cognitive load
+## 3. Active Ride = navigation-first, low cognitive load
 
 A Rider may glance at the phone briefly.
 
-Prioritize:
-- next checkpoint;
-- group state;
-- important alerts;
-- large tap targets;
-- obvious status.
+The primary foreground should combine:
+- next navigation maneuver and route progress;
+- live convoy presence on the same map;
+- group attention state;
+- always-connected intercom controls;
+- important alerts and SOS.
 
-Move secondary analytics out of the primary Active Ride screen.
+Use large tap targets and obvious state. Move secondary analytics, long text,
+settings and social content out of the primary Active Ride screen.
 
 ## 4. Show freshness everywhere location matters
 
@@ -97,6 +98,17 @@ While Active Ride is foregrounded:
 - suppress low-priority social notifications;
 - prioritize Ride operational notifications;
 - avoid feed entry animations/badges that compete for attention.
+
+## 8.5 Voice controls preserve Rider agency
+
+Group Intercom is the default voice mode; PTT is optional.
+
+- Mic On/Off is always explicit and visible.
+- Leader moderator-mute never becomes remote unmute.
+- Standard media play/pause is not repurposed for CommRide.
+- Navigation and voice should duck/mix audio rather than unpredictably stealing
+  playback control where the OS/device permits.
+- SOS and Leader broadcast may receive higher audio priority than routine voice.
 
 ## 9. Safety over engagement
 

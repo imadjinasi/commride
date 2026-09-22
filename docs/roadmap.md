@@ -196,7 +196,8 @@ Candidate deliverables:
 - ETA per Rider;
 - convoy split detection;
 - predicted separation;
-- Rider rejoin strategy;
+- group-aware intercept/rejoin optimization beyond the accepted single-Rider
+  rejoin-first recovery;
 - Plan A/Plan B;
 - delay-aware replanning;
 - skip optional stop;

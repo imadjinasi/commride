@@ -64,6 +64,13 @@ func application() {
         self.assertEqual(delegate.count("configureNotificationCenterDelegate()"), 1)
         self.assertNotIn("GoogleMaps", delegate)
         self.assertNotIn("GMSServices", delegate)
+        manifest = (self.root / "android/app/src/main/AndroidManifest.xml").read_text()
+        self.assertNotIn("com.google.android.geo.API_KEY", manifest)
+        self.assertNotIn("MAPS_API_KEY", manifest)
+        gradle = (self.root / "android/app/build.gradle.kts").read_text()
+        self.assertNotIn("MAPS_API_KEY", gradle)
+        self.assertNotIn("commRideMapsApiKey", gradle)
+        self.assertNotIn("coreLibraryDesugaring", gradle)
 
     def test_release_internet_permission_is_required(self):
         configure.main()

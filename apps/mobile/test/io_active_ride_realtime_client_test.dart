@@ -610,6 +610,50 @@ void main() {
     await socket.closeIncoming();
   });
 
+  test(
+    'ride.route_plan_updated maps an authoritative route revision',
+    () async {
+      final FakeSocket socket = FakeSocket();
+      final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(
+        apiBaseUrl: Uri.parse('https://api.commride.invalid'),
+        authGateway: TokenAuthGateway(<String>['token-1']),
+        socketConnector: RecordingConnector(<FakeSocket>[socket]),
+      );
+      final List<ActiveRideRealtimeEvent> events = <ActiveRideRealtimeEvent>[];
+      final StreamSubscription<ActiveRideRealtimeEvent> subscription = client
+          .events
+          .listen(events.add);
+
+      await client.connect('ride-1');
+      socket.controller.add(
+        jsonEncode(<String, Object?>{
+          'v': 1,
+          'type': 'ride.route_plan_updated',
+          'sentAt': '2026-09-18T10:00:00Z',
+          'payload': <String, Object?>{
+            'rideId': 'ride-1',
+            'revision': 4,
+            'updatedByRiderId': 'rider-navigator',
+            'updatedByRole': 'navigator',
+          },
+        }),
+      );
+      await flushAsync();
+
+      final ActiveRideRoutePlanUpdated updated = events
+          .whereType<ActiveRideRoutePlanUpdated>()
+          .single;
+      expect(updated.rideId, 'ride-1');
+      expect(updated.revision, 4);
+      expect(updated.updatedByRiderId, 'rider-navigator');
+      expect(updated.updatedByRole.name, 'navigator');
+
+      await subscription.cancel();
+      await client.disconnect();
+      await socket.closeIncoming();
+    },
+  );
+
   test('malformed Live Group event does not fabricate state', () async {
     final FakeSocket socket = FakeSocket();
     final IoActiveRideRealtimeClient client = IoActiveRideRealtimeClient(

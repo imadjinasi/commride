@@ -201,58 +201,72 @@ Do not display detour numbers unless supplied or reliably computed.
 └──────────────────────────────────┘
 ```
 
-## 9. Active Ride Overview
+## 9. Active Ride — navigation-first
+
+The map is the primary foreground once the Rider explicitly starts navigation
+and tracking. Convoy context stays on the same surface rather than requiring a
+second tracking dashboard.
 
 ```
 ┌──────────────────────────────────┐
-│ ● ACTIVE · Sunday Morning Ride   │
+│ Leader · 14 Rider · 13 Live      │
 ├──────────────────────────────────┤
-│ NEXT                             │
-│ Fuel Stop                        │
-│ 34 km · ETA 07:12                │
-│ [ Navigate ]                     │
+│ ↱ Belok kanan ke Jl. Kartini     │
+│   450 m              🚦 2 · baru │
 ├──────────────────────────────────┤
-│ GROUP                            │
-│ 14 Riders                        │
-│ Spread 1.6 km                    │
-│ 1 stale location                 │
 │                                  │
-│ Last Rider                       │
-│ Rudi · 1.4 km behind             │
+│        NAVIGATION MAP            │
+│                                  │
+│   route ━━━━━━━━━━━━━━━           │
+│           ▲ Saya                 │
+│    L ●        ● Rider            │
+│                    ◌ stale       │
+│          ⚠ roadworks             │
+│                                  │
 ├──────────────────────────────────┤
-│ [ I'm Stopping ] [ Need Help ]   │
-│ [ Broadcast ]     [ SOS ]        │
-├──────────────────────────────────┤
-│ Overview Map Route Convoy Comms  │
+│ Group Intercom · Mic Off         │
+│ [ Mic ] [ Riders ] [ Track ] SOS │
 └──────────────────────────────────┘
 ```
 
-Large controls and restrained information density are intentional.
+The traffic indicator includes freshness when traffic data is configured.
+Traffic/provider degradation must not remove the accepted RoutePlan.
 
-## 10. Active Ride Map
+## 10. Active Ride — off-route recovery
+
+Leaving the accepted route does not silently replace it.
 
 ```
 ┌──────────────────────────────────┐
-│ ● ACTIVE                         │
+│ Leader · 14 Rider · 13 Live      │
+├──────────────────────────────────┤
+│ ↰ Belok kiri menuju rute utama   │
+│ Anda keluar rute · rejoin 700 m  │
+│                 [ Cari rute baru ]│
 ├──────────────────────────────────┤
 │                                  │
-│              MAP                 │
+│        NAVIGATION MAP            │
 │                                  │
-│ L ●                              │
-│   ● ●                            │
-│        ◌ stale                   │
-│             S ●                  │
-│                     ◎ checkpoint │
+│ accepted route ━━━━━━━━━━━        │
+│                   ◎ rejoin       │
+│              ╱                   │
+│ recovery ━━━╯                    │
+│       ▲ Saya                     │
 │                                  │
 ├──────────────────────────────────┤
-│ Next: Fuel Stop · 34 km          │
-│ [ Navigate ] [ Recenter ]        │
-├──────────────────────────────────┤
-│ Overview Map Route Convoy Comms  │
+│ Group Intercom · Mic Off         │
+│ [ Mic ] [ Riders ] [ Track ] SOS │
 └──────────────────────────────────┘
 ```
 
-Legend/state must not rely on color alone.
+The recovery line is shown only when a provider-computed drivable recovery route
+exists. Provider failure keeps the accepted RoutePlan and rejoin target; it must
+not draw a straight line and imply that it is a road.
+
+**Cari rute baru** previews candidates. It never changes the shared RoutePlan
+without explicit confirmation and the required Leader/Navigator authority.
+
+Legend/state must use text/icon/freshness semantics, not color alone.
 
 ## 11. Convoy view
 
@@ -411,3 +425,37 @@ Level should not dominate the profile.
 - Map should be visually subordinate to actionable Ride information when necessary.
 - Cards should be simple, with limited shadow and clear separation.
 - Avoid racing dashboards, speedometer metaphors, military terminology, or game HUD styling.
+
+
+## 19. Active Ride Navigation Command Center — superseding direction
+
+This section supersedes the earlier split Overview/Map-first Active Ride layout
+when embedded navigation is enabled.
+
+```
+┌──────────────────────────────────┐
+│  800 m   ↱ Jl. Siliwangi        │
+│  Leader · 9 Rider · 1 attention  │
+├──────────────────────────────────┤
+│                                  │
+│       TURN-BY-TURN MAP           │
+│                                  │
+│      L●   ●     ●N               │
+│              ◌ stale             │
+│                         S●       │
+│                                  │
+│   42 km · ETA 09:18   [recenter] │
+├──────────────────────────────────┤
+│ 🎙 MIC ON   🔊 GROUP   👥 RIDERS │
+│                                  │
+│ [  Leader broadcast / alert  ]   │
+│                         [ SOS ]   │
+└──────────────────────────────────┘
+```
+
+The map is the main operational surface, not a decorative preview. CommRide
+presence overlays must never obscure the current maneuver. Detailed roster,
+Route, Checkpoints, text Comms and settings open as secondary sheets/screens.
+
+Default voice state is Group Intercom. PTT is optional. SOS requires deliberate
+activation and remains visually distinct.

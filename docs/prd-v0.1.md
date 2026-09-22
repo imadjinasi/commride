@@ -113,6 +113,12 @@ Readiness is advisory for MVP. The Leader may see Riders who have not
 acknowledged the current briefing, but Start Ride is not automatically blocked.
 
 #### Live Ride
+- embedded turn-by-turn navigation is the primary Active Ride surface;
+- MapLibre + the CommRide Navigation Engine is the accepted pilot interaction
+  model; Valhalla is the target motorcycle route engine, TomTom supplies
+  bounded traffic/incident intelligence, and Geoapify remains the transition
+  fallback until replacement runtime acceptance;
+- the navigation map also shows authorized Ride-participant presence;
 - background location sharing while Ride is active;
 - Rider markers;
 - moving/stopped/offline/stale state;
@@ -120,16 +126,35 @@ acknowledged the current briefing, but Start Ride is not automatically blocked.
 - Live Group list;
 - distance/spread summary;
 - next checkpoint;
-- basic off-route/separation awareness.
+- robust off-route/separation awareness;
+- leaving the route does **not** automatically replace the accepted RoutePlan;
+- after confirmed deviation, default guidance is recovery/rejoin toward a
+  sensible future point on the accepted route;
+- a clear **Cari rute baru** action may preview a replacement, but adoption is
+  deliberate; a shared Active Ride replacement still requires Leader/Navigator
+  authority and a persisted RoutePlan revision;
+- navigation planning and guidance should use the accepted persisted geometry
+  as route truth rather than silently replacing it with an unrelated provider
+  route.
 
 #### Communication
-- Ride text chat.
-- Leader announcement/broadcast.
+- always-connected group voice intercom is the default Active Ride voice mode;
+- the Rider owns a persistent Mic On / Mic Off state;
+- Push to Talk (PTT) is an optional mode, not the default;
+- Listen Only is available without leaving the Ride;
+- Rider-local mute and Leader moderator-mute are distinct;
+- a Leader may moderator-mute another Rider but must not remotely enable that
+  Rider's microphone;
+- standard media play/pause controls must not be hijacked for CommRide mic/PTT;
+- Ride text chat remains available for non-driving interaction;
+- Leader announcement/broadcast has elevated audio priority;
 - Quick actions:
   - I'm Stopping
   - I'm Left Behind
   - Need Help
-- SOS action with location and timestamp.
+- SOS action with location and timestamp;
+- SOS may use a high-priority repeated spoken Ride alert, but never claims to
+  contact public emergency services unless a dedicated integration is verified.
 
 #### Checkpoint
 - Rider arrival/check-in state.
@@ -163,7 +188,9 @@ The user can search for:
 - custom map points.
 
 ### Add Stop
-A Leader can insert stops into the route and reorder them.
+Before departure, a Leader can insert stops into the route and reorder them.
+During an Active Ride, Leader or Navigator may deliberately revise Stops as part
+of an explicit RoutePlan update.
 
 Every change recalculates:
 - route geometry;
@@ -175,11 +202,17 @@ Persistence rule:
 - only a successful recomputation may become the new current RoutePlan;
 - the previous valid plan remains current if provider recomputation fails;
 - each saved plan is a new revision so reorder/add/remove history is recoverable;
-- Draft and Published Rides may replace the current plan in the initial MVP;
-- Active Ride replanning is deferred to an explicit operational flow.
+- Draft and Published Rides may replace the current plan through the Leader;
+- during an Active Ride, Leader or Navigator may explicitly save a new revision;
+- an Active Ride revision is broadcast to connected Riders after persistence so
+  navigation clients can fetch and validate it before changing guidance;
+- failed/degraded realtime delivery must be surfaced and must not be presented
+  as synchronized group navigation.
 
 ### Search Along Route
-The Leader can search categories along the planned route without manually panning the map.
+The Leader can search categories along the planned route without manually
+panning the map before departure. During Active Ride replanning, the assigned
+Navigator may use the same deliberate planning tools.
 
 Examples:
 - Fuel along route
@@ -224,7 +257,6 @@ Post-MVP candidates:
 - predicted separation;
 - convoy split detection;
 - group topology instead of only Leader radius;
-- Rider recovery/rejoin routing;
 - Plan A / Plan B;
 - dynamic replanning when delayed;
 - optional checkpoint skipping;
@@ -323,12 +355,14 @@ Rider identity, vehicles, Ride history, badges.
 
 When a Ride is Active, the application should foreground the Ride command center.
 
-Suggested Active Ride tabs:
-- Overview
-- Map
-- Route
-- Convoy
-- Comms
+The default Active Ride foreground is a single low-interaction command surface:
+- turn-by-turn navigation and current route;
+- live convoy presence on the same map;
+- compact Leader / Navigator / Sweeper context and attention state;
+- voice intercom controls and SOS.
+
+Overview, Route, Convoy, text Comms and detailed incident views remain secondary
+surfaces rather than competing with the navigation map while moving.
 
 ## 10. Key Active Ride views
 
@@ -439,7 +473,14 @@ without requiring the group to manually recreate the same coordination through m
 
 ## 16. Explicit non-goals for MVP
 
-- embedded full turn-by-turn navigation;
+The original draft excluded embedded full turn-by-turn navigation. That decision
+is superseded: embedded navigation is now part of the accepted Active Ride
+direction. Pilot activation depends on CommRide Navigation Engine + MapLibre
+device acceptance and whichever route/traffic adapters are explicitly configured;
+Google Maps Platform is optional and is not a billing prerequisite.
+
+Remaining non-goals:
+
 - social influencer features;
 - speed ranking;
 - complex gamification economy;

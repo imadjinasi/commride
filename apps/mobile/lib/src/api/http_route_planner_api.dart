@@ -119,6 +119,23 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
   }
 
   @override
+  Future<List<TrafficIncident>> fetchTrafficIncidents(RouteOption route) async {
+    final Map<String, Object?> body = await _post(
+      '/v1/maps/traffic-incidents',
+      <String, Object?>{
+        'encodedPolyline': route.encodedPolyline,
+        'maxResults': 50,
+      },
+    );
+
+    return _readList(
+      body['incidents'],
+      TrafficIncident.fromJson,
+      'traffic incidents',
+    );
+  }
+
+  @override
   Future<SavedRoutePlan?> fetchRoutePlan(String rideId) async {
     final http.Response response = await _client.get(
       _endpoint('/v1/rides/${Uri.encodeComponent(rideId)}/route-plan'),
@@ -172,6 +189,9 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
         'distanceMeters': route.distanceMeters,
         'durationSeconds': route.durationSeconds,
         'encodedPolyline': route.encodedPolyline,
+        'maneuvers': route.maneuvers
+            .map((RouteManeuver maneuver) => maneuver.toJson())
+            .toList(growable: false),
         'stops': stops
             .map((PlanningStop stop) => stop.toJson())
             .toList(growable: false),
@@ -189,7 +209,18 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
         message: 'CommRide API response does not contain a RoutePlan.',
       );
     }
-    return SavedRoutePlan.fromJson(raw);
+    final Object? broadcast = body['activeRideBroadcast'];
+    if (broadcast != null && broadcast is! bool) {
+      throw const RoutePlannerApiException(
+        statusCode: 500,
+        code: 'invalid_response',
+        message: 'CommRide API returned invalid Active Ride broadcast status.',
+      );
+    }
+    return SavedRoutePlan.fromJson(
+      raw,
+      activeRideBroadcast: broadcast as bool?,
+    );
   }
 
   Future<Map<String, Object?>> _post(

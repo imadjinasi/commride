@@ -31,6 +31,8 @@ class RideDetailScreen extends StatefulWidget {
     this.rideRecapApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
+    this.navigationEnabled = false,
+    this.voiceIntercomEnabled = false,
     required this.onChanged,
     super.key,
   });
@@ -45,6 +47,8 @@ class RideDetailScreen extends StatefulWidget {
   final RideRecapApi? rideRecapApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
+  final bool navigationEnabled;
+  final bool voiceIntercomEnabled;
   final VoidCallback onChanged;
 
   @override
@@ -66,15 +70,23 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     final Ride ride = _item.ride;
     final RideMembership? membership = _item.membership;
     final bool isLeader = membership?.role == RideRole.leader;
+    final bool canManageActiveRoute =
+        ride.status == RideStatus.active &&
+        (membership?.role == RideRole.leader ||
+            membership?.role == RideRole.navigator);
     final bool canReadRoute =
         membership != null &&
         membership.status != RideMembershipStatus.invited &&
         membership.status != RideMembershipStatus.left;
     final bool canEditRoute =
+        (isLeader &&
+            (ride.status == RideStatus.draft ||
+                ride.status == RideStatus.published)) ||
+        canManageActiveRoute;
+    final bool canPublishBriefing =
         isLeader &&
         (ride.status == RideStatus.draft ||
             ride.status == RideStatus.published);
-    final bool canPublishBriefing = canEditRoute;
     final bool canAcknowledgeBriefing =
         ride.status == RideStatus.draft || ride.status == RideStatus.published;
 
@@ -112,7 +124,13 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                     ? null
                     : () => _openRoutePlanner(canEdit: canEditRoute),
                 icon: const Icon(Icons.map_outlined),
-                label: Text(canEditRoute ? 'Plan Route' : 'Lihat RoutePlan'),
+                label: Text(
+                  canEditRoute
+                      ? ride.status == RideStatus.active
+                            ? 'Ubah RoutePlan'
+                            : 'Plan Route'
+                      : 'Lihat RoutePlan',
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
@@ -219,7 +237,10 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
   Future<void> _openActiveRide() async {
     final ActiveRideRuntimeManager? runtimeManager =
         widget.activeRideRuntimeManager;
-    if (runtimeManager == null || _item.ride.status != RideStatus.active) {
+    final RideMembership? membership = _item.membership;
+    if (runtimeManager == null ||
+        membership == null ||
+        _item.ride.status != RideStatus.active) {
       return;
     }
 
@@ -227,8 +248,13 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
       MaterialPageRoute<void>(
         builder: (BuildContext context) => ActiveRideCommandCenterScreen(
           ride: _item.ride,
+          membership: membership,
           runtimeManager: runtimeManager,
+          routePlannerApi: widget.routePlannerApi,
+          rideSosApi: widget.rideSosApi,
           mapsEnabled: widget.mapsEnabled,
+          navigationEnabled: widget.navigationEnabled,
+          voiceIntercomEnabled: widget.voiceIntercomEnabled,
         ),
       ),
     );

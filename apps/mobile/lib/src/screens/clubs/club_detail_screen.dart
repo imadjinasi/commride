@@ -25,6 +25,8 @@ class ClubDetailScreen extends StatefulWidget {
     this.rideRecapApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
+    this.navigationEnabled = false,
+    this.voiceIntercomEnabled = false,
     required this.onChanged,
     super.key,
   });
@@ -39,6 +41,8 @@ class ClubDetailScreen extends StatefulWidget {
   final RideRecapApi? rideRecapApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
+  final bool navigationEnabled;
+  final bool voiceIntercomEnabled;
   final VoidCallback onChanged;
 
   @override
@@ -277,6 +281,8 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
           rideRecapApi: widget.rideRecapApi,
           activeRideRuntimeManager: widget.activeRideRuntimeManager,
           mapsEnabled: widget.mapsEnabled,
+          navigationEnabled: widget.navigationEnabled,
+          voiceIntercomEnabled: widget.voiceIntercomEnabled,
           onChanged: () {
             widget.onChanged();
             _reloadRides();

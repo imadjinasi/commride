@@ -21,6 +21,10 @@ import type {
   SaveRoutePlanInput,
 } from '../src/route-plans/models';
 import type { RoutePlanRepository } from '../src/route-plans/repository';
+import type {
+  ActiveRideGateway,
+  ActiveRideRoutePlanUpdate,
+} from '../src/active-ride/gateway';
 import { handleRequest } from '../src/router';
 
 const leader: RiderProfile = {
@@ -107,6 +111,7 @@ class MemoryRoutePlanRepository implements RoutePlanRepository {
       distanceMeters: input.distanceMeters,
       durationSeconds: input.durationSeconds,
       encodedPolyline: input.encodedPolyline,
+      maneuvers: input.maneuvers ?? [],
       isCurrent: true,
       createdAt: '2026-09-18T00:00:00Z',
       stops: input.stops.map((stop) => ({ ...stop })),
@@ -197,6 +202,17 @@ function routeBody(polyline: string, labels: readonly string[] = ['Fuel']) {
     distanceMeters: 130000,
     durationSeconds: 9000,
     encodedPolyline: polyline,
+    maneuvers: [{
+      instruction: 'Continue on planned route.',
+      type: 'continue',
+      distanceMeters: 500,
+      durationSeconds: 40,
+      beginShapeIndex: 0,
+      endShapeIndex: 1,
+      verbalPreTransitionInstruction: null,
+      verbalTransitionInstruction: 'Continue.',
+      verbalPostTransitionInstruction: null,
+    }],
     stops: labels.map((label, index) => ({
       label,
       formattedAddress: `Stop ${index + 1}`,
@@ -215,6 +231,7 @@ function overrides(
   currentRide: Ride,
   memberships: readonly RideMembership[],
   routePlanRepository: RoutePlanRepository,
+  activeRideGateway?: ActiveRideGateway,
 ) {
   let nextId = 1;
   return {
@@ -222,6 +239,7 @@ function overrides(
     riderRepository: new TestRiderRepository(),
     clubRideRepository: clubRideRepository(currentRide, memberships),
     routePlanRepository,
+    activeRideGateway,
     idFactory: () => `generated-${nextId++}`,
   };
 }
@@ -247,6 +265,7 @@ describe('RoutePlan API', () => {
     expect(first.status).toBe(200);
     const firstBody = await first.json() as { routePlan: RoutePlan };
     expect(firstBody.routePlan.revision).toBe(1);
+    expect(firstBody.routePlan.maneuvers).toHaveLength(1);
     expect(firstBody.routePlan.stops.map((stop) => stop.sequence)).toEqual([
       0,
       1,
@@ -294,7 +313,7 @@ describe('RoutePlan API', () => {
     expect(body.routePlan.encodedPolyline).toBe('route-v1');
   });
 
-  it('rejects RoutePlan replacement by a non-Leader', async () => {
+  it('rejects RoutePlan replacement by a Rider without route authority', async () => {
     const repository = new MemoryRoutePlanRepository();
 
     const response = await handleRequest(
@@ -305,6 +324,26 @@ describe('RoutePlan API', () => {
         [
           membership(leader.id, 'leader'),
           membership(member.id, 'member'),
+        ],
+        repository,
+      ),
+    );
+
+    expect(response.status).toBe(403);
+    expect(repository.history).toHaveLength(0);
+  });
+
+  it('keeps pre-Ride RoutePlan replacement Leader-only', async () => {
+    const repository = new MemoryRoutePlanRepository();
+
+    const response = await handleRequest(
+      request('PUT', 'member-token', routeBody('navigator-pre-ride')),
+      {},
+      overrides(
+        ride('published'),
+        [
+          membership(leader.id, 'leader'),
+          membership(member.id, 'navigator'),
         ],
         repository,
       ),
@@ -333,8 +372,61 @@ describe('RoutePlan API', () => {
     expect(response.status).toBe(403);
   });
 
-  it('does not silently replace the pre-Ride plan after the Ride is Active', async () => {
+  it('lets the Navigator explicitly revise an Active Ride route and broadcasts the revision', async () => {
     const repository = new MemoryRoutePlanRepository();
+    const updates: ActiveRideRoutePlanUpdate[] = [];
+    const gateway = {
+      async connect() {
+        throw new Error('Not used.');
+      },
+      async endRide() {},
+      async routePlanUpdated(update: ActiveRideRoutePlanUpdate) {
+        updates.push(update);
+      },
+    } satisfies ActiveRideGateway;
+
+    const response = await handleRequest(
+      request('PUT', 'member-token', routeBody('active-replan')),
+      {},
+      overrides(
+        ride('active'),
+        [
+          membership(leader.id, 'leader', 'active'),
+          membership(member.id, 'navigator', 'active'),
+        ],
+        repository,
+        gateway,
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as {
+      routePlan: RoutePlan;
+      activeRideBroadcast: boolean;
+    };
+    expect(body.routePlan.revision).toBe(1);
+    expect(body.activeRideBroadcast).toBe(true);
+    expect(updates).toEqual([
+      {
+        rideId: 'ride-1',
+        revision: 1,
+        updatedByRiderId: member.id,
+        updatedByRole: 'navigator',
+      },
+    ]);
+  });
+
+  it('persists an Active Ride revision even if realtime broadcast is degraded', async () => {
+    const repository = new MemoryRoutePlanRepository();
+    const gateway = {
+      async connect() {
+        throw new Error('Not used.');
+      },
+      async endRide() {},
+      async routePlanUpdated() {
+        throw new Error('room unavailable');
+      },
+    } satisfies ActiveRideGateway;
 
     const response = await handleRequest(
       request('PUT', 'leader-token', routeBody('active-replan')),
@@ -343,11 +435,17 @@ describe('RoutePlan API', () => {
         ride('active'),
         [membership(leader.id, 'leader', 'active')],
         repository,
+        gateway,
       ),
     );
 
-    expect(response.status).toBe(409);
-    expect(repository.history).toHaveLength(0);
+    expect(response.status).toBe(200);
+    const body = await response.json() as {
+      routePlan: RoutePlan;
+      activeRideBroadcast: boolean;
+    };
+    expect(body.activeRideBroadcast).toBe(false);
+    expect(repository.history).toHaveLength(1);
   });
 
   it('rejects more than ten intermediate stops', async () => {

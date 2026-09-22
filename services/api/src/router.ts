@@ -42,9 +42,22 @@ import {
 } from './clubs-rides/repository';
 import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
+import {
+  CachedTrafficIncidentProvider,
+  type TrafficResponseCache,
+} from './maps/cached-traffic-provider';
 import { GeoapifyProvider } from './maps/geoapify-provider';
+import { GoogleMapsProvider } from './maps/google-maps-provider';
 import { handleMapsRequest, isMapsPath } from './maps/handler';
-import type { RoutePlaceProvider } from './maps/provider';
+import {
+  CompositeRoutePlaceProvider,
+  type PlaceProvider,
+  type RoutePlaceProvider,
+  type RouteProvider,
+} from './maps/provider';
+import { TomTomTrafficProvider } from './maps/tomtom-traffic-provider';
+import type { TrafficIncidentProvider } from './maps/traffic-provider';
+import { ValhallaRouteProvider } from './maps/valhalla-route-provider';
 import { resolveRequestId } from './request-id';
 import {
   handlePushTokenRequest,
@@ -111,6 +124,7 @@ export interface RouterOverrides {
   readonly clubRideRepository?: ClubRideRepository;
   readonly clubRideReadRepository?: ClubRideReadRepository;
   readonly routePlaceProvider?: RoutePlaceProvider;
+  readonly trafficIncidentProvider?: TrafficIncidentProvider;
   readonly routePlanRepository?: RoutePlanRepository;
   readonly rideBriefingRepository?: RideBriefingRepository;
   readonly checkpointRepository?: CheckpointRepository;
@@ -581,6 +595,10 @@ export async function handleRequest(
           riderRepository,
           clubRideRepository,
           routePlanRepository,
+          activeRideGateway:
+            overrides.activeRideGateway ??
+            resolveActiveRideGateway(env) ??
+            undefined,
           idFactory: overrides.idFactory,
         },
       );
@@ -616,6 +634,10 @@ export async function handleRequest(
 
       const routePlaceProvider =
         overrides.routePlaceProvider ?? resolveRoutePlaceProvider(env);
+      const trafficIncidentProvider =
+        overrides.trafficIncidentProvider ??
+        resolveTrafficIncidentProvider(env) ??
+        undefined;
       if (routePlaceProvider == null) {
         return errorResponse(
           'maps_not_configured',
@@ -633,6 +655,7 @@ export async function handleRequest(
           identityVerifier,
           riderRepository,
           provider: routePlaceProvider,
+          trafficProvider: trafficIncidentProvider,
         },
       );
 
@@ -895,14 +918,80 @@ function resolveFirebaseVerifier(env: Env): IdentityVerifier | null {
 
 
 function resolveRoutePlaceProvider(env: Env): RoutePlaceProvider | null {
-  const apiKey = env.GEOAPIFY_API_KEY?.trim();
-  if (apiKey == null || apiKey.length === 0) {
-    return null;
-  }
+  const legacy = selector(env.MAP_PROVIDER) ?? 'geoapify';
+  const placeName = selector(env.PLACE_PROVIDER) ?? legacy;
+  const routeName = selector(env.ROUTE_PROVIDER) ?? legacy;
+  const places = resolvePlaceProvider(placeName, env);
+  const routes = resolveRouteProvider(routeName, env);
 
-  return new GeoapifyProvider(apiKey);
+  return places == null || routes == null
+    ? null
+    : new CompositeRoutePlaceProvider(places, routes);
 }
 
+function resolvePlaceProvider(name: string, env: Env): PlaceProvider | null {
+  if (name === 'geoapify') {
+    const apiKey = env.GEOAPIFY_API_KEY?.trim();
+    return apiKey == null || apiKey.length === 0
+      ? null
+      : new GeoapifyProvider(apiKey);
+  }
+  if (name === 'google') {
+    const apiKey = env.GOOGLE_MAPS_API_KEY?.trim();
+    return apiKey == null || apiKey.length === 0
+      ? null
+      : new GoogleMapsProvider(apiKey);
+  }
+  return null;
+}
+
+function resolveRouteProvider(name: string, env: Env): RouteProvider | null {
+  if (name === 'geoapify') {
+    const apiKey = env.GEOAPIFY_API_KEY?.trim();
+    return apiKey == null || apiKey.length === 0
+      ? null
+      : new GeoapifyProvider(apiKey);
+  }
+  if (name === 'google') {
+    const apiKey = env.GOOGLE_MAPS_API_KEY?.trim();
+    return apiKey == null || apiKey.length === 0
+      ? null
+      : new GoogleMapsProvider(apiKey);
+  }
+  if (name === 'valhalla') {
+    const baseUrl = env.VALHALLA_BASE_URL?.trim();
+    return baseUrl == null || baseUrl.length === 0
+      ? null
+      : new ValhallaRouteProvider(baseUrl);
+  }
+  return null;
+}
+
+function resolveTrafficIncidentProvider(
+  env: Env,
+): TrafficIncidentProvider | null {
+  const name = selector(env.TRAFFIC_PROVIDER);
+  if (name == null || name === 'none') return null;
+  if (name !== 'tomtom') return null;
+
+  const apiKey = env.TOMTOM_API_KEY?.trim();
+  if (apiKey == null || apiKey.length === 0) return null;
+
+  const provider = new TomTomTrafficProvider(apiKey);
+  const cache = typeof caches === 'undefined'
+    ? null
+    : (caches as unknown as { default?: TrafficResponseCache }).default ?? null;
+  return cache == null
+    ? provider
+    : new CachedTrafficIncidentProvider(provider, cache);
+}
+
+function selector(value: string | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  return normalized == null || normalized.length === 0
+    ? null
+    : normalized;
+}
 
 function resolveActiveRideGateway(env: Env): ActiveRideGateway | null {
   if (env.ACTIVE_RIDE_ROOM == null) {

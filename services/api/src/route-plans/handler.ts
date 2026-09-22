@@ -1,8 +1,13 @@
 import { authenticateRider } from '../auth/authenticated-rider';
 import type { IdentityVerifier } from '../auth/identity';
+import type { ActiveRideGateway } from '../active-ride/gateway';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
-import type { GeoPoint, RouteTravelMode } from '../maps/models';
+import type {
+  GeoPoint,
+  RouteManeuver,
+  RouteTravelMode,
+} from '../maps/models';
 import type { RiderRepository } from '../riders/rider-repository';
 import type {
   CheckpointType,
@@ -19,6 +24,7 @@ export interface RoutePlanHandlerDependencies {
   readonly riderRepository: RiderRepository;
   readonly clubRideRepository: ClubRideRepository;
   readonly routePlanRepository: RoutePlanRepository;
+  readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
 }
 
@@ -106,20 +112,29 @@ export async function handleRoutePlanRequest(
     return jsonResponse({ routePlan }, 200, requestId);
   }
 
-  if (membership.role !== 'leader') {
-    return errorResponse(
-      'ride_leader_required',
-      'The Ride Leader role is required to replace the RoutePlan.',
-      403,
-      requestId,
-    );
-  }
+  const canReplacePreRide =
+    membership.role === 'leader' &&
+    (ride.status === 'draft' || ride.status === 'published');
+  const canReplaceActive =
+    ride.status === 'active' &&
+    (membership.role === 'leader' || membership.role === 'navigator');
 
-  if (ride.status !== 'draft' && ride.status !== 'published') {
+  if (!canReplacePreRide && !canReplaceActive) {
+    if (ride.status === 'completed' || ride.status === 'cancelled') {
+      return errorResponse(
+        'ride_state_conflict',
+        'RoutePlan replacement is unavailable after the Ride is completed or cancelled.',
+        409,
+        requestId,
+      );
+    }
+
     return errorResponse(
-      'ride_state_conflict',
-      'The initial RoutePlan can only be replaced while the Ride is Draft or Published.',
-      409,
+      'ride_route_manager_required',
+      ride.status === 'active'
+        ? 'The Ride Leader or Navigator role is required to revise an Active Ride RoutePlan.'
+        : 'The Ride Leader role is required to replace the pre-Ride RoutePlan.',
+      403,
       requestId,
     );
   }
@@ -143,7 +158,33 @@ export async function handleRoutePlanRequest(
     inputResult.value,
   );
 
-  return jsonResponse({ routePlan }, 200, requestId);
+  let activeRideBroadcast: boolean | null = null;
+  if (ride.status === 'active') {
+    activeRideBroadcast = false;
+    try {
+      await dependencies.activeRideGateway?.routePlanUpdated?.({
+        rideId,
+        revision: routePlan.revision,
+        updatedByRiderId: rider.id,
+        updatedByRole: membership.role,
+      });
+      activeRideBroadcast =
+        dependencies.activeRideGateway?.routePlanUpdated != null;
+    } catch {
+      // The D1 revision is already authoritative. Return the persisted plan
+      // and expose degraded realtime delivery rather than fabricating rollback.
+      activeRideBroadcast = false;
+    }
+  }
+
+  return jsonResponse(
+    {
+      routePlan,
+      ...(activeRideBroadcast == null ? {} : { activeRideBroadcast }),
+    },
+    200,
+    requestId,
+  );
 }
 
 async function readRoutePlanInput(
@@ -169,6 +210,7 @@ async function readRoutePlanInput(
   const distanceMeters = nonNegativeInteger(body.distanceMeters);
   const durationSeconds = nonNegativeInteger(body.durationSeconds);
   const encodedPolyline = requiredString(body.encodedPolyline, 1, 200000);
+  const maneuvers = parseManeuvers(body.maneuvers);
 
   if (
     travelMode == null ||
@@ -176,7 +218,8 @@ async function readRoutePlanInput(
     destination == null ||
     distanceMeters == null ||
     durationSeconds == null ||
-    encodedPolyline == null
+    encodedPolyline == null ||
+    maneuvers == null
   ) {
     return {
       error:
@@ -218,9 +261,71 @@ async function readRoutePlanInput(
       distanceMeters,
       durationSeconds,
       encodedPolyline,
+      maneuvers,
       stops,
     },
   };
+}
+
+function parseManeuvers(value: unknown): RouteManeuver[] | null {
+  if (value == null) {
+    // Backward compatible while existing pilot clients are upgraded.
+    return [];
+  }
+  if (!Array.isArray(value) || value.length > 500) {
+    return null;
+  }
+
+  const maneuvers: RouteManeuver[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) return null;
+    const instruction = requiredString(raw.instruction, 1, 500);
+    const type = optionalString(raw.type, 100);
+    const distanceMeters = nonNegativeInteger(raw.distanceMeters);
+    const durationSeconds = nonNegativeInteger(raw.durationSeconds);
+    const beginShapeIndex = nonNegativeInteger(raw.beginShapeIndex);
+    const endShapeIndex = nonNegativeInteger(raw.endShapeIndex);
+    const verbalPreTransitionInstruction = optionalString(
+      raw.verbalPreTransitionInstruction,
+      500,
+    );
+    const verbalTransitionInstruction = optionalString(
+      raw.verbalTransitionInstruction,
+      500,
+    );
+    const verbalPostTransitionInstruction = optionalString(
+      raw.verbalPostTransitionInstruction,
+      500,
+    );
+
+    if (
+      instruction == null ||
+      type === undefined ||
+      distanceMeters == null ||
+      durationSeconds == null ||
+      beginShapeIndex == null ||
+      endShapeIndex == null ||
+      endShapeIndex < beginShapeIndex ||
+      verbalPreTransitionInstruction === undefined ||
+      verbalTransitionInstruction === undefined ||
+      verbalPostTransitionInstruction === undefined
+    ) {
+      return null;
+    }
+
+    maneuvers.push({
+      instruction,
+      type,
+      distanceMeters,
+      durationSeconds,
+      beginShapeIndex,
+      endShapeIndex,
+      verbalPreTransitionInstruction,
+      verbalTransitionInstruction,
+      verbalPostTransitionInstruction,
+    });
+  }
+  return maneuvers;
 }
 
 function routeEndpoint(

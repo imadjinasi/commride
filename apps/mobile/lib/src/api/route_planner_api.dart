@@ -27,6 +27,8 @@ abstract interface class RoutePlannerApi {
 
   Future<SavedRoutePlan?> fetchRoutePlan(String rideId);
 
+  Future<List<TrafficIncident>> fetchTrafficIncidents(RouteOption route);
+
   Future<SavedRoutePlan> saveRoutePlan({
     required String rideId,
     required ResolvedPlace origin,

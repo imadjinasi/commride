@@ -202,21 +202,31 @@ Start Ride must be idempotent.
 
 ## 12. Active Ride normal flow
 
-1. App foregrounds Overview
-2. Rider sees next checkpoint
-3. Rider enables tracking if it is not already active
-4. CommRide requests location permission contextually if required
-5. Rider can open Map or external navigation
-6. the local Ride location session continues while the app is backgrounded where platform rules permit
-7. latest observations publish to the authenticated Active Ride room
-8. Leader sees group state
-9. checkpoint approaches
-10. Riders arrive/check in
-11. if Regroup:
-   - Leader sees arrival count
-   - waits as needed
-12. Leader releases group
-13. next Segment becomes active
+1. App foregrounds the Active Ride navigation command center.
+2. Rider sees the next maneuver / checkpoint and route progress.
+3. Rider enables Ride tracking/navigation if it is not already active.
+4. CommRide requests location permission contextually if required.
+5. Embedded turn-by-turn navigation occupies the primary map surface.
+6. Authorized RiderPresence is overlaid on the same map with role and
+   Live/Stale/Offline semantics.
+7. Group Intercom joins as the default voice mode; Mic On/Off remains under the
+   Rider's control.
+8. Navigation prompts and Ride voice coexist according to audio priority.
+9. Latest observations publish to the authenticated Active Ride room.
+10. Leader/Navigator/Sweeper see group attention state without opening a
+    separate tracking dashboard for routine operation.
+11. If the route must change, Leader or Navigator deliberately opens RoutePlan,
+    reviews/recomputes the candidate, and saves a new immutable revision.
+12. Connected navigation clients receive `ride.route_plan_updated`, fetch the
+    persisted revision, validate a fresh compatible provider route token, and
+    only then change guidance. A materially different provider route is not
+    accepted silently.
+13. Checkpoint approaches and Riders arrive/check in.
+14. if Regroup:
+    - Leader sees arrival count;
+    - waits as needed.
+15. Leader releases group.
+16. next Segment becomes active and guidance continues.
 
 ## 13. I'm Stopping
 
@@ -287,7 +297,21 @@ Completed Ride:
 Quick Actions, Checkpoints, convoy separation, Ride End, and future SOS remain
 typed operational state. They are not flattened into ordinary chat messages.
 
-## 16. SOS
+## 17. Voice Intercom
+
+Normal Active Ride:
+1. Rider joins the Ride voice room in Group Intercom mode by default.
+2. Mic On means natural group-call conversation; no button hold is required.
+3. Mic Off keeps the Rider listening without transmitting.
+4. PTT can be selected explicitly for the Rider/Ride when appropriate.
+5. Listen Only disables local transmission while preserving Ride audio.
+6. A Rider may locally mute selected participants.
+7. Leader may moderator-mute a participant for the Ride, but cannot remotely
+   enable that Rider's microphone.
+8. Standard headset/TWS play/pause remains media playback control. Distinct
+   supported hardware inputs may be mapped to Mic Toggle/PTT separately.
+
+## 18. SOS
 
 Active Ride participant:
 
@@ -333,7 +357,7 @@ Completed Ride:
 An Active SOS must be explicitly cancelled or resolved before End Ride may
 complete in the initial policy.
 
-## 17. Mandatory Regroup
+## 19. Mandatory Regroup
 
 1. Riders approach checkpoint
 2. arrival states update
@@ -346,7 +370,7 @@ complete in the initial policy.
 6. next Segment becomes active
 7. Riders notified
 
-## 18. Rider goes offline
+## 20. Rider goes offline
 
 1. realtime connection drops
 2. last valid position remains visible
@@ -358,18 +382,27 @@ complete in the initial policy.
 
 Never animate stale position as though it is live.
 
-## 19. Rider deviates from Route
+## 21. Rider deviates from Route
 
 MVP:
-1. server/client detects basic deviation threshold
-2. Rider sees off-route warning
-3. Leader may see attention state
-4. Rider can open external navigation to next checkpoint
+1. local navigation uses distance/time hysteresis so one noisy GPS sample does
+   not trigger a route change;
+2. sustained deviation enters **Recovery** while the accepted RoutePlan remains
+   authoritative;
+3. CommRide selects a sensible future rejoin point on the existing route;
+4. when a route provider is available, CommRide computes a temporary road-aware
+   recovery path to that rejoin point; it is not persisted as RoutePlan truth;
+5. if temporary recovery routing fails, CommRide keeps honest rejoin/RoutePlan
+   information and does not draw a fake drivable straight line;
+6. after meaningful deviation, Rider may tap **Cari rute baru**;
+7. the replacement is previewed and requires explicit confirmation;
+8. only Leader/Navigator may persist a replacement shared RoutePlan revision;
+   Member/Sweeper continue recovery and cannot reroute the convoy.
 
-Future:
-- recommended rejoin/intercept point.
+Leader may still see group/separation attention independently of the Rider's
+local recovery guidance.
 
-## 20. End Ride
+## 22. End Ride
 
 Leader:
 
@@ -388,7 +421,7 @@ Rider:
 A server `ride.ended` realtime event has the same local stop effect as the
 Leader completing the Ride through the normal lifecycle command.
 
-## 21. Ride Recap
+## 23. Ride Recap
 
 1. Completed Ride
 2. show:
@@ -401,14 +434,14 @@ Leader completing the Ride through the normal lifecycle command.
 3. Leader/Club may publish recap to timeline
 4. eligible achievements awarded
 
-## 22. Follow Club
+## 24. Follow Club
 
 1. Open Club profile
 2. Follow
 3. Club activity may enter Home feed
 4. Follow does not grant membership or location access
 
-## 23. Badge award
+## 25. Badge award
 
 1. trusted Ride/Club event occurs
 2. achievement rules evaluate
@@ -418,7 +451,7 @@ Leader completing the Ride through the normal lifecycle command.
 
 No badge should depend on unsafe speed behavior.
 
-## 24. Failure-state principles
+## 26. Failure-state principles
 
 Every core flow must define behavior for:
 - no signal;

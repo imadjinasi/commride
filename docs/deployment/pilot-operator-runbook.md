@@ -37,9 +37,16 @@ Do not recreate these resources without a mismatch. The Android application ID i
 a long-lived technical identity, not a website URL. iOS Bundle ID/registration
 remains unfinalized; do not create it by assumption.
 
-Google Maps is deferred. Do not block the pilot on Google billing or another card.
-There is no Cloudflare/D1 deployment, real provider acceptance, installed Firebase
-integration, FCM delivery, device or convoy PASS in the setup evidence above.
+MapLibre + Geoapify remains the proven fallback. The accepted next Active Ride
+path is MapLibre + CommRide Navigation Engine, with Valhalla as the target
+self-hosted motorcycle router and TomTom REST traffic/incident intelligence.
+Geoapify stays active until replacement runtime evidence exists. Google source
+preparation is optional and must not become a billing prerequisite for the pilot.
+
+Cloudflare/D1, Firebase authentication and Geoapify provider/runtime now have
+separate operator evidence recorded after the original setup baseline. FCM
+delivery, CommRide embedded-navigation device acceptance, Valhalla/TomTom
+provider runtime, and convoy field acceptance still require their own evidence.
 
 ## 1. Source gate and baseline record
 
@@ -233,7 +240,86 @@ flutter build appbundle --release --dart-define-from-file=pilot-defines.local.js
 A CI release AAB is only a build gate, not a Play-signed release or installed-device
 provider acceptance. Never commit the keystore or signing passwords.
 
-## 7. Two-Rider functional smoke before any road test
+## 7. Activate the low-cost navigation providers deliberately
+
+Google billing is not required for the pilot path.
+
+### 7.1 Keep the proven fallback while migrating
+
+Until Valhalla has real runtime evidence, keep:
+- Geoapify route/place backend available;
+- MapLibre client style configured;
+- `COMMRIDE_NAVIGATION_ENABLED=false` unless the CommRide navigation surface on
+  the exact build has passed its own device gate.
+
+Do not remove `GEOAPIFY_API_KEY` merely because the target provider code exists.
+
+### 7.2 TomTom traffic / incident intelligence
+
+Create a TomTom API key in the operator account without committing or pasting it
+into chat. Store only the server-side secret:
+
+```powershell
+cd C:\Users\sabilulquran\Documents\Projects\commride\services\api
+npx wrangler secret put TOMTOM_API_KEY
+```
+
+Enable the non-secret traffic selector only after the secret is present.
+Provider calls must be bounded and server-side; one shared Ride result should not
+be fetched independently by every Rider. Active Ride refreshes advisory traffic
+at a bounded 10-minute cadence, while the Worker shares the exact-RoutePlan
+result through a short edge-cache TTL. Verify repeated Rider requests really
+reuse cached data, verify failed refreshes do not leave old incidents presented
+indefinitely, then verify real Indonesian incident/traffic responses and account
+usage before calling this Provider/runtime PASS.
+
+### 7.3 Valhalla routing target
+
+Valhalla is open source but is **not** live merely because an adapter exists.
+Provision a reviewed HTTPS Valhalla endpoint separately, keep it outside the
+mobile app, and configure its base URL as a non-secret Worker variable only after
+the endpoint is reachable and controlled.
+
+Before changing the route default, verify:
+- motorcycle costing returns a real route;
+- Stops preserve order;
+- normalized distance/duration/geometry/maneuvers are complete;
+- alternatives are materially different when offered;
+- timeouts/errors preserve the previous valid RoutePlan;
+- no car route is silently labeled motorcycle.
+
+Until this passes, keep Geoapify as route fallback.
+
+### 7.4 CommRide Navigation Engine device gate
+
+After repository CI passes, use an installed Android build to verify:
+- MapLibre renders the accepted RoutePlan;
+- the existing Ride location session drives progress (no second hidden GPS stream);
+- next maneuver changes with route progress;
+- RiderPresence retains Live/Stale/Offline semantics;
+- one noisy GPS sample does not trigger off-route;
+- sustained deviation enters Recovery;
+- Recovery keeps the original RoutePlan and guides toward a sensible future
+  rejoin point;
+- when provider recovery succeeds, the temporary recovery line follows a
+  provider-computed road path rather than a fake straight line;
+- repeated GPS samples do not cause continuous upstream route recomputation;
+- a recovery-provider failure keeps the original RoutePlan usable and does not
+  masquerade as valid road guidance;
+- **Cari rute baru** is deliberate and does not change the shared route before
+  confirmation;
+- Member/Sweeper cannot change the shared route;
+- Leader/Navigator replacement creates a new persisted revision before other
+  Riders apply it;
+- traffic/incidents degrade honestly if TomTom is unavailable.
+
+External Google/Waze navigation links may remain fallback escape hatches. They do
+not count as embedded CommRide navigation acceptance.
+
+Voice remains off until a real media transport/SFU is implemented and device
+tested.
+
+## 8. Two-Rider functional smoke before any road test
 
 Use two separate accounts/devices. Complete Account, Rider profile, Vehicle, Club,
 invite/join, Ride, Route Planner and save, Briefing, both Riders Ready, Start Ride,
@@ -241,7 +327,7 @@ Live Group, Quick Action, Checkpoint check-in/release, private chat, Leader
 announcement, raise SOS, verify End Ride rejection, cancel/resolve SOS, End Ride
 and Ride Recap. Any core blocker stops progression to field testing.
 
-## 8. Physical-device acceptance
+## 9. Physical-device acceptance
 
 On Android record fresh install, permission denied/later enabled for notifications
 and location, tracking started only from Active Ride, screen lock for at least
@@ -259,7 +345,7 @@ and APNs, enable Push Notifications capability with actual signing entitlements,
 and repeat equivalent scenarios on a signed physical iPhone. No APNs entitlement
 or provider identity is fabricated by repository bootstrap.
 
-## 9. Convoy field acceptance
+## 10. Convoy field acceptance
 
 Use at least three vehicles: Leader, Member and Sweeper. Verify all Live, deliberate
 Stale/Offline, last-known timestamps, reconnect only becoming Live after a fresh
@@ -270,7 +356,7 @@ by SOS, SOS closure, successful End Ride and planned-vs-sampled Recap.
 Screen interactions must be performed while safely stopped. CommRide is not an
 emergency dispatch service or crash/fall detector.
 
-## 10. Evidence record
+## 11. Evidence record
 
 For each test record exact app/API SHA; Worker URL/version; D1 ID; Firebase project;
 app version/build/signing channel; device models/OS; permission states; Rider count;

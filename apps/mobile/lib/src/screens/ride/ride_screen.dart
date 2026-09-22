@@ -24,6 +24,8 @@ class RideScreen extends StatefulWidget {
     this.rideRecapApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
+    this.navigationEnabled = false,
+    this.voiceIntercomEnabled = false,
     super.key,
   });
 
@@ -36,6 +38,8 @@ class RideScreen extends StatefulWidget {
   final RideRecapApi? rideRecapApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
+  final bool navigationEnabled;
+  final bool voiceIntercomEnabled;
 
   @override
   State<RideScreen> createState() => _RideScreenState();
@@ -158,6 +162,8 @@ class _RideScreenState extends State<RideScreen> {
           rideRecapApi: widget.rideRecapApi,
           activeRideRuntimeManager: widget.activeRideRuntimeManager,
           mapsEnabled: widget.mapsEnabled,
+          navigationEnabled: widget.navigationEnabled,
+          voiceIntercomEnabled: widget.voiceIntercomEnabled,
           onChanged: _refresh,
         ),
       ),

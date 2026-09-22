@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,17 +7,21 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/route_planner.dart';
 
+enum RoutePlannerInitialAction { none, addStop, searchAlongRoute }
+
 class RoutePlannerScreen extends StatefulWidget {
   const RoutePlannerScreen({
     required this.rideId,
     required this.routePlannerApi,
     required this.canEdit,
+    this.initialAction = RoutePlannerInitialAction.none,
     super.key,
   });
 
   final String rideId;
   final RoutePlannerApi routePlannerApi;
   final bool canEdit;
+  final RoutePlannerInitialAction initialAction;
 
   @override
   State<RoutePlannerScreen> createState() => _RoutePlannerScreenState();
@@ -31,6 +36,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   List<PlanningStop> _stops = <PlanningStop>[];
   bool _loading = true;
   bool _working = false;
+  bool _initialActionHandled = false;
   int? _savedRevision;
   String? _loadError;
 
@@ -117,6 +123,28 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
                   },
           ),
           const SizedBox(height: 16),
+        ],
+        if (_travelMode == RouteTravelMode.twoWheeler) ...<Widget>[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(Icons.info_outline, size: 20),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Rute motor dari penyedia navigasi dapat belum '
+                      'mencakup semua jalan atau pembatasan. Tetap ikuti '
+                      'rambu, aturan setempat, dan kondisi jalan aktual.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
         _PlaceTile(
           title: 'Titik awal',
@@ -302,8 +330,30 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         setState(() {
           _loading = false;
         });
+        _scheduleInitialAction();
       }
     }
+  }
+
+  void _scheduleInitialAction() {
+    if (_initialActionHandled ||
+        !widget.canEdit ||
+        widget.initialAction == RoutePlannerInitialAction.none ||
+        _selectedRoute == null ||
+        _loadError != null) {
+      return;
+    }
+
+    _initialActionHandled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final Future<void> action = switch (widget.initialAction) {
+        RoutePlannerInitialAction.addStop => _addStop(),
+        RoutePlannerInitialAction.searchAlongRoute => _searchAlongRoute(),
+        RoutePlannerInitialAction.none => Future<void>.value(),
+      };
+      unawaited(action);
+    });
   }
 
   Future<void> _chooseEndpoint({required bool isOrigin}) async {
@@ -567,7 +617,15 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
       setState(() {
         _savedRevision = saved.revision;
       });
-      _showMessage('RoutePlan revision ${saved.revision} tersimpan.');
+      if (saved.activeRideBroadcast == false) {
+        _showMessage(
+          'RoutePlan revision ${saved.revision} tersimpan, tetapi update '
+          'realtime ke Rider lain belum terkirim. Pastikan rombongan '
+          'memuat ulang RoutePlan sebelum mengikuti rute baru.',
+        );
+      } else {
+        _showMessage('RoutePlan revision ${saved.revision} tersimpan.');
+      }
     });
   }
 

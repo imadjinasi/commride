@@ -91,6 +91,61 @@ class RouteLeg {
   }
 }
 
+class RouteManeuver {
+  const RouteManeuver({
+    required this.instruction,
+    required this.type,
+    required this.distanceMeters,
+    required this.durationSeconds,
+    required this.beginShapeIndex,
+    required this.endShapeIndex,
+    required this.verbalPreTransitionInstruction,
+    required this.verbalTransitionInstruction,
+    required this.verbalPostTransitionInstruction,
+  });
+
+  final String instruction;
+  final String? type;
+  final int distanceMeters;
+  final int durationSeconds;
+  final int beginShapeIndex;
+  final int endShapeIndex;
+  final String? verbalPreTransitionInstruction;
+  final String? verbalTransitionInstruction;
+  final String? verbalPostTransitionInstruction;
+
+  factory RouteManeuver.fromJson(Map<String, Object?> json) {
+    return RouteManeuver(
+      instruction: json['instruction'] as String,
+      type: json['type'] as String?,
+      distanceMeters: json['distanceMeters'] as int,
+      durationSeconds: json['durationSeconds'] as int,
+      beginShapeIndex: json['beginShapeIndex'] as int,
+      endShapeIndex: json['endShapeIndex'] as int,
+      verbalPreTransitionInstruction:
+          json['verbalPreTransitionInstruction'] as String?,
+      verbalTransitionInstruction:
+          json['verbalTransitionInstruction'] as String?,
+      verbalPostTransitionInstruction:
+          json['verbalPostTransitionInstruction'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'instruction': instruction,
+      'type': type,
+      'distanceMeters': distanceMeters,
+      'durationSeconds': durationSeconds,
+      'beginShapeIndex': beginShapeIndex,
+      'endShapeIndex': endShapeIndex,
+      'verbalPreTransitionInstruction': verbalPreTransitionInstruction,
+      'verbalTransitionInstruction': verbalTransitionInstruction,
+      'verbalPostTransitionInstruction': verbalPostTransitionInstruction,
+    };
+  }
+}
+
 class RouteOption {
   const RouteOption({
     required this.routeIndex,
@@ -98,7 +153,9 @@ class RouteOption {
     required this.distanceMeters,
     required this.durationSeconds,
     required this.encodedPolyline,
+    this.routeToken,
     required this.legs,
+    this.maneuvers = const <RouteManeuver>[],
   });
 
   final int routeIndex;
@@ -106,7 +163,9 @@ class RouteOption {
   final int distanceMeters;
   final int durationSeconds;
   final String encodedPolyline;
+  final String? routeToken;
   final List<RouteLeg> legs;
+  final List<RouteManeuver> maneuvers;
 
   factory RouteOption.fromJson(Map<String, Object?> json) {
     return RouteOption(
@@ -117,9 +176,16 @@ class RouteOption {
       distanceMeters: json['distanceMeters'] as int,
       durationSeconds: json['durationSeconds'] as int,
       encodedPolyline: json['encodedPolyline'] as String,
+      routeToken: json['routeToken'] as String?,
       legs: (json['legs'] as List<Object?>)
           .map(
             (Object? value) => RouteLeg.fromJson(value as Map<String, Object?>),
+          )
+          .toList(growable: false),
+      maneuvers: (json['maneuvers'] as List<Object?>? ?? const <Object?>[])
+          .map(
+            (Object? value) =>
+                RouteManeuver.fromJson(value as Map<String, Object?>),
           )
           .toList(growable: false),
     );
@@ -287,6 +353,7 @@ class SavedRoutePlan {
     required this.destination,
     required this.route,
     required this.stops,
+    this.activeRideBroadcast,
   });
 
   final int revision;
@@ -298,7 +365,14 @@ class SavedRoutePlan {
   final RouteOption route;
   final List<PlanningStop> stops;
 
-  factory SavedRoutePlan.fromJson(Map<String, Object?> json) {
+  /// Realtime delivery metadata returned only by Active Ride route updates.
+  /// null means the response did not include Active Ride broadcast status.
+  final bool? activeRideBroadcast;
+
+  factory SavedRoutePlan.fromJson(
+    Map<String, Object?> json, {
+    bool? activeRideBroadcast,
+  }) {
     final int distanceMeters = json['distanceMeters'] as int;
     final int durationSeconds = json['durationSeconds'] as int;
 
@@ -317,12 +391,77 @@ class SavedRoutePlan {
         distanceMeters: distanceMeters,
         durationSeconds: durationSeconds,
         encodedPolyline: json['encodedPolyline'] as String,
+        routeToken: null,
         legs: const <RouteLeg>[],
+        maneuvers: (json['maneuvers'] as List<Object?>? ?? const <Object?>[])
+            .map(
+              (Object? value) =>
+                  RouteManeuver.fromJson(value as Map<String, Object?>),
+            )
+            .toList(growable: false),
       ),
       stops: (json['stops'] as List<Object?>)
           .map(
             (Object? value) =>
                 PlanningStop.fromJson(value as Map<String, Object?>),
+          )
+          .toList(growable: false),
+      activeRideBroadcast: activeRideBroadcast,
+    );
+  }
+}
+
+class TrafficIncident {
+  const TrafficIncident({
+    required this.id,
+    required this.category,
+    required this.magnitudeOfDelay,
+    required this.description,
+    required this.from,
+    required this.to,
+    required this.delaySeconds,
+    required this.lengthMeters,
+    required this.startTime,
+    required this.endTime,
+    required this.probabilityOfOccurrence,
+    required this.numberOfReports,
+    required this.lastReportTime,
+    required this.points,
+  });
+
+  final String id;
+  final String category;
+  final String? magnitudeOfDelay;
+  final String? description;
+  final String? from;
+  final String? to;
+  final int? delaySeconds;
+  final int? lengthMeters;
+  final String? startTime;
+  final String? endTime;
+  final String? probabilityOfOccurrence;
+  final int? numberOfReports;
+  final String? lastReportTime;
+  final List<GeoPoint> points;
+
+  factory TrafficIncident.fromJson(Map<String, Object?> json) {
+    return TrafficIncident(
+      id: json['id'] as String,
+      category: json['category'] as String,
+      magnitudeOfDelay: json['magnitudeOfDelay'] as String?,
+      description: json['description'] as String?,
+      from: json['from'] as String?,
+      to: json['to'] as String?,
+      delaySeconds: json['delaySeconds'] as int?,
+      lengthMeters: json['lengthMeters'] as int?,
+      startTime: json['startTime'] as String?,
+      endTime: json['endTime'] as String?,
+      probabilityOfOccurrence: json['probabilityOfOccurrence'] as String?,
+      numberOfReports: json['numberOfReports'] as int?,
+      lastReportTime: json['lastReportTime'] as String?,
+      points: (json['points'] as List<Object?>)
+          .map(
+            (Object? value) => GeoPoint.fromJson(value as Map<String, Object?>),
           )
           .toList(growable: false),
     );
