@@ -80,31 +80,81 @@ jobs:
       - name: Test
         run: flutter test
 
+  android-build:
+    needs: flutter
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: debug
+            artifact_name: commride-android-debug-ci
+            artifact_path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          - variant: release
+            artifact_name: commride-android-release-ci
+            artifact_path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
+
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java for Android
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
+
+      - name: Generate native platform projects
+        run: |
+          native_dir="$RUNNER_TEMP/commride_native"
+          flutter create \
+            --platforms=android,ios \
+            --project-name commride_mobile \
+            --org io.github.imadjinasi \
+            "$native_dir"
+          cp -R "$native_dir/android" "$native_dir/ios" .
+          python tool/configure_platforms.py
+          python tool/verify_platforms.py
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Build Android debug APK
+        if: matrix.variant == 'debug'
         env:
           MAPS_API_KEY: CI_UNCONFIGURED
         run: |
-          flutter build apk --debug \
+          flutter build apk --debug --no-pub \
             --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
             --dart-define=COMMRIDE_MAPS_ENABLED=false \
             --dart-define=COMMRIDE_NAVIGATION_ENABLED=false
 
       - name: Build Android release AAB
+        if: matrix.variant == 'release'
         env:
           MAPS_API_KEY: CI_UNCONFIGURED
         run: |
-          flutter build appbundle --release \
+          flutter build appbundle --release --no-pub \
             --dart-define=COMMRIDE_ENV=production \
             --dart-define=COMMRIDE_API_BASE_URL=https://example.invalid \
             --dart-define=COMMRIDE_MAPS_ENABLED=false \
             --dart-define=COMMRIDE_NAVIGATION_ENABLED=false
 
-      - name: Upload Android build artifacts
+      - name: Upload Android build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: commride-android-ci
+          name: ${{ matrix.artifact_name }}
           if-no-files-found: error
           retention-days: 7
-          path: |
-            apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
-            apps/mobile/build/app/outputs/bundle/release/app-release.aab
+          path: ${{ matrix.artifact_path }}
