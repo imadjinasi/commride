@@ -9,26 +9,31 @@ import type {
   RouteTravelMode,
   RouteWaypoint,
   SearchAlongRouteInput,
+  TrafficIncidentInput,
 } from './models';
 import {
   type RoutePlaceProvider,
   RoutePlaceProviderError,
 } from './provider';
+import type { TrafficIncidentProvider } from './traffic-provider';
 
 const MAX_INTERMEDIATE_STOPS = 10;
 const MAX_ALONG_ROUTE_RESULTS = 10;
+const MAX_TRAFFIC_INCIDENTS = 100;
 
 export interface MapsHandlerDependencies {
   readonly identityVerifier: IdentityVerifier;
   readonly riderRepository: RiderRepository;
   readonly provider: RoutePlaceProvider;
+  readonly trafficProvider?: TrafficIncidentProvider;
 }
 
 export function isMapsPath(pathname: string): boolean {
   return pathname === '/v1/maps/autocomplete' ||
     pathname === '/v1/maps/resolve-place' ||
     pathname === '/v1/maps/routes' ||
-    pathname === '/v1/maps/search-along-route';
+    pathname === '/v1/maps/search-along-route' ||
+    pathname === '/v1/maps/traffic-incidents';
 }
 
 export async function handleMapsRequest(
@@ -92,6 +97,22 @@ export async function handleMapsRequest(
 
     if (url.pathname === '/v1/maps/routes') {
       return await computeRoutes(body, requestId, dependencies.provider);
+    }
+
+    if (url.pathname === '/v1/maps/traffic-incidents') {
+      if (dependencies.trafficProvider == null) {
+        return errorResponse(
+          'traffic_not_configured',
+          'Realtime traffic data is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+      return await trafficIncidents(
+        body,
+        requestId,
+        dependencies.trafficProvider,
+      );
     }
 
     return await searchAlongRoute(body, requestId, dependencies.provider);
@@ -267,6 +288,35 @@ async function searchAlongRoute(
 
   const places = await provider.searchAlongRoute(input);
   return jsonResponse({ places }, 200, requestId);
+}
+
+async function trafficIncidents(
+  body: Record<string, unknown>,
+  requestId: string,
+  provider: TrafficIncidentProvider,
+): Promise<Response> {
+  const encodedPolyline = requiredString(body.encodedPolyline, 1, 20000);
+  const maxResults = optionalPositiveInteger(
+    body.maxResults,
+    MAX_TRAFFIC_INCIDENTS,
+    50,
+  );
+
+  if (encodedPolyline == null || maxResults == null) {
+    return errorResponse(
+      'invalid_maps_request',
+      'Traffic lookup requires a valid route polyline and result limit.',
+      400,
+      requestId,
+    );
+  }
+
+  const input: TrafficIncidentInput = {
+    encodedPolyline,
+    maxResults,
+  };
+  const incidents = await provider.incidentsAlongRoute(input);
+  return jsonResponse({ incidents }, 200, requestId);
 }
 
 function invalidRoute(requestId: string): Response {
