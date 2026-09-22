@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,17 +7,21 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/route_planner.dart';
 
+enum RoutePlannerInitialAction { none, addStop, searchAlongRoute }
+
 class RoutePlannerScreen extends StatefulWidget {
   const RoutePlannerScreen({
     required this.rideId,
     required this.routePlannerApi,
     required this.canEdit,
+    this.initialAction = RoutePlannerInitialAction.none,
     super.key,
   });
 
   final String rideId;
   final RoutePlannerApi routePlannerApi;
   final bool canEdit;
+  final RoutePlannerInitialAction initialAction;
 
   @override
   State<RoutePlannerScreen> createState() => _RoutePlannerScreenState();
@@ -31,6 +36,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   List<PlanningStop> _stops = <PlanningStop>[];
   bool _loading = true;
   bool _working = false;
+  bool _initialActionHandled = false;
   int? _savedRevision;
   String? _loadError;
 
@@ -324,8 +330,32 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         setState(() {
           _loading = false;
         });
+        _scheduleInitialAction();
       }
     }
+  }
+
+  void _scheduleInitialAction() {
+    if (_initialActionHandled ||
+        !widget.canEdit ||
+        widget.initialAction == RoutePlannerInitialAction.none ||
+        _selectedRoute == null ||
+        _loadError != null) {
+      return;
+    }
+
+    _initialActionHandled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (widget.initialAction) {
+        case RoutePlannerInitialAction.addStop:
+          unawaited(_addStop());
+        case RoutePlannerInitialAction.searchAlongRoute:
+          unawaited(_searchAlongRoute());
+        case RoutePlannerInitialAction.none:
+          break;
+      }
+    });
   }
 
   Future<void> _chooseEndpoint({required bool isOrigin}) async {

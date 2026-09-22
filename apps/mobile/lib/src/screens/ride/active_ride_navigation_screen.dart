@@ -87,10 +87,10 @@ class _ActiveRideNavigationScreenState
         actions: <Widget>[
           if (_canManageRoute)
             IconButton(
-              tooltip: 'Ubah RoutePlan',
+              tooltip: 'Rute',
               onPressed: _preparing || _routeRevisionRefreshing
                   ? null
-                  : _openRoutePlanner,
+                  : _showRouteActions,
               icon: const Icon(Icons.alt_route),
             ),
           IconButton(
@@ -323,7 +323,58 @@ class _ActiveRideNavigationScreenState
     return _PreparedNavigation(plan: plan, route: matchedRoute);
   }
 
-  Future<void> _openRoutePlanner() async {
+  Future<void> _showRouteActions() async {
+    if (!_canManageRoute) return;
+
+    final RoutePlannerInitialAction? action =
+        await showModalBottomSheet<RoutePlannerInitialAction>(
+          context: context,
+          showDragHandle: true,
+          builder: (BuildContext context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const ListTile(
+                  title: Text('Rute saat riding'),
+                  subtitle: Text(
+                    'Navigasi tetap menjadi konteks utama. Perubahan rute '
+                    'baru berlaku setelah RoutePlan disimpan.',
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.add_location_alt_outlined),
+                  title: const Text('Tambah Stop'),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(RoutePlannerInitialAction.addStop),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.search),
+                  title: const Text('Cari sepanjang rute'),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(RoutePlannerInitialAction.searchAlongRoute),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.route_outlined),
+                  title: const Text('Kelola RoutePlan lengkap'),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(RoutePlannerInitialAction.none),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+
+    if (action == null || !mounted) return;
+    await _openRoutePlanner(initialAction: action);
+  }
+
+  Future<void> _openRoutePlanner({
+    RoutePlannerInitialAction initialAction = RoutePlannerInitialAction.none,
+  }) async {
     if (!_canManageRoute) return;
 
     await Navigator.of(context).push<void>(
@@ -332,6 +383,7 @@ class _ActiveRideNavigationScreenState
           rideId: widget.ride.id,
           routePlannerApi: widget.routePlannerApi,
           canEdit: true,
+          initialAction: initialAction,
         ),
       ),
     );
