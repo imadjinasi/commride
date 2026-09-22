@@ -44,6 +44,7 @@ import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
 import {
   CachedTrafficIncidentProvider,
+  type TrafficResponseCache,
 } from './maps/cached-traffic-provider';
 import { GeoapifyProvider } from './maps/geoapify-provider';
 import { GoogleMapsProvider } from './maps/google-maps-provider';
@@ -977,13 +978,12 @@ function resolveTrafficIncidentProvider(
   if (apiKey == null || apiKey.length === 0) return null;
 
   const provider = new TomTomTrafficProvider(apiKey);
-  try {
-    return new CachedTrafficIncidentProvider(provider, caches.default);
-  } catch {
-    // Cache availability is an optimization; traffic remains usable if the
-    // runtime cannot expose the default Cache API.
-    return provider;
-  }
+  const cache = typeof caches === 'undefined'
+    ? null
+    : (caches as unknown as { default?: TrafficResponseCache }).default ?? null;
+  return cache == null
+    ? provider
+    : new CachedTrafficIncidentProvider(provider, cache);
 }
 
 function selector(value: string | undefined): string | null {
