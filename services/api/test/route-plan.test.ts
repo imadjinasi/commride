@@ -320,6 +320,26 @@ describe('RoutePlan API', () => {
     expect(repository.history).toHaveLength(0);
   });
 
+  it('keeps pre-Ride RoutePlan replacement Leader-only', async () => {
+    const repository = new MemoryRoutePlanRepository();
+
+    const response = await handleRequest(
+      request('PUT', 'member-token', routeBody('navigator-pre-ride')),
+      {},
+      overrides(
+        ride('published'),
+        [
+          membership(leader.id, 'leader'),
+          membership(member.id, 'navigator'),
+        ],
+        repository,
+      ),
+    );
+
+    expect(response.status).toBe(403);
+    expect(repository.history).toHaveLength(0);
+  });
+
   it('rejects invited Riders from reading a RoutePlan', async () => {
     const repository = new MemoryRoutePlanRepository();
 
