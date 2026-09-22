@@ -95,6 +95,7 @@ export class GeoapifyProvider implements RoutePlaceProvider {
       waypoints: points.map((p) => `${p.latitude},${p.longitude}`).join('|'),
       mode: input.travelMode === 'two_wheeler' ? 'motorcycle' : 'drive',
       type: kind, units: 'metric', format: 'geojson',
+      details: 'instruction_details', lang: 'en',
     };
     if (input.intermediates.length > 0) {
       parameters.intermediate_waypoint_mode = input.intermediates[0]!.via ? 'pass_through' : 'stopover';
@@ -130,14 +131,16 @@ export class GeoapifyProvider implements RoutePlaceProvider {
       throw new RoutePlaceProviderError('route_geometry_too_large',
         'This route is too detailed for the pilot. Choose a shorter Ride segment.', 422);
     }
-    const legs = collection(properties, 'legs').map((leg) => ({
+    const rawLegs = collection(properties, 'legs');
+    const legs = rawLegs.map((leg) => ({
       distanceMeters: metric(leg.distance), durationSeconds: metric(leg.time),
     }));
     if (legs.length === 0) throw invalidResponse();
+    const maneuvers = rawLegs.flatMap((leg) => geoapifyManeuvers(leg));
     return {
       routeIndex: 0, labels: [kind === 'balanced' ? 'RECOMMENDED' : 'SHORTEST'],
       distanceMeters: metric(properties.distance), durationSeconds: metric(properties.time),
-      encodedPolyline, routeToken: null, legs,
+      encodedPolyline, routeToken: null, legs, maneuvers,
     };
   }
 
@@ -333,4 +336,39 @@ function categoryForQuery(query: string): string | null {
       return 'accommodation.hotel,accommodation.guest_house,accommodation.motel';
     default: return null;
   }
+}
+
+
+function geoapifyManeuvers(leg: JsonObject) {
+  const steps = Array.isArray(leg.steps) ? leg.steps.map(object) : [];
+  return steps.flatMap((step) => {
+    const instruction = step.instruction == null
+      ? null
+      : object(step.instruction);
+    const narrative = text(instruction?.text);
+    const beginShapeIndex = optionalIndex(step.from_index);
+    const endShapeIndex = optionalIndex(step.to_index);
+    if (narrative == null || beginShapeIndex == null || endShapeIndex == null) {
+      return [];
+    }
+    return [{
+      instruction: narrative,
+      type: text(instruction?.type),
+      distanceMeters: metric(step.distance),
+      durationSeconds: metric(step.time),
+      beginShapeIndex,
+      endShapeIndex,
+      verbalPreTransitionInstruction:
+        text(instruction?.pre_transition_instruction),
+      verbalTransitionInstruction:
+        text(instruction?.transition_instruction),
+      verbalPostTransitionInstruction:
+        text(instruction?.post_transition_instruction),
+    }];
+  });
+}
+
+function optionalIndex(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) &&
+    value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value : null;
 }
