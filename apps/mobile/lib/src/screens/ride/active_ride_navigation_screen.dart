@@ -358,9 +358,8 @@ class _ActiveRideNavigationScreenState
                 ListTile(
                   leading: const Icon(Icons.route_outlined),
                   title: const Text('Kelola RoutePlan lengkap'),
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(RoutePlannerInitialAction.none),
+                  onTap: () =>
+                      Navigator.of(context).pop(RoutePlannerInitialAction.none),
                 ),
                 const SizedBox(height: 8),
               ],
