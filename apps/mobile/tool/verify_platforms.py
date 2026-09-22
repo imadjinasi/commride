@@ -41,8 +41,8 @@ def verify_android() -> None:
         node for node in application.findall("meta-data")
         if node.get(android_attr("name")) == "com.google.android.geo.API_KEY"
     ]
-    if len(maps_metadata) != 1 or maps_metadata[0].get(android_attr("value")) != "${MAPS_API_KEY}":
-        raise SystemExit("Google Navigation API-key manifest placeholder missing.")
+    if maps_metadata:
+        raise SystemExit("Obsolete Google Maps API-key metadata remains.")
     if (ROOT / "android/app/src/main/res/values/commride_maps.xml").exists():
         raise SystemExit("Obsolete Google Maps key resource remains.")
     gradle = ROOT / "android/app/build.gradle.kts"
@@ -51,13 +51,8 @@ def verify_android() -> None:
     content = gradle.read_text(encoding="utf-8")
     if "minSdk = 24" not in content and "minSdkVersion 24" not in content:
         raise SystemExit("Android minSdk 24 declaration missing.")
-    if "build.gradle.kts" in gradle.name:
-        if 'manifestPlaceholders["MAPS_API_KEY"] = commRideMapsApiKey' not in content:
-            raise SystemExit("Android Google Navigation manifest placeholder wiring missing.")
-        if "isCoreLibraryDesugaringEnabled = true" not in content:
-            raise SystemExit("Android core library desugaring is not enabled.")
-        if 'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")' not in content:
-            raise SystemExit("Android desugaring dependency missing.")
+    if "MAPS_API_KEY" in content or "commRideMapsApiKey" in content:
+        raise SystemExit("Obsolete Google Navigation Gradle wiring remains.")
     app_id = re.findall(r'applicationId\s*=?\s*[\"\']([^\"\']+)[\"\']', content)
     if app_id != ["io.github.imadjinasi.commride"]:
         raise SystemExit("Android application ID does not match the accepted Firebase registration.")
