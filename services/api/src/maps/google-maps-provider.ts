@@ -147,6 +147,7 @@ export class GoogleMapsProvider implements RoutePlaceProvider {
         encodedPolyline,
         routeToken: text(route.routeToken),
         legs,
+        maneuvers: [],
       };
     });
   }
