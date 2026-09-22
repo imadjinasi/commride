@@ -567,8 +567,9 @@ class _ActiveRideNavigationScreenState
         route: recoveryRoute,
         stops: const <PlanningStop>[],
       );
-      final CommRideNavigationEngine recoveryEngine =
-          CommRideNavigationEngine(recoveryPlan);
+      final CommRideNavigationEngine recoveryEngine = CommRideNavigationEngine(
+        recoveryPlan,
+      );
 
       final RideLocationSample? latest =
           widget.runtime.locationSession.state.lastSample;
@@ -989,7 +990,8 @@ class _NavigationBanner extends StatelessWidget {
           icon: recoveryManeuver == null
               ? Icons.u_turn_left
               : _maneuverIcon(recoveryManeuver.type),
-          title: recoveryManeuver?.instruction ??
+          title:
+              recoveryManeuver?.instruction ??
               (recoveryRouteLoading
                   ? 'Menyiapkan jalur kembali…'
                   : 'Kembali ke rute utama'),
