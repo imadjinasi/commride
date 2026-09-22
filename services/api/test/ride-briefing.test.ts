@@ -216,6 +216,7 @@ function routePlan(id: string, revision: number): RoutePlan {
     distanceMeters: 130000 + revision * 1000,
     durationSeconds: 9000 + revision * 100,
     encodedPolyline: `polyline-${revision}`,
+    maneuvers: [],
     isCurrent: true,
     createdAt: '2026-09-18T00:00:00Z',
     stops: [],
