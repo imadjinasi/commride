@@ -394,8 +394,7 @@ class _ActiveRideNavigationScreenState
     } on _NavigationPreparationException catch (error) {
       if (mounted) {
         setState(() {
-          _error =
-              'RoutePlan terbaru belum dapat diterapkan: ${error.message}';
+          _error = 'RoutePlan terbaru belum dapat diterapkan: ${error.message}';
         });
       }
     } catch (_) {

@@ -85,7 +85,8 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
         canManageActiveRoute;
     final bool canPublishBriefing =
         isLeader &&
-        (ride.status == RideStatus.draft || ride.status == RideStatus.published);
+        (ride.status == RideStatus.draft ||
+            ride.status == RideStatus.published);
     final bool canAcknowledgeBriefing =
         ride.status == RideStatus.draft || ride.status == RideStatus.published;
 
