@@ -365,6 +365,10 @@ void main() {
   ) async {
     await tester.pumpWidget(buildShell());
 
+    expect(
+      find.byKey(const ValueKey<String>('commride-brand-primary')),
+      findsOneWidget,
+    );
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Ride'), findsOneWidget);
     expect(find.text('Explore'), findsOneWidget);
