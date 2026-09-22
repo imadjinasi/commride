@@ -124,6 +124,28 @@ When Google is enabled:
 Because route tokens are short-lived, persist the provider-independent RoutePlan
 and recompute/refresh before guidance rather than storing the token in D1.
 
+## Active Ride route revision
+
+Pre-Ride planning remains Leader-owned.
+
+While a Ride is Active, Leader or Navigator may deliberately open RoutePlan,
+review/recompute the candidate, and save a new revision. The previous revision
+is retained; CommRide does not rewrite it in place.
+
+The saved D1 revision is authoritative. The Active Ride room broadcasts
+`ride.route_plan_updated` as coordination metadata. Connected navigation
+clients then fetch the persisted RoutePlan and obtain a fresh compatible route
+token before changing embedded guidance.
+
+A client must not silently switch to a materially different provider route when
+refreshing an expiring route token. If the newly computed provider geometry no
+longer matches the selected persisted route closely enough, guidance keeps the
+existing plan and asks for explicit route review.
+
+If persistence succeeds but realtime delivery is degraded, the saving Rider is
+warned that other Riders may still be following the previous revision. This
+state is not reported as synchronized.
+
 ## Voice architecture boundary
 
 Durable Objects continue to own Ride presence/control events and can participate
