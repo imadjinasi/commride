@@ -16,3 +16,8 @@ abstract interface class AuthGateway {
 
   Future<String> idToken();
 }
+
+
+abstract interface class PasswordResetAuthGateway {
+  Future<void> sendPasswordResetEmail({required String email});
+}
