@@ -111,6 +111,7 @@ class MemoryRoutePlanRepository implements RoutePlanRepository {
       distanceMeters: input.distanceMeters,
       durationSeconds: input.durationSeconds,
       encodedPolyline: input.encodedPolyline,
+      maneuvers: input.maneuvers ?? [],
       isCurrent: true,
       createdAt: '2026-09-18T00:00:00Z',
       stops: input.stops.map((stop) => ({ ...stop })),
@@ -201,6 +202,17 @@ function routeBody(polyline: string, labels: readonly string[] = ['Fuel']) {
     distanceMeters: 130000,
     durationSeconds: 9000,
     encodedPolyline: polyline,
+    maneuvers: [{
+      instruction: 'Continue on planned route.',
+      type: 'continue',
+      distanceMeters: 500,
+      durationSeconds: 40,
+      beginShapeIndex: 0,
+      endShapeIndex: 1,
+      verbalPreTransitionInstruction: null,
+      verbalTransitionInstruction: 'Continue.',
+      verbalPostTransitionInstruction: null,
+    }],
     stops: labels.map((label, index) => ({
       label,
       formattedAddress: `Stop ${index + 1}`,
@@ -253,6 +265,7 @@ describe('RoutePlan API', () => {
     expect(first.status).toBe(200);
     const firstBody = await first.json() as { routePlan: RoutePlan };
     expect(firstBody.routePlan.revision).toBe(1);
+    expect(firstBody.routePlan.maneuvers).toHaveLength(1);
     expect(firstBody.routePlan.stops.map((stop) => stop.sequence)).toEqual([
       0,
       1,
