@@ -70,18 +70,19 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     final Ride ride = _item.ride;
     final RideMembership? membership = _item.membership;
     final bool isLeader = membership?.role == RideRole.leader;
-    final bool canManageRoute =
-        membership?.role == RideRole.leader ||
-        membership?.role == RideRole.navigator;
+    final bool canManageActiveRoute =
+        ride.status == RideStatus.active &&
+        (membership?.role == RideRole.leader ||
+            membership?.role == RideRole.navigator);
     final bool canReadRoute =
         membership != null &&
         membership.status != RideMembershipStatus.invited &&
         membership.status != RideMembershipStatus.left;
     final bool canEditRoute =
-        canManageRoute &&
-        (ride.status == RideStatus.draft ||
-            ride.status == RideStatus.published ||
-            ride.status == RideStatus.active);
+        (isLeader &&
+            (ride.status == RideStatus.draft ||
+                ride.status == RideStatus.published)) ||
+        canManageActiveRoute;
     final bool canPublishBriefing =
         isLeader &&
         (ride.status == RideStatus.draft || ride.status == RideStatus.published);

@@ -108,24 +108,29 @@ export async function handleRoutePlanRequest(
     return jsonResponse({ routePlan }, 200, requestId);
   }
 
-  if (membership.role !== 'leader' && membership.role !== 'navigator') {
+  const canReplacePreRide =
+    membership.role === 'leader' &&
+    (ride.status === 'draft' || ride.status === 'published');
+  const canReplaceActive =
+    ride.status === 'active' &&
+    (membership.role === 'leader' || membership.role === 'navigator');
+
+  if (!canReplacePreRide && !canReplaceActive) {
+    if (ride.status === 'completed' || ride.status === 'cancelled') {
+      return errorResponse(
+        'ride_state_conflict',
+        'RoutePlan replacement is unavailable after the Ride is completed or cancelled.',
+        409,
+        requestId,
+      );
+    }
+
     return errorResponse(
       'ride_route_manager_required',
-      'The Ride Leader or Navigator role is required to replace the RoutePlan.',
+      ride.status === 'active'
+        ? 'The Ride Leader or Navigator role is required to revise an Active Ride RoutePlan.'
+        : 'The Ride Leader role is required to replace the pre-Ride RoutePlan.',
       403,
-      requestId,
-    );
-  }
-
-  if (
-    ride.status !== 'draft' &&
-    ride.status !== 'published' &&
-    ride.status !== 'active'
-  ) {
-    return errorResponse(
-      'ride_state_conflict',
-      'RoutePlan replacement is unavailable after the Ride is completed or cancelled.',
-      409,
       requestId,
     );
   }
