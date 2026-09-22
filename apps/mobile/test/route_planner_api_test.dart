@@ -121,7 +121,8 @@ void main() {
         '"formattedAddress":"Route Road",'
         '"location":{"latitude":-6.8,"longitude":108.0},'
         '"stopType":"fuel","checkpointType":"fuel",'
-        '"plannedDurationMinutes":15}]}}',
+        '"plannedDurationMinutes":15}]},'
+        '"activeRideBroadcast":false}',
         200,
         headers: <String, String>{'content-type': 'application/json'},
       );
@@ -168,5 +169,6 @@ void main() {
 
     expect(saved.revision, 2);
     expect(saved.stops.single.checkpointType, CheckpointType.fuel);
+    expect(saved.activeRideBroadcast, isFalse);
   });
 }
