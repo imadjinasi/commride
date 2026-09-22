@@ -78,6 +78,23 @@ class CommRideNavigationEngine {
   SavedRoutePlan get plan => _plan;
   List<GeoPoint> get routePoints => List<GeoPoint>.unmodifiable(_route);
 
+  int closestShapeIndex(GeoPoint point) {
+    _RouteProjection? best;
+    for (int index = 0; index < _route.length - 1; index++) {
+      final _RouteProjection candidate = _projectToSegment(
+        point,
+        _route[index],
+        _route[index + 1],
+        index,
+      );
+      if (best == null ||
+          candidate.distanceMeters < best.distanceMeters) {
+        best = candidate;
+      }
+    }
+    return best?.segmentIndex ?? 0;
+  }
+
   void replacePlan(SavedRoutePlan plan) {
     final List<GeoPoint> points = decodeRoutePolyline(
       plan.route.encodedPolyline,
