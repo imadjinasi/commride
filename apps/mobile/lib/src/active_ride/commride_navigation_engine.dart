@@ -326,7 +326,7 @@ class CommRideNavigationEngine {
 
     return _RouteProjection(
       segmentIndex: segmentIndex,
-      distanceMeters: math.hypot(projectedX, projectedY),
+      distanceMeters: math.sqrt(projectedX * projectedX + projectedY * projectedY),
       progressMeters: progress,
       bearingDegrees: geoBearingDegrees(start, end),
     );
