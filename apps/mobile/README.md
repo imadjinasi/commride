@@ -11,14 +11,16 @@ Live Group, Quick Actions, Checkpoints, private Comms, SOS, notifications and Re
 Explore/social placeholders do not imply a public feed/follow/badge implementation.
 
 MapLibre + Geoapify is the proven fallback path and can operate without Google
-Maps billing. The accepted next Active Ride direction adds a gated Google
-Places + Routes + Navigation SDK path so route planning and embedded guidance can
-share the same provider route family. Google code/configuration must remain OFF
-until billing, restricted credentials and real-device acceptance are complete.
+Maps billing. Active Ride now targets MapLibre + the CommRide Navigation Engine:
+the accepted RoutePlan is rendered locally, normalized maneuvers drive guidance,
+and sustained deviation enters rejoin-first Recovery instead of silently
+replacing the route. Valhalla is the target self-hosted motorcycle route engine;
+TomTom REST traffic/incidents are optional and server-gated. Geoapify stays the
+runtime fallback until those providers have their own evidence.
 
-Repository implementation does not prove installed-device Google navigation,
-Firebase integration, background GPS, push delivery, voice intercom, signing or
-field acceptance.
+Repository implementation does not prove installed-device navigation, Valhalla
+or TomTom runtime, Firebase integration, background GPS, push delivery, voice
+intercom, signing or field acceptance.
 
 Current provider behavior, limits and acceptance are defined in
 [MapLibre + Geoapify pilot migration](../../docs/deployment/maplibre-geoapify-pilot.md).
@@ -84,7 +86,7 @@ Supported Dart defines:
 - `COMMRIDE_API_BASE_URL`: real reviewed Worker URL
 - `COMMRIDE_MAPS_ENABLED=true|false`
 - `COMMRIDE_MAP_STYLE_URL`: HTTPS Geoapify style URL with a dedicated client map key
-- `COMMRIDE_NAVIGATION_ENABLED=true|false`: gates embedded Google Navigation
+- `COMMRIDE_NAVIGATION_ENABLED=true|false`: gates embedded CommRide navigation
 - `COMMRIDE_VOICE_INTERCOM_ENABLED=true|false`: reserved for a verified voice media transport; keep false until one exists
 
 Copy `pilot-defines.example.json` to ignored `pilot-defines.local.json`. Use a local
@@ -125,8 +127,11 @@ Joined participants can view saved RoutePlans; Leaders edit Draft/Published plan
 The planner supports endpoint search, alternatives before Stops, Add Stop,
 reorder/remove, recompute, Checkpoint type/planned duration and revision save.
 A failed recomputation preserves the previous valid route and Stops.
-Active Ride route replacement remains a later operational command, not a silent
-rewrite of the pre-Ride plan.
+Once a Ride is Active, Leader/Navigator may deliberately persist a new immutable
+RoutePlan revision. GPS deviation alone never performs that write. Recovery keeps
+the current RoutePlan authoritative; **Cari rute baru** previews a candidate from
+the Rider's current position and preserves remaining Stops before an authorized
+Leader/Navigator explicitly accepts it.
 
 Geoapify motorcycle mode is not a car fallback. Alternatives are recommended/
 shortest candidates only when materially different. Search Along Route searches
@@ -134,10 +139,12 @@ up to six sampled 5 km areas; it can miss places between samples on long routes.
 Results are geographic candidates, not confirmation of road access. Detour totals
 remain unavailable/null until a Stop is added and routing is recomputed.
 
-The planner remains a list/summary flow. The Live Group map is the embedded map
-surface in this migration; this is not an unimplemented planner map canvas or
-built-in turn-by-turn navigation claim. External navigation to the next Stop or
-destination remains independent of the SDK/provider choice.
+The planner remains a list/summary flow. Active Ride is the embedded
+navigation-first map surface: the same MapLibre map carries the accepted route,
+RiderPresence, current Rider position, recovery target and optional traffic
+incidents. Turn-by-turn quality depends on persisted provider-normalized
+maneuvers; an older RoutePlan with no maneuvers stays navigable as a route line
+but must be saved again before full maneuver guidance is claimed.
 
 ## Briefing and readiness
 
