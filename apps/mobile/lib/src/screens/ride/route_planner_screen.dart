@@ -347,14 +347,12 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     _initialActionHandled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      switch (widget.initialAction) {
-        case RoutePlannerInitialAction.addStop:
-          unawaited(_addStop());
-        case RoutePlannerInitialAction.searchAlongRoute:
-          unawaited(_searchAlongRoute());
-        case RoutePlannerInitialAction.none:
-          break;
-      }
+      final Future<void> action = switch (widget.initialAction) {
+        RoutePlannerInitialAction.addStop => _addStop(),
+        RoutePlannerInitialAction.searchAlongRoute => _searchAlongRoute(),
+        RoutePlannerInitialAction.none => Future<void>.value(),
+      };
+      unawaited(action);
     });
   }
 

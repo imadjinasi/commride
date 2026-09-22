@@ -169,3 +169,23 @@ Google navigation remains **OFF by default** until:
 6. actual map, reroute, voice coexistence and background behavior are tested.
 
 Repository PASS is not Provider PASS or Device PASS.
+
+
+## Route changes while moving
+
+Leader and Navigator should not have to abandon the Active Ride context just to
+perform a routine route change.
+
+The navigation surface exposes a compact Route action sheet with:
+- **Tambah Stop**;
+- **Cari sepanjang rute**;
+- **Kelola RoutePlan lengkap**.
+
+The quick actions open the existing Route Planner with the requested action
+already selected. Guidance remains the operational context, but a changed route
+is never applied merely because a place was selected. The user must save the
+new RoutePlan revision; only then can connected Riders fetch and apply the new
+authoritative plan.
+
+This keeps the interaction close to familiar navigation products while
+preserving CommRide's explicit shared-route revision model.
