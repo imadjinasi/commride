@@ -87,9 +87,21 @@ export function encodePolyline(points: readonly GeoPoint[]): string {
 }
 
 export function decodePolyline(encoded: string): GeoPoint[] {
+  return decodePolylineWithPrecision(encoded, 5);
+}
+
+export function decodePolyline6(encoded: string): GeoPoint[] {
+  return decodePolylineWithPrecision(encoded, 6);
+}
+
+function decodePolylineWithPrecision(
+  encoded: string,
+  precision: 5 | 6,
+): GeoPoint[] {
   if (encoded.length === 0 || encoded.length > MAX_POLYLINE_LENGTH) return [];
   const points: GeoPoint[] = [];
   let index = 0, lat = 0, lon = 0;
+  const scale = precision === 6 ? 1e6 : 1e5;
   function signed(): number {
     let n = 0, shift = 0;
     while (index < encoded.length && shift <= 30) {
@@ -105,7 +117,7 @@ export function decodePolyline(encoded: string): GeoPoint[] {
     while (index < encoded.length) {
       lat += signed();
       lon += signed();
-      const point = validPoint(lat / 1e5, lon / 1e5);
+      const point = validPoint(lat / scale, lon / scale);
       if (point == null) return [];
       points.push(point);
     }
