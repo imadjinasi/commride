@@ -17,6 +17,7 @@ import 'package:commride_mobile/src/models/ride_message.dart';
 import 'package:commride_mobile/src/models/ride_sos.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/models/vehicle_profile.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const AppConfig testConfig = AppConfig(
