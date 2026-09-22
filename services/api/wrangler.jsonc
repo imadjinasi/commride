@@ -24,7 +24,10 @@
   "vars": {
     "FIREBASE_PROJECT_ID": "commride-pilot",
     "LOCATION_SAMPLE_RETENTION_DAYS": "30",
-    "MAP_PROVIDER": "geoapify"
+    "MAP_PROVIDER": "geoapify",
+    "PLACE_PROVIDER": "geoapify",
+    "ROUTE_PROVIDER": "geoapify",
+    "TRAFFIC_PROVIDER": "none"
   },
 
   "d1_databases": [
@@ -40,9 +43,11 @@
   }
 
   // Provider credentials remain deployment secrets. GEOAPIFY_API_KEY is the
-  // working fallback secret. GOOGLE_MAPS_API_KEY is required only after
-  // MAP_PROVIDER is deliberately switched to "google". Never put Firebase
-  // service-account private keys or map-provider server keys in this file.
+  // working fallback. TOMTOM_API_KEY is required only when TRAFFIC_PROVIDER is
+  // deliberately switched to "tomtom". VALHALLA_BASE_URL is a non-secret
+  // operator-controlled HTTPS endpoint and ROUTE_PROVIDER stays "geoapify"
+  // until that runtime passes verification. GOOGLE_MAPS_API_KEY remains an
+  // optional future adapter secret. Never put provider keys in this file.
   //
   // Intentionally omit D1 `remote: true`: local development must not
   // default to writing against the shared pilot database.
