@@ -1,3 +1,4 @@
+import type { RouteManeuver } from '../maps/models';
 import type {
   RoutePlan,
   RouteStop,
@@ -27,6 +28,7 @@ interface RoutePlanRow {
   readonly distance_meters: number;
   readonly duration_seconds: number;
   readonly encoded_polyline: string;
+  readonly maneuvers_json: string;
   readonly is_current: number;
   readonly created_at: string;
 }
@@ -81,6 +83,7 @@ export class D1RoutePlanRepository implements RoutePlanRepository {
           distance_meters,
           duration_seconds,
           encoded_polyline,
+          maneuvers_json,
           is_current,
           created_at
         FROM route_plans
@@ -138,6 +141,7 @@ export class D1RoutePlanRepository implements RoutePlanRepository {
           distance_meters,
           duration_seconds,
           encoded_polyline,
+          maneuvers_json,
           is_current,
           created_at
         FROM route_plans
@@ -205,12 +209,14 @@ export class D1RoutePlanRepository implements RoutePlanRepository {
             distance_meters,
             duration_seconds,
             encoded_polyline,
+            maneuvers_json,
             is_current
           )
           SELECT
             ?,
             ?,
             COALESCE(MAX(revision), 0) + 1,
+            ?,
             ?,
             ?,
             ?,
@@ -241,6 +247,7 @@ export class D1RoutePlanRepository implements RoutePlanRepository {
           input.distanceMeters,
           input.durationSeconds,
           input.encodedPolyline,
+          JSON.stringify(input.maneuvers ?? []),
           input.rideId,
         ),
     ];
@@ -313,6 +320,7 @@ function mapRoutePlan(
     distanceMeters: row.distance_meters,
     durationSeconds: row.duration_seconds,
     encodedPolyline: row.encoded_polyline,
+    maneuvers: parseManeuvers(row.maneuvers_json),
     isCurrent: row.is_current === 1,
     createdAt: row.created_at,
     stops: stopRows.map(mapRouteStop),
@@ -333,4 +341,18 @@ function mapRouteStop(row: RouteStopRow): RouteStop {
     checkpointType: row.checkpoint_type,
     plannedDurationMinutes: row.planned_duration_minutes,
   };
+}
+
+
+function parseManeuvers(value: string): readonly RouteManeuver[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error('Persisted RoutePlan maneuvers are invalid JSON.');
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error('Persisted RoutePlan maneuvers must be an array.');
+  }
+  return parsed as RouteManeuver[];
 }
