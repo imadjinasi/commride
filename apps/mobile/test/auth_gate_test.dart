@@ -330,6 +330,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Masuk'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey<String>('commride-brand-primary')),
+      findsOneWidget,
+    );
     expect(find.textContaining('Izin lokasi tidak diminta'), findsOneWidget);
     expect(find.text('Home'), findsNothing);
   });
