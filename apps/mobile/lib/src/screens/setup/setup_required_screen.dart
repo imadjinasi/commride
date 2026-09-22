@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/commride_brand.dart';
+
 class SetupRequiredScreen extends StatelessWidget {
   const SetupRequiredScreen({required this.message, super.key});
 
@@ -16,7 +18,10 @@ class SetupRequiredScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Icon(Icons.settings_outlined, size: 48),
+                const CommRideBrandImage(
+                  variant: CommRideBrandVariant.monochrome,
+                  size: 96,
+                ),
                 const SizedBox(height: 20),
                 Text(
                   'CommRide belum dikonfigurasi',

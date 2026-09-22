@@ -41,6 +41,8 @@ flutter create --platforms=android,ios --project-name commride_mobile --org io.g
 python tool/configure_platforms.py
 python tool/verify_platforms.py
 flutter pub get
+dart run flutter_launcher_icons
+dart run flutter_native_splash:create
 flutter analyze
 flutter test
 ```
@@ -53,6 +55,16 @@ Firebase/signing/distribution identity.
 The clean-source verifier must run before real Firebase/signing files are placed
 in native directories. A missing Python executable is a local tooling limitation,
 not evidence that native declarations passed or failed.
+
+Canonical mobile branding lives in `assets/branding/`:
+
+- `commride-app-icon.png` is the Android/iOS launcher icon and Android 12 splash mark;
+- `commride-primary-logo.png` is the main in-app/login and native splash identity;
+- `commride-monochrome.png` is the neutral setup/compact identity.
+
+Launcher and splash resources are generated after native project bootstrap, both
+locally and in CI. Do not replace these approved assets with generated placeholder
+artwork.
 
 ## Firebase configuration
 

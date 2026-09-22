@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../auth/auth_gateway.dart';
+import '../../widgets/commride_brand.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({required this.authGateway, super.key});
@@ -39,14 +40,18 @@ class _SignInScreenState extends State<SignInScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    Text(
-                      'CommRide',
-                      style: Theme.of(context).textTheme.headlineSmall,
+                    const Align(
+                      alignment: Alignment.center,
+                      child: CommRideBrandImage(
+                        variant: CommRideBrandVariant.primary,
+                        size: 128,
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       'Ride Connected.',
                       style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 36),
                     Text(
