@@ -47,6 +47,8 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
   static const String _positionLayer = 'commride-navigation-position-circle';
   static const String _rejoinSource = 'commride-navigation-rejoin';
   static const String _rejoinLayer = 'commride-navigation-rejoin-circle';
+  static const String _trafficLineSource = 'commride-navigation-traffic-lines';
+  static const String _trafficLineLayer = 'commride-navigation-traffic-lines';
   static const String _trafficSource = 'commride-navigation-traffic';
   static const String _trafficLayer = 'commride-navigation-traffic-circles';
   static const String _trafficLabels = 'commride-navigation-traffic-labels';
@@ -264,14 +266,34 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
           .timeout(_timeout);
 
       await controller
-          .addGeoJsonSource(_trafficSource, _trafficGeoJson(widget.incidents))
+          .addGeoJsonSource(
+            _trafficLineSource,
+            trafficIncidentLineGeoJson(widget.incidents),
+          )
+          .timeout(_timeout);
+      await controller
+          .addLineLayer(
+            _trafficLineSource,
+            _trafficLineLayer,
+            const LineLayerProperties(
+              lineColor: <String>['get', 'color'],
+              lineWidth: 6,
+              lineOpacity: 0.72,
+            ),
+          )
+          .timeout(_timeout);
+      await controller
+          .addGeoJsonSource(
+            _trafficSource,
+            trafficIncidentPointGeoJson(widget.incidents),
+          )
           .timeout(_timeout);
       await controller
           .addCircleLayer(
             _trafficSource,
             _trafficLayer,
             const CircleLayerProperties(
-              circleColor: '#C62828',
+              circleColor: <String>['get', 'color'],
               circleRadius: 7,
               circleStrokeColor: '#FFFFFF',
               circleStrokeWidth: 2,
@@ -347,7 +369,16 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
             .setGeoJsonSource(_rejoinSource, _rejoinGeoJson(widget.snapshot))
             .timeout(_timeout);
         await controller
-            .setGeoJsonSource(_trafficSource, _trafficGeoJson(widget.incidents))
+            .setGeoJsonSource(
+              _trafficLineSource,
+              trafficIncidentLineGeoJson(widget.incidents),
+            )
+            .timeout(_timeout);
+        await controller
+            .setGeoJsonSource(
+              _trafficSource,
+              trafficIncidentPointGeoJson(widget.incidents),
+            )
             .timeout(_timeout);
 
         final CommRideNavigationSnapshot? snapshot = widget.snapshot;
@@ -533,7 +564,9 @@ Map<String, dynamic> _ridersGeoJson(
   };
 }
 
-Map<String, dynamic> _trafficGeoJson(List<TrafficIncident> incidents) {
+Map<String, dynamic> trafficIncidentPointGeoJson(
+  List<TrafficIncident> incidents,
+) {
   return <String, dynamic>{
     'type': 'FeatureCollection',
     'features': incidents
@@ -547,10 +580,55 @@ Map<String, dynamic> _trafficGeoJson(List<TrafficIncident> incidents) {
               'type': 'Point',
               'coordinates': <double>[point.longitude, point.latitude],
             },
-            'properties': <String, dynamic>{'label': _trafficLabel(incident)},
+            'properties': <String, dynamic>{
+              'label': _trafficLabel(incident),
+              'color': _trafficColor(incident),
+            },
           };
         })
         .toList(growable: false),
+  };
+}
+
+Map<String, dynamic> trafficIncidentLineGeoJson(
+  List<TrafficIncident> incidents,
+) {
+  return <String, dynamic>{
+    'type': 'FeatureCollection',
+    'features': incidents
+        .where((TrafficIncident incident) => incident.points.length >= 2)
+        .map(
+          (TrafficIncident incident) => <String, dynamic>{
+            'type': 'Feature',
+            'id': incident.id,
+            'geometry': <String, dynamic>{
+              'type': 'LineString',
+              'coordinates': incident.points
+                  .map(
+                    (GeoPoint point) =>
+                        <double>[point.longitude, point.latitude],
+                  )
+                  .toList(growable: false),
+            },
+            'properties': <String, dynamic>{
+              'color': _trafficColor(incident),
+            },
+          },
+        )
+        .toList(growable: false),
+  };
+}
+
+String _trafficColor(TrafficIncident incident) {
+  return switch (incident.category) {
+    'roadClosed' => '#B71C1C',
+    'accident' => '#C62828',
+    'jam' => '#D84315',
+    'roadWorks' => '#F57C00',
+    'laneClosed' => '#EF6C00',
+    'flooding' => '#1565C0',
+    'brokenDownVehicle' => '#6A1B9A',
+    _ => '#7B1FA2',
   };
 }
 
