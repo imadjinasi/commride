@@ -3,7 +3,11 @@ import type { IdentityVerifier } from '../auth/identity';
 import type { ActiveRideGateway } from '../active-ride/gateway';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
-import type { GeoPoint, RouteTravelMode } from '../maps/models';
+import type {
+  GeoPoint,
+  RouteManeuver,
+  RouteTravelMode,
+} from '../maps/models';
 import type { RiderRepository } from '../riders/rider-repository';
 import type {
   CheckpointType,
@@ -206,6 +210,7 @@ async function readRoutePlanInput(
   const distanceMeters = nonNegativeInteger(body.distanceMeters);
   const durationSeconds = nonNegativeInteger(body.durationSeconds);
   const encodedPolyline = requiredString(body.encodedPolyline, 1, 200000);
+  const maneuvers = parseManeuvers(body.maneuvers);
 
   if (
     travelMode == null ||
@@ -213,7 +218,8 @@ async function readRoutePlanInput(
     destination == null ||
     distanceMeters == null ||
     durationSeconds == null ||
-    encodedPolyline == null
+    encodedPolyline == null ||
+    maneuvers == null
   ) {
     return {
       error:
@@ -255,9 +261,71 @@ async function readRoutePlanInput(
       distanceMeters,
       durationSeconds,
       encodedPolyline,
+      maneuvers,
       stops,
     },
   };
+}
+
+function parseManeuvers(value: unknown): RouteManeuver[] | null {
+  if (value == null) {
+    // Backward compatible while existing pilot clients are upgraded.
+    return [];
+  }
+  if (!Array.isArray(value) || value.length > 500) {
+    return null;
+  }
+
+  const maneuvers: RouteManeuver[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) return null;
+    const instruction = requiredString(raw.instruction, 1, 500);
+    const type = optionalString(raw.type, 100);
+    const distanceMeters = nonNegativeInteger(raw.distanceMeters);
+    const durationSeconds = nonNegativeInteger(raw.durationSeconds);
+    const beginShapeIndex = nonNegativeInteger(raw.beginShapeIndex);
+    const endShapeIndex = nonNegativeInteger(raw.endShapeIndex);
+    const verbalPreTransitionInstruction = optionalString(
+      raw.verbalPreTransitionInstruction,
+      500,
+    );
+    const verbalTransitionInstruction = optionalString(
+      raw.verbalTransitionInstruction,
+      500,
+    );
+    const verbalPostTransitionInstruction = optionalString(
+      raw.verbalPostTransitionInstruction,
+      500,
+    );
+
+    if (
+      instruction == null ||
+      type === undefined ||
+      distanceMeters == null ||
+      durationSeconds == null ||
+      beginShapeIndex == null ||
+      endShapeIndex == null ||
+      endShapeIndex < beginShapeIndex ||
+      verbalPreTransitionInstruction === undefined ||
+      verbalTransitionInstruction === undefined ||
+      verbalPostTransitionInstruction === undefined
+    ) {
+      return null;
+    }
+
+    maneuvers.push({
+      instruction,
+      type,
+      distanceMeters,
+      durationSeconds,
+      beginShapeIndex,
+      endShapeIndex,
+      verbalPreTransitionInstruction,
+      verbalTransitionInstruction,
+      verbalPostTransitionInstruction,
+    });
+  }
+  return maneuvers;
 }
 
 function routeEndpoint(
