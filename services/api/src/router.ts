@@ -42,6 +42,9 @@ import {
 } from './clubs-rides/repository';
 import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
+import {
+  CachedTrafficIncidentProvider,
+} from './maps/cached-traffic-provider';
 import { GeoapifyProvider } from './maps/geoapify-provider';
 import { GoogleMapsProvider } from './maps/google-maps-provider';
 import { handleMapsRequest, isMapsPath } from './maps/handler';
@@ -971,9 +974,16 @@ function resolveTrafficIncidentProvider(
   if (name !== 'tomtom') return null;
 
   const apiKey = env.TOMTOM_API_KEY?.trim();
-  return apiKey == null || apiKey.length === 0
-    ? null
-    : new TomTomTrafficProvider(apiKey);
+  if (apiKey == null || apiKey.length === 0) return null;
+
+  const provider = new TomTomTrafficProvider(apiKey);
+  try {
+    return new CachedTrafficIncidentProvider(provider, caches.default);
+  } catch {
+    // Cache availability is an optimization; traffic remains usable if the
+    // runtime cannot expose the default Cache API.
+    return provider;
+  }
 }
 
 function selector(value: string | undefined): string | null {
