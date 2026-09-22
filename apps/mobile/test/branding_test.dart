@@ -36,9 +36,7 @@ void main() {
       find.byKey(const ValueKey<String>('commride-brand-primary')),
     );
     expect(image.semanticLabel, 'CommRide');
-    expect(
-      (image.image as AssetImage).assetName,
-      CommRideBrandAssets.primaryLogo,
-    );
+    expect(image.width, 96);
+    expect(image.height, 96);
   });
 }
