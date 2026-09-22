@@ -51,6 +51,10 @@ class _ActiveRideNavigationScreenState
   bool _recoveryRouteLoading = false;
   bool _routeRevisionRefreshing = false;
   bool _rerouteSearching = false;
+  bool _trafficUnavailable = false;
+  bool _trafficRefreshDegraded = false;
+  DateTime? _trafficUpdatedAt;
+  Timer? _trafficRefreshTimer;
   DateTime? _lastObservedAt;
   DateTime? _lastRecoveryRequestAt;
   GeoPoint? _lastRecoveryOrigin;
@@ -78,6 +82,7 @@ class _ActiveRideNavigationScreenState
   void dispose() {
     widget.runtime.groupController.removeListener(_onGroupChanged);
     widget.runtime.locationSession.removeListener(_onLocationChanged);
+    _trafficRefreshTimer?.cancel();
     unawaited(_realtimeSubscription?.cancel());
     super.dispose();
   }
@@ -222,6 +227,8 @@ class _ActiveRideNavigationScreenState
             recoverySnapshot: _recoverySnapshot,
             recoveryRouteLoading: _recoveryRouteLoading,
             trafficCount: _trafficIncidents.length,
+            trafficUpdatedAt: _trafficUpdatedAt,
+            trafficRefreshDegraded: _trafficRefreshDegraded,
             guidanceNotice: _guidanceNotice,
             rerouteBusy: _rerouteSearching,
             onFindNewRoute: _snapshot?.shouldOfferReroute == true
@@ -293,6 +300,7 @@ class _ActiveRideNavigationScreenState
       });
 
       _consumeLatestLocation();
+      _startTrafficRefresh();
       unawaited(_refreshTraffic(plan.route));
     } on _NavigationPreparationException catch (error) {
       _setPreparationError(error.message);
@@ -621,7 +629,24 @@ class _ActiveRideNavigationScreenState
     if (mounted) setState(() {});
   }
 
+  void _startTrafficRefresh() {
+    _trafficRefreshTimer?.cancel();
+    if (_trafficUnavailable) return;
+
+    _trafficRefreshTimer = Timer.periodic(
+      const Duration(minutes: 10),
+      (_) {
+        final RouteOption? route = _prepared?.plan.route;
+        if (route != null) {
+          unawaited(_refreshTraffic(route));
+        }
+      },
+    );
+  }
+
   Future<void> _refreshTraffic(RouteOption route) async {
+    if (_trafficUnavailable) return;
+
     try {
       final List<TrafficIncident> incidents = await widget.routePlannerApi
           .fetchTrafficIncidents(route);
@@ -631,15 +656,42 @@ class _ActiveRideNavigationScreenState
       }
       setState(() {
         _trafficIncidents = incidents;
+        _trafficUpdatedAt = DateTime.now();
+        _trafficRefreshDegraded = false;
       });
     } on RoutePlannerApiException catch (error) {
       if (error.code == 'traffic_not_configured') {
+        _trafficUnavailable = true;
+        _trafficRefreshTimer?.cancel();
+        if (mounted) {
+          setState(() {
+            _trafficIncidents = const <TrafficIncident>[];
+            _trafficUpdatedAt = null;
+            _trafficRefreshDegraded = false;
+          });
+        }
         return;
       }
-      // Traffic is advisory. Navigation and the RoutePlan remain usable.
+      _markTrafficRefreshDegraded();
     } catch (_) {
-      // Provider/network degradation must not block navigation.
+      _markTrafficRefreshDegraded();
     }
+  }
+
+  void _markTrafficRefreshDegraded() {
+    if (!mounted) return;
+    final DateTime now = DateTime.now();
+    final DateTime? updatedAt = _trafficUpdatedAt;
+    final bool tooOld =
+        updatedAt == null ||
+        now.difference(updatedAt) > const Duration(minutes: 30);
+
+    setState(() {
+      _trafficRefreshDegraded = true;
+      if (tooOld) {
+        _trafficIncidents = const <TrafficIncident>[];
+      }
+    });
   }
 
   Future<void> _findNewRoute() async {
@@ -874,6 +926,8 @@ class _NavigationBanner extends StatelessWidget {
     required this.recoverySnapshot,
     required this.recoveryRouteLoading,
     required this.trafficCount,
+    required this.trafficUpdatedAt,
+    required this.trafficRefreshDegraded,
     required this.guidanceNotice,
     required this.rerouteBusy,
     required this.onFindNewRoute,
@@ -883,6 +937,8 @@ class _NavigationBanner extends StatelessWidget {
   final CommRideNavigationSnapshot? recoverySnapshot;
   final bool recoveryRouteLoading;
   final int trafficCount;
+  final DateTime? trafficUpdatedAt;
+  final bool trafficRefreshDegraded;
   final String? guidanceNotice;
   final bool rerouteBusy;
   final Future<void> Function()? onFindNewRoute;
@@ -924,8 +980,24 @@ class _NavigationBanner extends StatelessWidget {
                 ),
                 if (trafficCount > 0)
                   Chip(
-                    avatar: const Icon(Icons.traffic, size: 16),
-                    label: Text('$trafficCount'),
+                    avatar: Icon(
+                      trafficRefreshDegraded
+                          ? Icons.sync_problem_outlined
+                          : Icons.traffic,
+                      size: 16,
+                    ),
+                    label: Text(
+                      trafficUpdatedAt == null
+                          ? '$trafficCount'
+                          : '$trafficCount · '
+                                '${_formatTrafficAge(trafficUpdatedAt!)}',
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  )
+                else if (trafficRefreshDegraded)
+                  const Chip(
+                    avatar: Icon(Icons.sync_problem_outlined, size: 16),
+                    label: Text('Traffic terganggu'),
                     visualDensity: VisualDensity.compact,
                   ),
               ],
@@ -1048,6 +1120,13 @@ String _formatDistance(double meters) {
     return '${meters.round()} m';
   }
   return '${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km';
+}
+
+String _formatTrafficAge(DateTime updatedAt) {
+  final Duration age = DateTime.now().difference(updatedAt);
+  if (age.inMinutes < 1) return 'baru';
+  if (age.inHours < 1) return '${age.inMinutes}m';
+  return '${age.inHours}j';
 }
 
 String _formatDuration(int seconds) {
