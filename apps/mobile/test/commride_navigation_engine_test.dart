@@ -9,10 +9,7 @@ void main() {
 
     for (int second = 0; second < 30; second += 3) {
       final CommRideNavigationSnapshot state = engine.update(
-        GeoPoint(
-          latitude: -6.7002,
-          longitude: 108.01 + second / 10000,
-        ),
+        GeoPoint(latitude: -6.7002, longitude: 108.01 + second / 10000),
         start.add(Duration(seconds: second)),
       );
       expect(state.phase, CommRideNavigationPhase.onRoute);
@@ -52,10 +49,7 @@ void main() {
   test('reroute is offered only after meaningful deviation', () {
     final CommRideNavigationEngine engine = CommRideNavigationEngine(_plan());
     final DateTime start = DateTime.utc(2026, 9, 22, 8);
-    const GeoPoint offRoute = GeoPoint(
-      latitude: -6.7010,
-      longitude: 108.025,
-    );
+    const GeoPoint offRoute = GeoPoint(latitude: -6.7010, longitude: 108.025);
 
     engine.update(offRoute, start);
     engine.update(offRoute, start.add(const Duration(seconds: 9)));
@@ -76,14 +70,8 @@ void main() {
   test('rejoining the accepted route is explicit and stabilizes on-route', () {
     final CommRideNavigationEngine engine = CommRideNavigationEngine(_plan());
     final DateTime start = DateTime.utc(2026, 9, 22, 8);
-    const GeoPoint offRoute = GeoPoint(
-      latitude: -6.7010,
-      longitude: 108.025,
-    );
-    const GeoPoint onRoute = GeoPoint(
-      latitude: -6.7000,
-      longitude: 108.030,
-    );
+    const GeoPoint offRoute = GeoPoint(latitude: -6.7010, longitude: 108.025);
+    const GeoPoint onRoute = GeoPoint(latitude: -6.7000, longitude: 108.030);
 
     engine.update(offRoute, start);
     engine.update(offRoute, start.add(const Duration(seconds: 9)));
@@ -147,8 +135,7 @@ SavedRoutePlan _plan() {
           durationSeconds: 20,
           beginShapeIndex: 1,
           endShapeIndex: 2,
-          verbalPreTransitionInstruction:
-              'Dalam 200 meter, belok kanan.',
+          verbalPreTransitionInstruction: 'Dalam 200 meter, belok kanan.',
           verbalTransitionInstruction: 'Belok kanan.',
           verbalPostTransitionInstruction: null,
         ),

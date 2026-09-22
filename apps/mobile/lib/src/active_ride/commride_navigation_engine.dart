@@ -87,8 +87,7 @@ class CommRideNavigationEngine {
         _route[index + 1],
         index,
       );
-      if (best == null ||
-          candidate.distanceMeters < best.distanceMeters) {
+      if (best == null || candidate.distanceMeters < best.distanceMeters) {
         best = candidate;
       }
     }
@@ -121,10 +120,7 @@ class CommRideNavigationEngine {
     _furthestShapeIndex = 0;
   }
 
-  CommRideNavigationSnapshot update(
-    GeoPoint position,
-    DateTime observedAt,
-  ) {
+  CommRideNavigationSnapshot update(GeoPoint position, DateTime observedAt) {
     final _RouteProjection projection = _nearestProjection(position);
     final double distance = projection.distanceMeters;
 
@@ -211,7 +207,8 @@ class CommRideNavigationEngine {
           )
         : null;
 
-    final bool shouldOfferReroute = _confirmedAt != null &&
+    final bool shouldOfferReroute =
+        _confirmedAt != null &&
         (distance >= rerouteOfferDistanceMeters ||
             observedAt.difference(_confirmedAt!) >= rerouteOfferDuration);
 
@@ -232,14 +229,10 @@ class CommRideNavigationEngine {
     );
   }
 
-  RouteManeuver? _nextManeuver(
-    int shapeIndex,
-    double progressMeters,
-  ) {
+  RouteManeuver? _nextManeuver(int shapeIndex, double progressMeters) {
     for (final RouteManeuver maneuver in _plan.route.maneuvers) {
       if (maneuver.endShapeIndex < shapeIndex) continue;
-      if (_distanceAtShapeIndex(maneuver.endShapeIndex) + 15 <
-          progressMeters) {
+      if (_distanceAtShapeIndex(maneuver.endShapeIndex) + 15 < progressMeters) {
         continue;
       }
       return maneuver;
@@ -247,14 +240,8 @@ class CommRideNavigationEngine {
     return null;
   }
 
-  GeoPoint _futureRejoinTarget(
-    double progressMeters,
-    double deviationMeters,
-  ) {
-    final double ahead = math.max(
-      400,
-      math.min(1500, deviationMeters * 3),
-    );
+  GeoPoint _futureRejoinTarget(double progressMeters, double deviationMeters) {
+    final double ahead = math.max(400, math.min(1500, deviationMeters * 3));
     final double target = math.min(
       _cumulativeMeters.last,
       progressMeters + ahead,
@@ -280,8 +267,7 @@ class CommRideNavigationEngine {
     for (int index = 0; index < _route.length - 1; index++) {
       // Once navigation has made meaningful progress, strongly prefer current
       // or future route segments. This avoids snapping backwards at loops.
-      if (_cumulativeMeters[index + 1] <
-          _furthestProgressMeters - 250) {
+      if (_cumulativeMeters[index + 1] < _furthestProgressMeters - 250) {
         continue;
       }
 
@@ -291,8 +277,7 @@ class CommRideNavigationEngine {
         _route[index + 1],
         index,
       );
-      if (best == null ||
-          candidate.distanceMeters < best.distanceMeters) {
+      if (best == null || candidate.distanceMeters < best.distanceMeters) {
         best = candidate;
       }
     }
@@ -321,28 +306,23 @@ class CommRideNavigationEngine {
         earthRadius * math.pi / 180 * math.cos(referenceLatitude);
     const double yScale = earthRadius * math.pi / 180;
 
-    final double ax = _wrappedLongitudeDelta(
-          start.longitude - point.longitude,
-        ) *
-        xScale;
+    final double ax =
+        _wrappedLongitudeDelta(start.longitude - point.longitude) * xScale;
     final double ay = (start.latitude - point.latitude) * yScale;
-    final double bx = ax +
-        _wrappedLongitudeDelta(end.longitude - start.longitude) * xScale;
+    final double bx =
+        ax + _wrappedLongitudeDelta(end.longitude - start.longitude) * xScale;
     final double by = (end.latitude - point.latitude) * yScale;
     final double dx = bx - ax;
     final double dy = by - ay;
     final double squared = dx * dx + dy * dy;
     final double t = squared == 0
         ? 0
-        : (-((ax * dx) + (ay * dy)) / squared)
-              .clamp(0.0, 1.0)
-              .toDouble();
+        : (-((ax * dx) + (ay * dy)) / squared).clamp(0.0, 1.0).toDouble();
 
     final double projectedX = ax + t * dx;
     final double projectedY = ay + t * dy;
     final double segmentLength = geoDistanceMeters(start, end);
-    final double progress =
-        _cumulativeMeters[segmentIndex] + segmentLength * t;
+    final double progress = _cumulativeMeters[segmentIndex] + segmentLength * t;
 
     return _RouteProjection(
       segmentIndex: segmentIndex,
@@ -417,8 +397,8 @@ double geoDistanceMeters(GeoPoint a, GeoPoint b) {
   final double deltaLat = (b.latitude - a.latitude) * math.pi / 180;
   final double deltaLon =
       _wrappedLongitudeDelta(b.longitude - a.longitude) * math.pi / 180;
-  final double haversine = math.sin(deltaLat / 2) *
-          math.sin(deltaLat / 2) +
+  final double haversine =
+      math.sin(deltaLat / 2) * math.sin(deltaLat / 2) +
       math.cos(lat1) *
           math.cos(lat2) *
           math.sin(deltaLon / 2) *
@@ -432,7 +412,8 @@ double geoBearingDegrees(GeoPoint a, GeoPoint b) {
   final double deltaLon =
       _wrappedLongitudeDelta(b.longitude - a.longitude) * math.pi / 180;
   final double y = math.sin(deltaLon) * math.cos(lat2);
-  final double x = math.cos(lat1) * math.sin(lat2) -
+  final double x =
+      math.cos(lat1) * math.sin(lat2) -
       math.sin(lat1) * math.cos(lat2) * math.cos(deltaLon);
   return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
 }

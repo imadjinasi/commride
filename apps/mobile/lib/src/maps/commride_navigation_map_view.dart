@@ -33,8 +33,7 @@ class CommRideNavigationMapView extends StatefulWidget {
       _CommRideNavigationMapViewState();
 }
 
-class _CommRideNavigationMapViewState
-    extends State<CommRideNavigationMapView> {
+class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
   static const String _routeSource = 'commride-navigation-route';
   static const String _routeLayer = 'commride-navigation-route-line';
   static const String _recoverySource = 'commride-navigation-recovery';
@@ -143,8 +142,7 @@ class _CommRideNavigationMapViewState
             ),
           ),
         ),
-        if (!_ready)
-          const Center(child: CircularProgressIndicator()),
+        if (!_ready) const Center(child: CircularProgressIndicator()),
       ],
     );
   }
@@ -157,119 +155,132 @@ class _CommRideNavigationMapViewState
     _styleTimer = Timer(const Duration(seconds: 20), _fail);
 
     try {
-      await controller.addGeoJsonSource(
-        _routeSource,
-        _routeGeoJson(widget.routePoints),
-      ).timeout(_timeout);
-      await controller.addLineLayer(
-        _routeSource,
-        _routeLayer,
-        const LineLayerProperties(
-          lineColor: '#1565C0',
-          lineWidth: 6,
-          lineOpacity: 0.9,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(_routeSource, _routeGeoJson(widget.routePoints))
+          .timeout(_timeout);
+      await controller
+          .addLineLayer(
+            _routeSource,
+            _routeLayer,
+            const LineLayerProperties(
+              lineColor: '#1565C0',
+              lineWidth: 6,
+              lineOpacity: 0.9,
+            ),
+          )
+          .timeout(_timeout);
 
-      await controller.addGeoJsonSource(
-        _recoverySource,
-        _recoveryGeoJson(widget.snapshot),
-      ).timeout(_timeout);
-      await controller.addLineLayer(
-        _recoverySource,
-        _recoveryLayer,
-        const LineLayerProperties(
-          lineColor: '#F57C00',
-          lineWidth: 5,
-          lineOpacity: 0.9,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(_recoverySource, _recoveryGeoJson(widget.snapshot))
+          .timeout(_timeout);
+      await controller
+          .addLineLayer(
+            _recoverySource,
+            _recoveryLayer,
+            const LineLayerProperties(
+              lineColor: '#F57C00',
+              lineWidth: 5,
+              lineOpacity: 0.9,
+            ),
+          )
+          .timeout(_timeout);
 
-      await controller.addGeoJsonSource(
-        _ridersSource,
-        _ridersGeoJson(widget.presences, widget.now),
-      ).timeout(_timeout);
-      await controller.addCircleLayer(
-        _ridersSource,
-        _ridersLayer,
-        const CircleLayerProperties(
-          circleColor: <String>['get', 'color'],
-          circleRadius: 8,
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2,
-        ),
-      ).timeout(_timeout);
-      await controller.addSymbolLayer(
-        _ridersSource,
-        _ridersLabels,
-        const SymbolLayerProperties(
-          textField: <String>['get', 'label'],
-          textSize: 11,
-          textOffset: <double>[0, 1.4],
-          textAnchor: 'top',
-          textColor: '#202020',
-          textHaloColor: '#FFFFFF',
-          textHaloWidth: 2,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(
+            _ridersSource,
+            _ridersGeoJson(widget.presences, widget.now),
+          )
+          .timeout(_timeout);
+      await controller
+          .addCircleLayer(
+            _ridersSource,
+            _ridersLayer,
+            const CircleLayerProperties(
+              circleColor: <String>['get', 'color'],
+              circleRadius: 8,
+              circleStrokeColor: '#FFFFFF',
+              circleStrokeWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
+      await controller
+          .addSymbolLayer(
+            _ridersSource,
+            _ridersLabels,
+            const SymbolLayerProperties(
+              textField: <String>['get', 'label'],
+              textSize: 11,
+              textOffset: <double>[0, 1.4],
+              textAnchor: 'top',
+              textColor: '#202020',
+              textHaloColor: '#FFFFFF',
+              textHaloWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
 
-      await controller.addGeoJsonSource(
-        _positionSource,
-        _positionGeoJson(widget.snapshot),
-      ).timeout(_timeout);
-      await controller.addCircleLayer(
-        _positionSource,
-        _positionLayer,
-        const CircleLayerProperties(
-          circleColor: '#0D47A1',
-          circleRadius: 10,
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 3,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(_positionSource, _positionGeoJson(widget.snapshot))
+          .timeout(_timeout);
+      await controller
+          .addCircleLayer(
+            _positionSource,
+            _positionLayer,
+            const CircleLayerProperties(
+              circleColor: '#0D47A1',
+              circleRadius: 10,
+              circleStrokeColor: '#FFFFFF',
+              circleStrokeWidth: 3,
+            ),
+          )
+          .timeout(_timeout);
 
-      await controller.addGeoJsonSource(
-        _rejoinSource,
-        _rejoinGeoJson(widget.snapshot),
-      ).timeout(_timeout);
-      await controller.addCircleLayer(
-        _rejoinSource,
-        _rejoinLayer,
-        const CircleLayerProperties(
-          circleColor: '#F57C00',
-          circleRadius: 9,
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(_rejoinSource, _rejoinGeoJson(widget.snapshot))
+          .timeout(_timeout);
+      await controller
+          .addCircleLayer(
+            _rejoinSource,
+            _rejoinLayer,
+            const CircleLayerProperties(
+              circleColor: '#F57C00',
+              circleRadius: 9,
+              circleStrokeColor: '#FFFFFF',
+              circleStrokeWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
 
-      await controller.addGeoJsonSource(
-        _trafficSource,
-        _trafficGeoJson(widget.incidents),
-      ).timeout(_timeout);
-      await controller.addCircleLayer(
-        _trafficSource,
-        _trafficLayer,
-        const CircleLayerProperties(
-          circleColor: '#C62828',
-          circleRadius: 7,
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2,
-        ),
-      ).timeout(_timeout);
-      await controller.addSymbolLayer(
-        _trafficSource,
-        _trafficLabels,
-        const SymbolLayerProperties(
-          textField: <String>['get', 'label'],
-          textSize: 10,
-          textOffset: <double>[0, 1.3],
-          textAnchor: 'top',
-          textColor: '#202020',
-          textHaloColor: '#FFFFFF',
-          textHaloWidth: 2,
-        ),
-      ).timeout(_timeout);
+      await controller
+          .addGeoJsonSource(_trafficSource, _trafficGeoJson(widget.incidents))
+          .timeout(_timeout);
+      await controller
+          .addCircleLayer(
+            _trafficSource,
+            _trafficLayer,
+            const CircleLayerProperties(
+              circleColor: '#C62828',
+              circleRadius: 7,
+              circleStrokeColor: '#FFFFFF',
+              circleStrokeWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
+      await controller
+          .addSymbolLayer(
+            _trafficSource,
+            _trafficLabels,
+            const SymbolLayerProperties(
+              textField: <String>['get', 'label'],
+              textSize: 10,
+              textOffset: <double>[0, 1.3],
+              textAnchor: 'top',
+              textColor: '#202020',
+              textHaloColor: '#FFFFFF',
+              textHaloWidth: 2,
+            ),
+          )
+          .timeout(_timeout);
 
       if (!mounted) return;
       _styleTimer?.cancel();
@@ -324,27 +335,26 @@ class _CommRideNavigationMapViewState
             .setGeoJsonSource(_rejoinSource, _rejoinGeoJson(widget.snapshot))
             .timeout(_timeout);
         await controller
-            .setGeoJsonSource(
-              _trafficSource,
-              _trafficGeoJson(widget.incidents),
-            )
+            .setGeoJsonSource(_trafficSource, _trafficGeoJson(widget.incidents))
             .timeout(_timeout);
 
         final CommRideNavigationSnapshot? snapshot = widget.snapshot;
         if (snapshot != null) {
-          await controller.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(
-                target: LatLng(
-                  snapshot.position.latitude,
-                  snapshot.position.longitude,
+          await controller
+              .animateCamera(
+                CameraUpdate.newCameraPosition(
+                  CameraPosition(
+                    target: LatLng(
+                      snapshot.position.latitude,
+                      snapshot.position.longitude,
+                    ),
+                    zoom: 16,
+                    tilt: 45,
+                    bearing: snapshot.routeBearingDegrees,
+                  ),
                 ),
-                zoom: 16,
-                tilt: 45,
-                bearing: snapshot.routeBearingDegrees,
-              ),
-            ),
-          ).timeout(_timeout);
+              )
+              .timeout(_timeout);
         }
       } while (_syncPending);
     } catch (_) {
@@ -371,10 +381,7 @@ class _CommRideNavigationMapViewState
       ),
       onPressed: () async {
         try {
-          await launchUrl(
-            Uri.parse(url),
-            mode: LaunchMode.externalApplication,
-          );
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
         } catch (_) {
           // Attribution remains visible even if no external browser is present.
         }
@@ -385,10 +392,7 @@ class _CommRideNavigationMapViewState
 }
 
 class _MapFallback extends StatelessWidget {
-  const _MapFallback({
-    required this.message,
-    required this.snapshot,
-  });
+  const _MapFallback({required this.message, required this.snapshot});
 
   final String message;
   final CommRideNavigationSnapshot? snapshot;
@@ -434,10 +438,9 @@ Map<String, dynamic> _routeGeoJson(List<GeoPoint> route) {
         'geometry': <String, dynamic>{
           'type': 'LineString',
           'coordinates': route
-              .map((GeoPoint point) => <double>[
-                    point.longitude,
-                    point.latitude,
-                  ])
+              .map(
+                (GeoPoint point) => <double>[point.longitude, point.latitude],
+              )
               .toList(growable: false),
         },
         'properties': <String, dynamic>{},
@@ -446,9 +449,7 @@ Map<String, dynamic> _routeGeoJson(List<GeoPoint> route) {
   };
 }
 
-Map<String, dynamic> _recoveryGeoJson(
-  CommRideNavigationSnapshot? snapshot,
-) {
+Map<String, dynamic> _recoveryGeoJson(CommRideNavigationSnapshot? snapshot) {
   final GeoPoint? target = snapshot?.rejoinTarget;
   if (snapshot == null || target == null) return _emptyCollection();
 
@@ -460,10 +461,7 @@ Map<String, dynamic> _recoveryGeoJson(
         'geometry': <String, dynamic>{
           'type': 'LineString',
           'coordinates': <Object>[
-            <double>[
-              snapshot.position.longitude,
-              snapshot.position.latitude,
-            ],
+            <double>[snapshot.position.longitude, snapshot.position.latitude],
             <double>[target.longitude, target.latitude],
           ],
         },
@@ -473,25 +471,19 @@ Map<String, dynamic> _recoveryGeoJson(
   };
 }
 
-Map<String, dynamic> _positionGeoJson(
-  CommRideNavigationSnapshot? snapshot,
-) {
+Map<String, dynamic> _positionGeoJson(CommRideNavigationSnapshot? snapshot) {
   if (snapshot == null) return _emptyCollection();
-  return _pointCollection(
-    snapshot.position,
-    <String, dynamic>{'label': 'Anda'},
-  );
+  return _pointCollection(snapshot.position, <String, dynamic>{
+    'label': 'Anda',
+  });
 }
 
-Map<String, dynamic> _rejoinGeoJson(
-  CommRideNavigationSnapshot? snapshot,
-) {
+Map<String, dynamic> _rejoinGeoJson(CommRideNavigationSnapshot? snapshot) {
   final GeoPoint? target = snapshot?.rejoinTarget;
   if (target == null) return _emptyCollection();
-  return _pointCollection(
-    target,
-    <String, dynamic>{'label': 'Kembali ke rute'},
-  );
+  return _pointCollection(target, <String, dynamic>{
+    'label': 'Kembali ke rute',
+  });
 }
 
 Map<String, dynamic> _ridersGeoJson(
@@ -500,32 +492,32 @@ Map<String, dynamic> _ridersGeoJson(
 ) {
   return <String, dynamic>{
     'type': 'FeatureCollection',
-    'features': presences.map((LiveRiderPresence presence) {
-      final LivePresenceFreshness freshness =
-          presence.effectiveFreshness(now);
-      final String color = switch (freshness) {
-        LivePresenceFreshness.live => '#2E7D32',
-        LivePresenceFreshness.stale => '#F9A825',
-        LivePresenceFreshness.offline => '#6A1B9A',
-      };
-      return <String, dynamic>{
-        'type': 'Feature',
-        'id': presence.riderId,
-        'geometry': <String, dynamic>{
-          'type': 'Point',
-          'coordinates': <double>[
-            presence.longitude,
-            presence.latitude,
-          ],
-        },
-        'properties': <String, dynamic>{
-          'color': color,
-          'label':
-              '${presence.displayName} · ${presence.role.label}\n'
-              '${freshness.label}',
-        },
-      };
-    }).toList(growable: false),
+    'features': presences
+        .map((LiveRiderPresence presence) {
+          final LivePresenceFreshness freshness = presence.effectiveFreshness(
+            now,
+          );
+          final String color = switch (freshness) {
+            LivePresenceFreshness.live => '#2E7D32',
+            LivePresenceFreshness.stale => '#F9A825',
+            LivePresenceFreshness.offline => '#6A1B9A',
+          };
+          return <String, dynamic>{
+            'type': 'Feature',
+            'id': presence.riderId,
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[presence.longitude, presence.latitude],
+            },
+            'properties': <String, dynamic>{
+              'color': color,
+              'label':
+                  '${presence.displayName} · ${presence.role.label}\n'
+                  '${freshness.label}',
+            },
+          };
+        })
+        .toList(growable: false),
   };
 }
 
@@ -543,9 +535,7 @@ Map<String, dynamic> _trafficGeoJson(List<TrafficIncident> incidents) {
               'type': 'Point',
               'coordinates': <double>[point.longitude, point.latitude],
             },
-            'properties': <String, dynamic>{
-              'label': _trafficLabel(incident),
-            },
+            'properties': <String, dynamic>{'label': _trafficLabel(incident)},
           };
         })
         .toList(growable: false),
@@ -588,8 +578,5 @@ Map<String, dynamic> _pointCollection(
 }
 
 Map<String, dynamic> _emptyCollection() {
-  return <String, dynamic>{
-    'type': 'FeatureCollection',
-    'features': <Object>[],
-  };
+  return <String, dynamic>{'type': 'FeatureCollection', 'features': <Object>[]};
 }

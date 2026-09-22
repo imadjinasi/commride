@@ -211,8 +211,9 @@ class _ActiveRideNavigationScreenState
             trafficCount: _trafficIncidents.length,
             guidanceNotice: _guidanceNotice,
             rerouteBusy: _rerouteSearching,
-            onFindNewRoute:
-                _snapshot?.shouldOfferReroute == true ? _findNewRoute : null,
+            onFindNewRoute: _snapshot?.shouldOfferReroute == true
+                ? _findNewRoute
+                : null,
           ),
         ),
         if (_routeRevisionRefreshing || _rerouteSearching)
@@ -376,8 +377,7 @@ class _ActiveRideNavigationScreenState
     if (_routeRevisionRefreshing || _preparing || current == null) {
       return;
     }
-    if (expectedRevision != null &&
-        expectedRevision <= current.plan.revision) {
+    if (expectedRevision != null && expectedRevision <= current.plan.revision) {
       return;
     }
 
@@ -410,9 +410,7 @@ class _ActiveRideNavigationScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'RoutePlan revision ${plan.revision} diterapkan.',
-            ),
+            content: Text('RoutePlan revision ${plan.revision} diterapkan.'),
           ),
         );
       }
@@ -454,10 +452,7 @@ class _ActiveRideNavigationScreenState
 
     _lastObservedAt = sample.observedAt;
     final CommRideNavigationSnapshot next = prepared.engine.update(
-      GeoPoint(
-        latitude: sample.latitude,
-        longitude: sample.longitude,
-      ),
+      GeoPoint(latitude: sample.latitude, longitude: sample.longitude),
       sample.observedAt,
     );
 
@@ -473,10 +468,10 @@ class _ActiveRideNavigationScreenState
 
   Future<void> _refreshTraffic(RouteOption route) async {
     try {
-      final List<TrafficIncident> incidents =
-          await widget.routePlannerApi.fetchTrafficIncidents(route);
-      if (!mounted || _prepared?.plan.route.encodedPolyline !=
-          route.encodedPolyline) {
+      final List<TrafficIncident> incidents = await widget.routePlannerApi
+          .fetchTrafficIncidents(route);
+      if (!mounted ||
+          _prepared?.plan.route.encodedPolyline != route.encodedPolyline) {
         return;
       }
       setState(() {
@@ -629,9 +624,7 @@ class _ActiveRideNavigationScreenState
     }
   }
 
-  Future<RouteOption?> _selectCandidate(
-    List<RouteOption> candidates,
-  ) async {
+  Future<RouteOption?> _selectCandidate(List<RouteOption> candidates) async {
     return showModalBottomSheet<RouteOption>(
       context: context,
       showDragHandle: true,
@@ -679,7 +672,7 @@ class _ActiveRideNavigationScreenState
           'Rute baru: ${_formatDistance(route.distanceMeters.toDouble())}, '
           '${_formatDuration(route.durationSeconds)}.'
           '${remainingStopCount > 0 ? ' $remainingStopCount Stop yang masih '
-              'di depan akan dipertahankan.' : ''}\n\n'
+                    'di depan akan dipertahankan.' : ''}\n\n'
           'Rute lama baru diganti setelah Anda menekan Gunakan rute baru.',
         ),
         actions: <Widget>[
@@ -707,10 +700,7 @@ class _ActiveRideNavigationScreenState
 }
 
 class _PreparedNavigation {
-  const _PreparedNavigation({
-    required this.plan,
-    required this.engine,
-  });
+  const _PreparedNavigation({required this.plan, required this.engine});
 
   final SavedRoutePlan plan;
   final CommRideNavigationEngine engine;
@@ -1040,11 +1030,7 @@ class _DockButton extends StatelessWidget {
       style: TextButton.styleFrom(foregroundColor: foreground),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon),
-          const SizedBox(height: 2),
-          Text(label),
-        ],
+        children: <Widget>[Icon(icon), const SizedBox(height: 2), Text(label)],
       ),
     );
   }

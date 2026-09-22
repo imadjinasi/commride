@@ -393,13 +393,12 @@ class SavedRoutePlan {
         encodedPolyline: json['encodedPolyline'] as String,
         routeToken: null,
         legs: const <RouteLeg>[],
-        maneuvers:
-            (json['maneuvers'] as List<Object?>? ?? const <Object?>[])
-                .map(
-                  (Object? value) =>
-                      RouteManeuver.fromJson(value as Map<String, Object?>),
-                )
-                .toList(growable: false),
+        maneuvers: (json['maneuvers'] as List<Object?>? ?? const <Object?>[])
+            .map(
+              (Object? value) =>
+                  RouteManeuver.fromJson(value as Map<String, Object?>),
+            )
+            .toList(growable: false),
       ),
       stops: (json['stops'] as List<Object?>)
           .map(
@@ -411,7 +410,6 @@ class SavedRoutePlan {
     );
   }
 }
-
 
 class TrafficIncident {
   const TrafficIncident({
@@ -458,14 +456,12 @@ class TrafficIncident {
       lengthMeters: json['lengthMeters'] as int?,
       startTime: json['startTime'] as String?,
       endTime: json['endTime'] as String?,
-      probabilityOfOccurrence:
-          json['probabilityOfOccurrence'] as String?,
+      probabilityOfOccurrence: json['probabilityOfOccurrence'] as String?,
       numberOfReports: json['numberOfReports'] as int?,
       lastReportTime: json['lastReportTime'] as String?,
       points: (json['points'] as List<Object?>)
           .map(
-            (Object? value) =>
-                GeoPoint.fromJson(value as Map<String, Object?>),
+            (Object? value) => GeoPoint.fromJson(value as Map<String, Object?>),
           )
           .toList(growable: false),
     );
