@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../auth/auth_gateway.dart';
+import '../models/club_ride.dart';
 import '../models/ride_message.dart';
 import '../models/ride_sos.dart';
 import 'convoy_separation.dart';
@@ -317,6 +318,36 @@ class IoActiveRideRealtimeClient implements ActiveRideRealtimeClient {
       try {
         _events.add(
           ActiveRideSosChanged(type: type, sos: RideSos.fromJson(rawPayload)),
+        );
+      } on FormatException {
+        return;
+      }
+      return;
+    }
+
+    if (type == 'ride.route_plan_updated') {
+      final Object? rawRideId = rawPayload['rideId'];
+      final Object? rawRevision = rawPayload['revision'];
+      final Object? rawRiderId = rawPayload['updatedByRiderId'];
+      final Object? rawRole = rawPayload['updatedByRole'];
+      if (rawRideId is! String ||
+          rawRideId.trim().isEmpty ||
+          rawRevision is! int ||
+          rawRevision <= 0 ||
+          rawRiderId is! String ||
+          rawRiderId.trim().isEmpty ||
+          rawRole is! String) {
+        return;
+      }
+
+      try {
+        _events.add(
+          ActiveRideRoutePlanUpdated(
+            rideId: rawRideId,
+            revision: rawRevision,
+            updatedByRiderId: rawRiderId,
+            updatedByRole: RideRole.fromWireValue(rawRole),
+          ),
         );
       } on FormatException {
         return;
