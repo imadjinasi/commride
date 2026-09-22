@@ -83,44 +83,52 @@ Do not upload large media in the first implementation unless required.
 
 ### Maps, route and navigation providers
 
-The deployed pilot may continue using **MapLibre + Geoapify** until Google Maps
-Platform billing and credentials are available. That working runtime remains a
-safe fallback; it is not silently removed.
+The working runtime remains **MapLibre + Geoapify** during migration. The
+accepted low-cost target deliberately avoids making an opaque navigation SDK the
+product authority:
 
-The accepted next Active Ride direction is:
+- **MapLibre** renders planning, convoy and embedded Active Ride navigation;
+- **CommRide Navigation Engine** owns route progress, current maneuver,
+  off-route hysteresis, recovery/rejoin state and the deliberate reroute UX;
+- **Valhalla** is the target self-hosted route engine for motorcycle RoutePlans
+  and maneuver generation;
+- **TomTom Traffic REST APIs** provide bounded realtime traffic flow/incidents
+  such as jams, roadworks, accidents and closures where coverage/runtime evidence
+  exists;
+- **TomTom Search/Places REST** is an optional place provider when its API/free
+  allowance and commercial terms fit the launch stage;
+- **Geoapify** stays as the already-working fallback for place search,
+  Search Along Route and motorcycle routing until Valhalla/TomTom replacements
+  pass runtime acceptance;
+- **Google** provider/Navigation preparation can remain as an optional future
+  adapter, but it is no longer the pilot default or a billing prerequisite.
 
-- **Google Places API (New)** for destination/place search;
-- **Google Routes API** for route planning, including motorcycle/two-wheeler
-  routing where supported;
-- a short-lived Google **route token** returned with the selected route and
-  consumed promptly by the compatible Navigation SDK so planning and guidance
-  share the same route family;
-- **Google Navigation for Flutter** for embedded turn-by-turn guidance;
-- CommRide RiderPresence rendered as overlays on the Active Ride navigation map.
-
-Provider-specific payloads remain behind CommRide adapters. Route tokens are
-ephemeral transport artifacts and must not replace persisted coordinates,
-waypoints, encoded geometry, or RoutePlan revisions as geographic source of
+Provider-specific payloads must remain behind CommRide adapters. Persist the
+provider-independent RoutePlan: coordinates, Stops, encoded geometry, distance,
+duration and normalized maneuvers. Ephemeral provider tokens are never route
 truth.
 
-Expected pilot capabilities:
+The navigation contract is intentionally different from consumer navigators that
+silently reroute. A confirmed GPS deviation keeps the current RoutePlan
+authoritative. CommRide first enters a recovery state and guides the Rider toward
+a sensible future rejoin point. Only a deliberate user action previews a
+replacement route, and a shared Active Ride replacement still requires
+Leader/Navigator authority plus a persisted RoutePlan revision.
 
-- map rendering;
-- Places-style autocomplete/search;
+Expected pilot capabilities:
+- map rendering and RiderPresence overlays;
+- destination/place search;
 - motorcycle routing;
+- normalized turn-by-turn maneuvers;
 - route alternatives when materially different;
 - Add Stop/waypoints;
-- Nearby Search;
-- Search Along Route composed server-side when necessary.
+- Nearby/Search Along Route through bounded provider calls;
+- traffic/incident annotations when TomTom runtime is configured;
+- rejoin-first off-route recovery without automatic RoutePlan replacement.
 
-Search Along Route may be implemented by sampling a bounded route/polyline
-corridor, querying Places around relevant points, deduplicating, ranking, and
-returning provider-independent CommRide DTOs.
-
-Embedded turn-by-turn navigation is now part of the accepted next Active Ride
-implementation when the Google navigation gate is enabled. External navigation
-deep links remain available as a fallback rather than the primary Active Ride
-experience.
+Cost discipline is architectural: shared Ride traffic/search data should be
+queried server-side, cached/bounded where provider terms allow, and never fetched
+independently by every Rider when one shared result is enough.
 
 ## 3. Provider abstraction
 
@@ -148,7 +156,8 @@ This does not need an elaborate plugin framework. A clear adapter boundary is en
 
 ```
 Flutter App
-  |-- Google Navigation SDK (when enabled)
+  |-- MapLibre navigation + convoy surface
+  |-- CommRide Navigation Engine (local progress/deviation/recovery)
   |-- voice media client (provider/SFU selected separately)
   |
   | HTTPS
@@ -156,7 +165,9 @@ Flutter App
 Cloudflare Worker API
   |-- D1
   |-- R2
-  |-- Google Places / Routes or Geoapify fallback
+  |-- Route adapter -> Geoapify fallback / Valhalla target
+  |-- Place adapter -> Geoapify fallback / TomTom option
+  |-- Traffic adapter -> TomTom when configured
   |-- Firebase notification integration
   |
   | WebSocket / Ride control channel
@@ -167,10 +178,15 @@ Durable Object: Active Ride Room
   |-- voice signalling/control metadata where needed
   |-- broadcast events
   `-- checkpoint / quick-action realtime events
+```
+
+Map rendering and route-progress calculations do not require a provider request
+for every GPS sample. The mobile engine consumes the accepted RoutePlan locally.
+External APIs are used deliberately for planning, traffic refresh, search or a
+user-requested replacement route.
 
 Voice audio packets do not flow through the Durable Object. Group intercom needs
 a media plane suited to realtime audio (for example WebRTC with an SFU).
-```
 
 ## 5. Realtime location strategy
 
@@ -261,28 +277,37 @@ If future analytics require serious spatial querying, the persistence layer can 
 
 ## 8. Route planning and embedded navigation flow
 
-Planning and navigation should not intentionally disagree. When the Google
-provider is enabled, CommRide asks Routes API for the selected route and returns
-the short-lived route token to the current client session. Immediately before
-starting guidance, the client refreshes/recomputes the current RoutePlan when a
-fresh token is required and supplies that token with the same travel mode and
-waypoints to Navigation SDK. A token is never persisted as durable route truth.
+The persisted RoutePlan is the shared authority. Planning-provider output is
+normalized before persistence, including route geometry and maneuvers when
+available.
 
 Conceptual flow:
 
-1. Leader searches destination.
-2. Places provider resolves selected locations.
-3. Routes provider returns alternatives.
-4. Leader selects route.
-5. Leader uses Add Stop / Search Along Route.
-6. Route is recomputed.
-7. Stops may become Checkpoints.
-8. CommRide stores a provider-independent route plan plus enough provider metadata for refresh.
-9. Ride Briefing snapshots the accepted plan.
-10. Active Ride starts embedded guidance from that accepted plan.
-11. RiderPresence overlays are rendered on the same navigation map.
-12. During Ride, route revision is explicit and propagated to affected Riders;
-    navigation is not silently changed behind the shared Ride plan.
+1. Leader searches destination through the configured place adapter.
+2. Route adapter returns motorcycle-capable alternatives.
+3. Leader selects a route and uses Add Stop / Search Along Route.
+4. CommRide stores a provider-independent immutable RoutePlan revision.
+5. Ride Briefing snapshots that exact revision.
+6. Active Ride loads the accepted geometry/maneuvers into MapLibre + CommRide
+   Navigation Engine.
+7. The existing Ride location session supplies GPS samples; navigation does not
+   start a second hidden location stream.
+8. RiderPresence and traffic/incidents are overlaid on the same operational map.
+9. Local progress selects the next maneuver and estimates remaining progress
+   without continuously recomputing the route upstream.
+10. GPS noise first enters a suspected-deviation state. Only sustained,
+    meaningful deviation becomes confirmed off-route.
+11. Confirmed off-route keeps the accepted RoutePlan visible and enters
+    **Recovery**. CommRide seeks a sensible future rejoin point rather than
+    silently replacing the route.
+12. The Rider may deliberately choose **Cari rute baru**. A candidate is
+    previewed before adoption.
+13. A shared route change is persisted only by Leader/Navigator as a new
+    RoutePlan revision, then broadcast to connected Riders.
+
+A provider outage must not be presented as a successful route replacement.
+Repository implementation is not evidence that Valhalla or TomTom runtime is
+available.
 
 ## 9. Search Along Route cost discipline
 

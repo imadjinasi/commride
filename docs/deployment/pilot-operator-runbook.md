@@ -37,16 +37,16 @@ Do not recreate these resources without a mismatch. The Android application ID i
 a long-lived technical identity, not a website URL. iOS Bundle ID/registration
 remains unfinalized; do not create it by assumption.
 
-MapLibre + Geoapify remains the proven fallback and does not require Google
-billing. The accepted next Active Ride path uses Google Places + Routes +
-Navigation SDK, but it stays disabled until billing, API credentials and device
-acceptance are complete. Do not remove the working fallback merely because Google
-source preparation exists.
+MapLibre + Geoapify remains the proven fallback. The accepted next Active Ride
+path is MapLibre + CommRide Navigation Engine, with Valhalla as the target
+self-hosted motorcycle router and TomTom REST traffic/incident intelligence.
+Geoapify stays active until replacement runtime evidence exists. Google source
+preparation is optional and must not become a billing prerequisite for the pilot.
 
 Cloudflare/D1, Firebase authentication and Geoapify provider/runtime now have
 separate operator evidence recorded after the original setup baseline. FCM
-delivery, Google Navigation device acceptance and convoy field acceptance still
-require their own evidence.
+delivery, CommRide embedded-navigation device acceptance, Valhalla/TomTom
+provider runtime, and convoy field acceptance still require their own evidence.
 
 ## 1. Source gate and baseline record
 
@@ -240,91 +240,75 @@ flutter build appbundle --release --dart-define-from-file=pilot-defines.local.js
 A CI release AAB is only a build gate, not a Play-signed release or installed-device
 provider acceptance. Never commit the keystore or signing passwords.
 
-## 7. Activate Google navigation after billing is available
+## 7. Activate the low-cost navigation providers deliberately
 
-This section is deliberately optional until the operator has a billing-capable
-Google Maps Platform project. Source support may be merged while all Google
-runtime gates stay off.
+Google billing is not required for the pilot path.
 
-Use separate trust boundaries:
+### 7.1 Keep the proven fallback while migrating
 
-- a **server web-service key** for Places API (New) and Routes API, stored only
-  as the Cloudflare Worker secret `GOOGLE_MAPS_API_KEY`;
-- an **Android SDK key** for the installed app, restricted to the accepted
-  package `io.github.imadjinasi.commride`, the actual signing certificate
-  fingerprint(s), and only the required Maps/Navigation APIs.
+Until Valhalla has real runtime evidence, keep:
+- Geoapify route/place backend available;
+- MapLibre client style configured;
+- `COMMRIDE_NAVIGATION_ENABLED=false` unless the CommRide navigation surface on
+  the exact build has passed its own device gate.
 
-Do not reuse either key as the other and never paste a real key into chat, Git,
-screenshots or Dart source.
+Do not remove `GEOAPIFY_API_KEY` merely because the target provider code exists.
 
-In Google Cloud, enable the required APIs for the selected project:
+### 7.2 TomTom traffic / incident intelligence
 
-- Places API (New);
-- Routes API;
-- Navigation SDK for Android;
-- Maps SDK for Android when required by the Navigation SDK setup.
-
-Then store the backend key from `services/api`:
+Create a TomTom API key in the operator account without committing or pasting it
+into chat. Store only the server-side secret:
 
 ```powershell
-npx wrangler secret put GOOGLE_MAPS_API_KEY
+cd C:\Users\sabilulquran\Documents\Projects\commride\services\api
+npx wrangler secret put TOMTOM_API_KEY
 ```
 
-The command prompts locally for the value. After the secret exists, change the
-non-secret Worker provider selector from `MAP_PROVIDER=geoapify` to
-`MAP_PROVIDER=google`, deploy the exact reviewed SHA, and verify authenticated
-autocomplete, place resolution, route alternatives, Add Stop and Search Along
-Route before enabling mobile navigation.
+Enable the non-secret traffic selector only after the secret is present.
+Provider calls must be bounded and server-side; one shared Ride result should not
+be fetched independently by every Rider. Verify real Indonesian incident/traffic
+responses and account usage before calling this Provider/runtime PASS.
 
-For motorcycle Search Along Route, Places can search over the two-wheeler route
-polyline, but CommRide intentionally leaves detour distance/time unavailable
-where the provider cannot calculate a matching two-wheeler routing summary. It
-must never substitute a car detour and label it as motorcycle.
+### 7.3 Valhalla routing target
 
-On the operator workstation, keep the Android SDK key in the ignored generated
-project:
+Valhalla is open source but is **not** live merely because an adapter exists.
+Provision a reviewed HTTPS Valhalla endpoint separately, keep it outside the
+mobile app, and configure its base URL as a non-secret Worker variable only after
+the endpoint is reachable and controlled.
 
-```text
-apps/mobile/android/local.properties
-MAPS_API_KEY=<ANDROID_RESTRICTED_KEY>
-```
+Before changing the route default, verify:
+- motorcycle costing returns a real route;
+- Stops preserve order;
+- normalized distance/duration/geometry/maneuvers are complete;
+- alternatives are materially different when offered;
+- timeouts/errors preserve the previous valid RoutePlan;
+- no car route is silently labeled motorcycle.
 
-Do not commit that file. Run the platform configurator after the generated
-Android project exists:
+Until this passes, keep Geoapify as route fallback.
 
-```powershell
-cd C:\Users\sabilulquran\Documents\Projects\commride\apps\mobile
-python tool\configure_platforms.py
-python tool\verify_platforms.py
-```
+### 7.4 CommRide Navigation Engine device gate
 
-In ignored `pilot-defines.local.json`, switch only the reviewed runtime gate:
+After repository CI passes, use an installed Android build to verify:
+- MapLibre renders the accepted RoutePlan;
+- the existing Ride location session drives progress (no second hidden GPS stream);
+- next maneuver changes with route progress;
+- RiderPresence retains Live/Stale/Offline semantics;
+- one noisy GPS sample does not trigger off-route;
+- sustained deviation enters Recovery;
+- Recovery keeps the original RoutePlan and guides toward a sensible future
+  rejoin point;
+- **Cari rute baru** is deliberate and does not change the shared route before
+  confirmation;
+- Member/Sweeper cannot change the shared route;
+- Leader/Navigator replacement creates a new persisted revision before other
+  Riders apply it;
+- traffic/incidents degrade honestly if TomTom is unavailable.
 
-```json
-"COMMRIDE_NAVIGATION_ENABLED": true,
-"COMMRIDE_VOICE_INTERCOM_ENABLED": false
-```
+External Google/Waze navigation links may remain fallback escape hatches. They do
+not count as embedded CommRide navigation acceptance.
 
 Voice remains off until a real media transport/SFU is implemented and device
-tested. Navigation activation does not imply intercom acceptance.
-
-After Google is active, recompute and save the Ride's RoutePlan with the Google
-provider before testing embedded guidance. CommRide requests a fresh short-lived
-route token immediately before Navigation SDK guidance rather than persisting
-that token in D1.
-
-Build and test on the physical Android device:
-
-```powershell
-flutter pub get
-flutter analyze
-flutter test
-flutter build apk --debug --dart-define-from-file=pilot-defines.local.json
-```
-
-Accept Google navigation only after the same selected route, Stops, ETA/routing
-family, reroute behavior, Bluetooth guidance and CommRide RiderPresence overlays
-are observed on-device. Repository CI is not this acceptance.
+tested.
 
 ## 8. Two-Rider functional smoke before any road test
 

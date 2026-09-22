@@ -110,19 +110,58 @@ The UI may later add Marshal as an explicit operational role after its authority
 and persistence contract are defined. Mechanic/First Aid and similar attributes
 fit better as Rider capability tags than hierarchy roles.
 
-## Navigation provider transition
+## Navigation provider strategy
 
-The working MapLibre + Geoapify pilot remains a fallback.
+The working MapLibre + Geoapify pilot remains the transition fallback.
 
-When Google is enabled:
-- Places handles place discovery;
-- Routes computes the shared plan;
-- a fresh compatible route token bridges that selected plan into Navigation SDK;
-- Navigation SDK provides embedded guidance;
-- CommRide overlays RiderPresence and group state.
+The accepted target is:
+- MapLibre for the embedded navigation map;
+- CommRide Navigation Engine for local progress, maneuver and deviation state;
+- Valhalla as the target self-hosted motorcycle RoutePlan engine;
+- TomTom REST traffic/incidents and optional place search;
+- Geoapify until each replacement path has runtime evidence;
+- Google adapters only as optional future integrations, not a pilot blocker.
 
-Because route tokens are short-lived, persist the provider-independent RoutePlan
-and recompute/refresh before guidance rather than storing the token in D1.
+The persisted provider-independent RoutePlan is authoritative. Route geometry and
+normalized maneuver data should be sufficient for Active Ride guidance without
+calling an external route provider on every GPS update.
+
+## Off-route recovery — rejoin first
+
+CommRide must not silently replace the route when a Rider deviates.
+
+State model:
+
+**On Route -> Suspected Off Route -> Confirmed Off Route -> Recovery -> Rejoined**
+
+Rules:
+- one noisy GPS observation is insufficient to confirm deviation;
+- confirmation uses bounded distance/time/direction hysteresis;
+- during Recovery, keep the accepted route visible and authoritative;
+- choose a sensible **future** rejoin target; do not blindly send the Rider back
+  to the geometrically nearest point if that point is behind progress;
+- show recovery guidance separately from the accepted route;
+- expose **Cari rute baru** as a deliberate action rather than automatic behavior;
+- show a candidate replacement before it is adopted;
+- Member/Sweeper cannot replace the shared RoutePlan; they may continue recovery
+  or request/suggest a route review;
+- Leader/Navigator may explicitly save an accepted replacement as a new Active
+  Ride RoutePlan revision.
+
+Suggested low-interaction copy:
+
+> Anda keluar dari rute  
+> Kembali ke rute utama · 700 m  
+> **Cari rute baru**
+
+If a replacement is requested:
+
+> Lihat rute baru  
+> Rute Ride belum berubah.  
+> **Tetap rute lama** · **Gunakan rute baru**
+
+The second action is available only where the Rider has authority to revise the
+shared RoutePlan.
 
 ## Active Ride route revision
 
@@ -158,18 +197,20 @@ technical decision and field acceptance.
 
 ## Gating
 
-Repository code may be prepared before provider billing is available.
+Repository code may prepare provider adapters without live credentials.
 
-Google navigation remains **OFF by default** until:
-1. billing is active;
-2. required Google Maps Platform APIs are enabled;
-3. backend and mobile API keys are created separately and restricted;
-4. Android package/signing restrictions are verified;
-5. real-device route-token navigation passes;
-6. actual map, reroute, voice coexistence and background behavior are tested.
+Keep these gates independent:
+1. Repository PASS — source/tests/build only.
+2. Provider/runtime PASS — actual Geoapify/Valhalla/TomTom requests where enabled.
+3. Device PASS — installed MapLibre navigation, GPS, guidance and background behavior.
+4. Field convoy PASS — safe multi-Rider road acceptance.
+
+Valhalla must not become the default until its hosted endpoint and motorcycle
+routes are verified. TomTom traffic must remain off when no server-side key is
+configured. Geoapify remains fallback during migration. Google remains optional
+and disabled unless its separate billing/credential/device gates are satisfied.
 
 Repository PASS is not Provider PASS or Device PASS.
-
 
 ## Route changes while moving
 

@@ -33,15 +33,28 @@ If a requested implementation introduces behavior not covered by the current pro
 ## Current project stage
 
 CommRide has an integrated repository-side MVP candidate for the first-Club pilot.
-The MapLibre + Geoapify pilot is now proven for real autocomplete/place/route
-requests and remains the working fallback.
+MapLibre + Geoapify has already handled real autocomplete/place/route requests and
+remains the working fallback while the low-cost navigation stack is introduced.
 
-A newer explicit product decision accepts the next Active Ride direction:
-embedded Google turn-by-turn navigation + live convoy overlays + always-connected
-group intercom, with optional PTT. Google activation remains gated by billing,
-API credentials and device acceptance. Until those gates pass, do not claim the
-Google path is live or replace working Geoapify runtime evidence with repository
-implementation alone.
+The newest explicit product decision (22 September 2026) makes the primary
+navigation direction provider-neutral and cost-controlled:
+
+- MapLibre owns the embedded map/navigation surface;
+- CommRide Navigation Engine owns route progress, maneuver state, deviation
+  detection and recovery UX;
+- Valhalla is the target self-hosted motorcycle RoutePlan engine;
+- TomTom REST APIs are the target external traffic/incident intelligence and may
+  be used for place search where their commercial terms remain suitable;
+- Geoapify remains the proven transition/fallback path until replacement runtime
+  evidence exists;
+- Google Places/Routes/Navigation preparation may remain as an optional future
+  adapter, but Google billing is not a pilot prerequisite or the default path.
+
+A second accepted behavior is **rejoin-first navigation**. Leaving the planned
+route must not silently replace the authoritative RoutePlan. CommRide first
+helps the Rider recover to a sensible future point on the current route. A new
+route is only adopted after an explicit user decision, and a shared Active Ride
+RoutePlan still requires Leader/Navigator authority and a persisted revision.
 
 Operator evidence recorded on 21 September 2026 confirms only basic setup:
 
@@ -51,9 +64,9 @@ Operator evidence recorded on 21 September 2026 confirms only basic setup:
 - Geoapify project `CommRide Pilot` exists.
 
 Do not treat source implementation or provider account setup as deployed or
-field-tested reality. Do not claim Cloudflare/D1 runtime deployment, installed
-FlutterFire integration, live provider requests, real FCM delivery, store signing,
-background GPS, or convoy acceptance without their own evidence.
+field-tested reality. Valhalla, TomTom traffic/search, CommRide embedded
+navigation and voice media each require their own runtime/device evidence before
+being described as live.
 
 Keep Repository PASS, Provider/runtime PASS, Device PASS and Field convoy PASS
 separate. Issues #33, #52, #55, #58 and #59 require more than repository CI.
@@ -102,43 +115,47 @@ Do not state or imply that SOS contacts public emergency services unless such in
 
 ## Map/provider rules
 
-MapLibre + Geoapify remains the deployed/working fallback described by
-`docs/deployment/maplibre-geoapify-pilot.md`.
+MapLibre + Geoapify remains the proven fallback described by
+`docs/deployment/maplibre-geoapify-pilot.md`. Do not remove or disable it until
+a replacement has its own runtime evidence.
 
-The accepted next Active Ride direction uses Google Places + Routes + Navigation
-SDK when explicitly configured. Planning and embedded guidance should use the
-same provider route family and a fresh route token where supported. Provider
-selection must remain explicit; missing Google billing/credentials must degrade
-to an honest unavailable/fallback state, never a fabricated pass.
+The accepted low-cost navigation target is MapLibre + CommRide Navigation Engine
+with Valhalla for motorcycle routing and TomTom REST traffic/incident
+intelligence. Provider selection stays explicit and adapters must normalize
+provider payloads before they reach product/domain code.
 
-- MapLibre renders the fallback Live Group map using a separately supplied Geoapify client style.
-- Geoapify server APIs remain a fallback for autocomplete, place resolution/search and routing.
-- Google provider credentials remain separated between server web-service keys
-  and mobile SDK keys with platform/API restrictions.
-- Google route tokens are short-lived transport artifacts and are not persisted
-  as RoutePlan source of truth.
-- Embedded Navigation SDK activation must be feature-gated until real provider
-  setup and device acceptance pass.
-- `two_wheeler` must use motorcycle routing, never an undisclosed car fallback.
-- `GEOAPIFY_API_KEY` stays in the backend secret store, not mobile configuration.
-- Client map keys are recoverable from apps; do not claim Google-style platform
-  restrictions unless the chosen provider actually offers them.
-- Provider-specific response types stay inside the adapter.
+- MapLibre renders maps and the Active Ride navigation surface.
+- Valhalla is the target RoutePlan engine and must be self-hosted/verified before
+  it replaces the current Geoapify route runtime.
+- Geoapify remains a supported fallback for autocomplete, place resolution,
+  Search Along Route and motorcycle routing during the transition.
+- TomTom credentials are server-side only. Traffic/incident calls must be
+  bounded, cached/shared per Ride where practical, and must not be repeated by
+  every Rider independently.
+- Google adapters may remain optional but must stay disabled unless their own
+  billing, credential and device gates pass.
+- `two_wheeler` must use a motorcycle-capable route engine, never an
+  undisclosed car fallback.
+- Provider-specific response types stay inside adapters.
 - Search Along Route is bounded, on-demand sampled-area search, not exhaustive
-  coverage, road-access verification or a measured detour. Unavailable totals
+  coverage, road-access verification or a fabricated detour. Unavailable totals
   stay null; adding a Stop recomputes the route.
-- Route alternatives must materially differ; do not fabricate Google parity.
-- Maps must not request a second GPS stream or recenter automatically.
+- Route alternatives must materially differ; do not fabricate provider parity.
+- Live Group maps must not request a second GPS stream.
+- Active Ride navigation may follow the existing Ride location session; it must
+  not create a hidden parallel tracking session.
 - Preserve list fallback, freshness labels and provider/data attribution.
 
-Google navigation is the accepted next provider path, but Google billing and
-restricted keys are not prerequisites for keeping the current Geoapify fallback
-operational. External navigation links remain available as fallback and do not
-replace embedded-guidance acceptance evidence.
+**Route deviation rule:** GPS deviation never authorizes an automatic shared
+RoutePlan replacement. Use hysteresis so one noisy sample is not enough. After
+confirmed deviation, keep the accepted route visible/authoritative, calculate
+or present recovery toward a sensible future rejoin point, and expose a
+deliberate “Cari rute baru” action. Only an explicitly accepted replacement may
+become a new RoutePlan revision.
 
 Expensive provider actions must be deliberate, bounded and not automatically
-repeated by every Rider for shared planning state. Account quotas and operational
-abuse controls still need verification before real pilot use.
+repeated by every Rider for shared planning state. Account quotas, provider
+terms and operational abuse controls require verification before real pilot use.
 
 ## Realtime rules
 
@@ -158,9 +175,12 @@ Pilot direction:
 - R2 for object storage where needed;
 - Firebase Authentication;
 - FCM for push;
-- MapLibre + Geoapify as the working fallback map/place/route path;
-- Google Places + Routes + Navigation SDK as the feature-gated navigation-first
-  Active Ride path;
+- MapLibre as the embedded map/navigation renderer;
+- CommRide Navigation Engine for progress, maneuver and rejoin-first deviation behavior;
+- Valhalla as the target self-hosted motorcycle routing engine;
+- TomTom REST traffic/incident intelligence, with place search available through a provider adapter;
+- Geoapify as the proven transition/fallback map/place/route path;
+- Google adapters only as optional future feature-gated integrations;
 - WebRTC/SFU-class media architecture for voice, with provider selection handled
   separately from the Ride control channel.
 

@@ -114,6 +114,10 @@ acknowledged the current briefing, but Start Ride is not automatically blocked.
 
 #### Live Ride
 - embedded turn-by-turn navigation is the primary Active Ride surface;
+- MapLibre + the CommRide Navigation Engine is the accepted pilot interaction
+  model; Valhalla is the target motorcycle route engine, TomTom supplies
+  bounded traffic/incident intelligence, and Geoapify remains the transition
+  fallback until replacement runtime acceptance;
 - the navigation map also shows authorized Ride-participant presence;
 - background location sharing while Ride is active;
 - Rider markers;
@@ -122,10 +126,16 @@ acknowledged the current briefing, but Start Ride is not automatically blocked.
 - Live Group list;
 - distance/spread summary;
 - next checkpoint;
-- basic off-route/separation awareness;
-- navigation planning and guidance should use the same provider route family
-  when possible, avoiding a planner ETA/geometry that is silently replaced by
-  an unrelated external-navigation route.
+- robust off-route/separation awareness;
+- leaving the route does **not** automatically replace the accepted RoutePlan;
+- after confirmed deviation, default guidance is recovery/rejoin toward a
+  sensible future point on the accepted route;
+- a clear **Cari rute baru** action may preview a replacement, but adoption is
+  deliberate; a shared Active Ride replacement still requires Leader/Navigator
+  authority and a persisted RoutePlan revision;
+- navigation planning and guidance should use the accepted persisted geometry
+  as route truth rather than silently replacing it with an unrelated provider
+  route.
 
 #### Communication
 - always-connected group voice intercom is the default Active Ride voice mode;
@@ -247,7 +257,6 @@ Post-MVP candidates:
 - predicted separation;
 - convoy split detection;
 - group topology instead of only Leader radius;
-- Rider recovery/rejoin routing;
 - Plan A / Plan B;
 - dynamic replanning when delayed;
 - optional checkpoint skipping;
