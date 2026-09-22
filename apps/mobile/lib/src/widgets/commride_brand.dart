@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
 
 abstract final class CommRideBrandAssets {
-  static const String appIcon =
-      'assets/branding/commride-app-icon.png';
-  static const String primaryLogo =
-      'assets/branding/commride-primary-logo.png';
-  static const String monochrome =
-      'assets/branding/commride-monochrome.png';
+  static const String appIcon = 'assets/branding/commride-app-icon.png';
+  static const String primaryLogo = 'assets/branding/commride-primary-logo.png';
+  static const String monochrome = 'assets/branding/commride-monochrome.png';
 }
 
 enum CommRideBrandVariant { appIcon, primary, monochrome }
 
 class CommRideBrandImage extends StatelessWidget {
-  const CommRideBrandImage({
-    required this.variant,
-    this.size = 96,
-    super.key,
-  });
+  const CommRideBrandImage({required this.variant, this.size = 96, super.key});
 
   final CommRideBrandVariant variant;
   final double size;
