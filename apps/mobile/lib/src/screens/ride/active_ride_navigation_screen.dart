@@ -633,15 +633,12 @@ class _ActiveRideNavigationScreenState
     _trafficRefreshTimer?.cancel();
     if (_trafficUnavailable) return;
 
-    _trafficRefreshTimer = Timer.periodic(
-      const Duration(minutes: 10),
-      (_) {
-        final RouteOption? route = _prepared?.plan.route;
-        if (route != null) {
-          unawaited(_refreshTraffic(route));
-        }
-      },
-    );
+    _trafficRefreshTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      final RouteOption? route = _prepared?.plan.route;
+      if (route != null) {
+        unawaited(_refreshTraffic(route));
+      }
+    });
   }
 
   Future<void> _refreshTraffic(RouteOption route) async {
