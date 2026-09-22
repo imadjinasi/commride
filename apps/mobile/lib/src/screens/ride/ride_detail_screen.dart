@@ -70,15 +70,21 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     final Ride ride = _item.ride;
     final RideMembership? membership = _item.membership;
     final bool isLeader = membership?.role == RideRole.leader;
+    final bool canManageRoute =
+        membership?.role == RideRole.leader ||
+        membership?.role == RideRole.navigator;
     final bool canReadRoute =
         membership != null &&
         membership.status != RideMembershipStatus.invited &&
         membership.status != RideMembershipStatus.left;
     final bool canEditRoute =
-        isLeader &&
+        canManageRoute &&
         (ride.status == RideStatus.draft ||
-            ride.status == RideStatus.published);
-    final bool canPublishBriefing = canEditRoute;
+            ride.status == RideStatus.published ||
+            ride.status == RideStatus.active);
+    final bool canPublishBriefing =
+        isLeader &&
+        (ride.status == RideStatus.draft || ride.status == RideStatus.published);
     final bool canAcknowledgeBriefing =
         ride.status == RideStatus.draft || ride.status == RideStatus.published;
 
@@ -116,7 +122,13 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
                     ? null
                     : () => _openRoutePlanner(canEdit: canEditRoute),
                 icon: const Icon(Icons.map_outlined),
-                label: Text(canEditRoute ? 'Plan Route' : 'Lihat RoutePlan'),
+                label: Text(
+                  canEditRoute
+                      ? ride.status == RideStatus.active
+                            ? 'Ubah RoutePlan'
+                            : 'Plan Route'
+                      : 'Lihat RoutePlan',
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
