@@ -81,6 +81,63 @@ describe('GeoapifyProvider', () => {
     expect(calls).toBe(1);
   });
 
+  it('offsets maneuver shape indexes across multiple route legs', async () => {
+    const stop: GeoPoint = { latitude: -6.8, longitude: 108.2 };
+    const beforeStop: GeoPoint = { latitude: -6.77, longitude: 108.35 };
+    const afterStop: GeoPoint = { latitude: -6.86, longitude: 107.9 };
+    const provider = new GeoapifyProvider('fixture', async (request) => {
+      const url = new URL(request.toString());
+      expect(url.searchParams.get('details')).toBe('instruction_details');
+      return json({ features: [{
+        properties: {
+          distance: 100000,
+          time: 7200,
+          legs: [
+            {
+              distance: 50000,
+              time: 3600,
+              steps: [{
+                distance: 1000,
+                time: 60,
+                from_index: 1,
+                to_index: 2,
+                instruction: { text: 'Reach the stop', type: 'Straight' },
+              }],
+            },
+            {
+              distance: 50000,
+              time: 3600,
+              steps: [{
+                distance: 1000,
+                time: 60,
+                from_index: 1,
+                to_index: 2,
+                instruction: { text: 'Continue after stop', type: 'Right' },
+              }],
+            },
+          ],
+        },
+        geometry: {
+          type: 'MultiLineString',
+          coordinates: [
+            [origin, beforeStop, stop].map((point) => [point.longitude, point.latitude]),
+            [stop, afterStop, destination].map((point) => [point.longitude, point.latitude]),
+          ],
+        },
+      }] });
+    });
+
+    const [result] = await provider.computeRoutes({
+      ...input,
+      intermediates: [{ location: stop, via: false }],
+    });
+
+    expect(result?.maneuvers).toMatchObject([
+      { instruction: 'Reach the stop', beginShapeIndex: 1, endShapeIndex: 2 },
+      { instruction: 'Continue after stop', beginShapeIndex: 3, endShapeIndex: 4 },
+    ]);
+  });
+
   it('does not silently ignore unsupported motorcycle or mixed waypoint preferences', async () => {
     const provider = new GeoapifyProvider('fixture', async () => { throw new Error('must not fetch'); });
     await expect(provider.computeRoutes({ ...input, modifiers: { ...noAvoids, avoidTolls: true } })).rejects.toMatchObject({ code: 'route_modifier_not_supported', status: 400 });
