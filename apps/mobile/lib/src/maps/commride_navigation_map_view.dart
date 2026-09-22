@@ -14,6 +14,7 @@ class CommRideNavigationMapView extends StatefulWidget {
   const CommRideNavigationMapView({
     required this.routePoints,
     required this.routeRevision,
+    required this.recoveryRoutePoints,
     required this.snapshot,
     required this.presences,
     required this.incidents,
@@ -23,6 +24,7 @@ class CommRideNavigationMapView extends StatefulWidget {
 
   final List<GeoPoint> routePoints;
   final int routeRevision;
+  final List<GeoPoint> recoveryRoutePoints;
   final CommRideNavigationSnapshot? snapshot;
   final List<LiveRiderPresence> presences;
   final List<TrafficIncident> incidents;
@@ -137,6 +139,13 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
                     'OpenStreetMap',
                     'https://www.openstreetmap.org/copyright',
                   ),
+                  if (widget.incidents.isNotEmpty) ...<Widget>[
+                    const Text('·'),
+                    _credit(
+                      'Traffic © TomTom',
+                      'https://www.tomtom.com/legal/en_gb/product-attributions/',
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -171,7 +180,7 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
           .timeout(_timeout);
 
       await controller
-          .addGeoJsonSource(_recoverySource, _recoveryGeoJson(widget.snapshot))
+          .addGeoJsonSource(_recoverySource, _recoveryGeoJson(widget.recoveryRoutePoints))
           .timeout(_timeout);
       await controller
           .addLineLayer(
@@ -316,7 +325,7 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
         await controller
             .setGeoJsonSource(
               _recoverySource,
-              _recoveryGeoJson(widget.snapshot),
+              _recoveryGeoJson(widget.recoveryRoutePoints),
             )
             .timeout(_timeout);
         await controller
@@ -449,9 +458,8 @@ Map<String, dynamic> _routeGeoJson(List<GeoPoint> route) {
   };
 }
 
-Map<String, dynamic> _recoveryGeoJson(CommRideNavigationSnapshot? snapshot) {
-  final GeoPoint? target = snapshot?.rejoinTarget;
-  if (snapshot == null || target == null) return _emptyCollection();
+Map<String, dynamic> _recoveryGeoJson(List<GeoPoint> route) {
+  if (route.length < 2) return _emptyCollection();
 
   return <String, dynamic>{
     'type': 'FeatureCollection',
@@ -460,10 +468,11 @@ Map<String, dynamic> _recoveryGeoJson(CommRideNavigationSnapshot? snapshot) {
         'type': 'Feature',
         'geometry': <String, dynamic>{
           'type': 'LineString',
-          'coordinates': <Object>[
-            <double>[snapshot.position.longitude, snapshot.position.latitude],
-            <double>[target.longitude, target.latitude],
-          ],
+          'coordinates': route
+              .map(
+                (GeoPoint point) => <double>[point.longitude, point.latitude],
+              )
+              .toList(growable: false),
         },
         'properties': <String, dynamic>{},
       },

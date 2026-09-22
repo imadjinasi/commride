@@ -392,6 +392,29 @@ List<GeoPoint> decodeRoutePolyline(String encoded) {
   return points;
 }
 
+bool shouldRefreshRecoveryRoute({
+  required GeoPoint origin,
+  required GeoPoint target,
+  required DateTime observedAt,
+  required GeoPoint? lastOrigin,
+  required GeoPoint? lastTarget,
+  required DateTime? lastRequestedAt,
+  Duration minimumInterval = const Duration(seconds: 30),
+  double minimumOriginMovementMeters = 120,
+  double minimumTargetMovementMeters = 120,
+}) {
+  if (lastOrigin == null || lastTarget == null || lastRequestedAt == null) {
+    return true;
+  }
+  if (observedAt.isBefore(lastRequestedAt) ||
+      observedAt.difference(lastRequestedAt) < minimumInterval) {
+    return false;
+  }
+
+  return geoDistanceMeters(origin, lastOrigin) >= minimumOriginMovementMeters ||
+      geoDistanceMeters(target, lastTarget) >= minimumTargetMovementMeters;
+}
+
 double geoDistanceMeters(GeoPoint a, GeoPoint b) {
   const double radius = 6371000;
   final double lat1 = a.latitude * math.pi / 180;

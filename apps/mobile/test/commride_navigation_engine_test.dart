@@ -90,6 +90,48 @@ void main() {
     expect(stable.phase, CommRideNavigationPhase.onRoute);
   });
 
+  test('recovery route recomputation stays bounded', () {
+    const GeoPoint origin = GeoPoint(latitude: -6.70, longitude: 108.00);
+    const GeoPoint target = GeoPoint(latitude: -6.70, longitude: 108.02);
+    final DateTime first = DateTime.utc(2026, 9, 22, 8);
+
+    expect(
+      shouldRefreshRecoveryRoute(
+        origin: origin,
+        target: target,
+        observedAt: first,
+        lastOrigin: null,
+        lastTarget: null,
+        lastRequestedAt: null,
+      ),
+      isTrue,
+    );
+
+    expect(
+      shouldRefreshRecoveryRoute(
+        origin: const GeoPoint(latitude: -6.70, longitude: 108.003),
+        target: target,
+        observedAt: first.add(const Duration(seconds: 10)),
+        lastOrigin: origin,
+        lastTarget: target,
+        lastRequestedAt: first,
+      ),
+      isFalse,
+    );
+
+    expect(
+      shouldRefreshRecoveryRoute(
+        origin: const GeoPoint(latitude: -6.70, longitude: 108.003),
+        target: target,
+        observedAt: first.add(const Duration(seconds: 31)),
+        lastOrigin: origin,
+        lastTarget: target,
+        lastRequestedAt: first,
+      ),
+      isTrue,
+    );
+  });
+
   test('selects the next normalized maneuver by route progress', () {
     final CommRideNavigationEngine engine = CommRideNavigationEngine(_plan());
     final state = engine.update(

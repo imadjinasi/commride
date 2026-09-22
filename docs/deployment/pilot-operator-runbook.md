@@ -297,6 +297,11 @@ After repository CI passes, use an installed Android build to verify:
 - sustained deviation enters Recovery;
 - Recovery keeps the original RoutePlan and guides toward a sensible future
   rejoin point;
+- when provider recovery succeeds, the temporary recovery line follows a
+  provider-computed road path rather than a fake straight line;
+- repeated GPS samples do not cause continuous upstream route recomputation;
+- a recovery-provider failure keeps the original RoutePlan usable and does not
+  masquerade as valid road guidance;
 - **Cari rute baru** is deliberate and does not change the shared route before
   confirmation;
 - Member/Sweeper cannot change the shared route;

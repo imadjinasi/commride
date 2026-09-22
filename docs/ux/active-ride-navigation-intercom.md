@@ -141,6 +141,13 @@ Rules:
 - choose a sensible **future** rejoin target; do not blindly send the Rider back
   to the geometrically nearest point if that point is behind progress;
 - show recovery guidance separately from the accepted route;
+- when a route provider is available, compute a **temporary road-aware recovery
+  route** from the Rider to the future rejoin point; this helper route is never
+  persisted as the shared RoutePlan;
+- recovery-route computation is bounded and may refresh only after meaningful
+  movement/time, never on every GPS sample;
+- if recovery routing fails, keep the accepted RoutePlan and rejoin target
+  visible without drawing a fake straight line as if it were a drivable road;
 - expose **Cari rute baru** as a deliberate action rather than automatic behavior;
 - show a candidate replacement before it is adopted;
 - Member/Sweeper cannot replace the shared RoutePlan; they may continue recovery

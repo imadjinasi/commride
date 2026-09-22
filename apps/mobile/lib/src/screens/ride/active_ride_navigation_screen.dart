@@ -43,11 +43,19 @@ class _ActiveRideNavigationScreenState
     extends State<ActiveRideNavigationScreen> {
   _PreparedNavigation? _prepared;
   CommRideNavigationSnapshot? _snapshot;
+  RouteOption? _recoveryRoute;
+  CommRideNavigationEngine? _recoveryEngine;
+  CommRideNavigationSnapshot? _recoverySnapshot;
   List<TrafficIncident> _trafficIncidents = const <TrafficIncident>[];
   bool _preparing = false;
+  bool _recoveryRouteLoading = false;
   bool _routeRevisionRefreshing = false;
   bool _rerouteSearching = false;
   DateTime? _lastObservedAt;
+  DateTime? _lastRecoveryRequestAt;
+  GeoPoint? _lastRecoveryOrigin;
+  GeoPoint? _lastRecoveryTarget;
+  int _recoveryRequestGeneration = 0;
   StreamSubscription<ActiveRideRealtimeEvent>? _realtimeSubscription;
   String? _error;
   String? _guidanceNotice;
@@ -197,6 +205,9 @@ class _ActiveRideNavigationScreenState
         CommRideNavigationMapView(
           routePoints: prepared.engine.routePoints,
           routeRevision: prepared.plan.revision,
+          recoveryRoutePoints: _recoveryRoute == null
+              ? const <GeoPoint>[]
+              : decodeRoutePolyline(_recoveryRoute!.encodedPolyline),
           snapshot: _snapshot,
           presences: groupState.presences,
           incidents: _trafficIncidents,
@@ -208,6 +219,8 @@ class _ActiveRideNavigationScreenState
           top: 12,
           child: _NavigationBanner(
             snapshot: _snapshot,
+            recoverySnapshot: _recoverySnapshot,
+            recoveryRouteLoading: _recoveryRouteLoading,
             trafficCount: _trafficIncidents.length,
             guidanceNotice: _guidanceNotice,
             rerouteBusy: _rerouteSearching,
@@ -216,7 +229,9 @@ class _ActiveRideNavigationScreenState
                 : null,
           ),
         ),
-        if (_routeRevisionRefreshing || _rerouteSearching)
+        if (_routeRevisionRefreshing ||
+            _rerouteSearching ||
+            _recoveryRouteLoading)
           const Positioned(
             left: 12,
             right: 12,
@@ -267,6 +282,7 @@ class _ActiveRideNavigationScreenState
       }
 
       if (!mounted) return;
+      _resetRecoveryRouteState();
       setState(() {
         _prepared = _PreparedNavigation(plan: plan, engine: engine);
         _preparing = false;
@@ -395,6 +411,7 @@ class _ActiveRideNavigationScreenState
       final CommRideNavigationEngine engine = CommRideNavigationEngine(plan);
       if (!mounted) return;
 
+      _resetRecoveryRouteState();
       setState(() {
         _prepared = _PreparedNavigation(plan: plan, engine: engine);
         _snapshot = null;
@@ -451,15 +468,155 @@ class _ActiveRideNavigationScreenState
     }
 
     _lastObservedAt = sample.observedAt;
+    final GeoPoint currentLocation = GeoPoint(
+      latitude: sample.latitude,
+      longitude: sample.longitude,
+    );
     final CommRideNavigationSnapshot next = prepared.engine.update(
-      GeoPoint(latitude: sample.latitude, longitude: sample.longitude),
+      currentLocation,
       sample.observedAt,
     );
+
+    CommRideNavigationSnapshot? recoverySnapshot;
+    if (next.isRecovering && _recoveryEngine != null) {
+      recoverySnapshot = _recoveryEngine!.update(
+        currentLocation,
+        sample.observedAt,
+      );
+    } else if (!next.isRecovering) {
+      _resetRecoveryRouteState();
+    }
 
     if (!mounted) return;
     setState(() {
       _snapshot = next;
+      _recoverySnapshot = recoverySnapshot;
     });
+
+    if (next.isRecovering) {
+      unawaited(
+        _ensureRecoveryRoute(
+          snapshot: next,
+          currentLocation: currentLocation,
+          observedAt: sample.observedAt,
+        ),
+      );
+    }
+  }
+
+  Future<void> _ensureRecoveryRoute({
+    required CommRideNavigationSnapshot snapshot,
+    required GeoPoint currentLocation,
+    required DateTime observedAt,
+  }) async {
+    final _PreparedNavigation? prepared = _prepared;
+    final GeoPoint? target = snapshot.rejoinTarget;
+    if (prepared == null ||
+        target == null ||
+        !snapshot.isRecovering ||
+        _recoveryRouteLoading ||
+        !shouldRefreshRecoveryRoute(
+          origin: currentLocation,
+          target: target,
+          observedAt: observedAt,
+          lastOrigin: _lastRecoveryOrigin,
+          lastTarget: _lastRecoveryTarget,
+          lastRequestedAt: _lastRecoveryRequestAt,
+        )) {
+      return;
+    }
+
+    final int generation = ++_recoveryRequestGeneration;
+    _recoveryRouteLoading = true;
+    _lastRecoveryRequestAt = observedAt;
+    _lastRecoveryOrigin = currentLocation;
+    _lastRecoveryTarget = target;
+    if (mounted) setState(() {});
+
+    try {
+      final List<RouteOption> routes = await widget.routePlannerApi
+          .computeRoutes(
+            origin: ResolvedPlace(
+              reference: 'commride-recovery-origin',
+              formattedAddress: 'Posisi sekarang',
+              location: currentLocation,
+            ),
+            destination: ResolvedPlace(
+              reference: 'commride-rejoin-target',
+              formattedAddress: 'Kembali ke rute utama',
+              location: target,
+            ),
+            stops: const <PlanningStop>[],
+            travelMode: prepared.plan.travelMode,
+            computeAlternatives: false,
+          );
+      if (routes.isEmpty) return;
+
+      final RouteOption recoveryRoute = routes.first;
+      if (decodeRoutePolyline(recoveryRoute.encodedPolyline).length < 2) {
+        return;
+      }
+
+      final SavedRoutePlan recoveryPlan = SavedRoutePlan(
+        revision: prepared.plan.revision,
+        travelMode: prepared.plan.travelMode,
+        originLabel: 'Posisi sekarang',
+        origin: currentLocation,
+        destinationLabel: 'Kembali ke rute utama',
+        destination: target,
+        route: recoveryRoute,
+        stops: const <PlanningStop>[],
+      );
+      final CommRideNavigationEngine recoveryEngine =
+          CommRideNavigationEngine(recoveryPlan);
+
+      final RideLocationSample? latest =
+          widget.runtime.locationSession.state.lastSample;
+      final CommRideNavigationSnapshot? latestSnapshot = latest == null
+          ? null
+          : recoveryEngine.update(
+              GeoPoint(
+                latitude: latest.latitude,
+                longitude: latest.longitude,
+              ),
+              latest.observedAt,
+            );
+
+      final GeoPoint? currentTarget = _snapshot?.rejoinTarget;
+      if (!mounted ||
+          generation != _recoveryRequestGeneration ||
+          _prepared?.plan.revision != prepared.plan.revision ||
+          _snapshot?.isRecovering != true ||
+          currentTarget == null ||
+          geoDistanceMeters(currentTarget, target) > 250) {
+        return;
+      }
+
+      setState(() {
+        _recoveryRoute = recoveryRoute;
+        _recoveryEngine = recoveryEngine;
+        _recoverySnapshot = latestSnapshot;
+      });
+    } catch (_) {
+      // Recovery routing is advisory. Keep the accepted RoutePlan and the
+      // explicit rejoin target; never draw a fake road path on provider error.
+    } finally {
+      if (generation == _recoveryRequestGeneration) {
+        _recoveryRouteLoading = false;
+        if (mounted) setState(() {});
+      }
+    }
+  }
+
+  void _resetRecoveryRouteState() {
+    _recoveryRequestGeneration += 1;
+    _recoveryRouteLoading = false;
+    _recoveryRoute = null;
+    _recoveryEngine = null;
+    _recoverySnapshot = null;
+    _lastRecoveryRequestAt = null;
+    _lastRecoveryOrigin = null;
+    _lastRecoveryTarget = null;
   }
 
   void _onGroupChanged() {
@@ -584,6 +741,7 @@ class _ActiveRideNavigationScreenState
 
       final CommRideNavigationEngine engine = CommRideNavigationEngine(saved);
       if (!mounted) return;
+      _resetRecoveryRouteState();
       setState(() {
         _prepared = _PreparedNavigation(plan: saved, engine: engine);
         _snapshot = null;
@@ -715,6 +873,8 @@ class _NavigationPreparationException implements Exception {
 class _NavigationBanner extends StatelessWidget {
   const _NavigationBanner({
     required this.snapshot,
+    required this.recoverySnapshot,
+    required this.recoveryRouteLoading,
     required this.trafficCount,
     required this.guidanceNotice,
     required this.rerouteBusy,
@@ -722,6 +882,8 @@ class _NavigationBanner extends StatelessWidget {
   });
 
   final CommRideNavigationSnapshot? snapshot;
+  final CommRideNavigationSnapshot? recoverySnapshot;
+  final bool recoveryRouteLoading;
   final int trafficCount;
   final String? guidanceNotice;
   final bool rerouteBusy;
@@ -730,7 +892,7 @@ class _NavigationBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final CommRideNavigationSnapshot? state = snapshot;
-    final _BannerCopy copy = _copy(state);
+    final _BannerCopy copy = _copy(state, recoverySnapshot);
 
     return Material(
       elevation: 4,
@@ -796,7 +958,10 @@ class _NavigationBanner extends StatelessWidget {
     );
   }
 
-  _BannerCopy _copy(CommRideNavigationSnapshot? state) {
+  _BannerCopy _copy(
+    CommRideNavigationSnapshot? state,
+    CommRideNavigationSnapshot? recovery,
+  ) {
     if (state == null) {
       return const _BannerCopy(
         icon: Icons.gps_fixed,
@@ -816,13 +981,19 @@ class _NavigationBanner extends StatelessWidget {
         );
       case CommRideNavigationPhase.confirmedOffRoute:
       case CommRideNavigationPhase.recovery:
+        final RouteManeuver? recoveryManeuver = recovery?.nextManeuver;
+        final String recoveryDistance = state.distanceToRejoinMeters == null
+            ? 'kembali ke rute utama'
+            : '${_formatDistance(state.distanceToRejoinMeters!)} ke titik rejoin';
         return _BannerCopy(
-          icon: Icons.u_turn_left,
-          title: 'Anda keluar dari rute',
-          subtitle: state.distanceToRejoinMeters == null
-              ? 'Kembali ke rute utama'
-              : 'Kembali ke rute utama · '
-                    '${_formatDistance(state.distanceToRejoinMeters!)}',
+          icon: recoveryManeuver == null
+              ? Icons.u_turn_left
+              : _maneuverIcon(recoveryManeuver.type),
+          title: recoveryManeuver?.instruction ??
+              (recoveryRouteLoading
+                  ? 'Menyiapkan jalur kembali…'
+                  : 'Kembali ke rute utama'),
+          subtitle: 'Anda keluar dari rute · $recoveryDistance',
         );
       case CommRideNavigationPhase.rejoined:
         return const _BannerCopy(

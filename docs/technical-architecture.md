@@ -300,9 +300,14 @@ Conceptual flow:
 11. Confirmed off-route keeps the accepted RoutePlan visible and enters
     **Recovery**. CommRide seeks a sensible future rejoin point rather than
     silently replacing the route.
-12. The Rider may deliberately choose **Cari rute baru**. A candidate is
+12. Recovery may request a temporary provider-computed road path from the
+    Rider's current position to that future rejoin point. It is never persisted,
+    is rate-bounded by time/movement, and disappears once the Rider rejoins.
+    Provider failure keeps only honest RoutePlan/rejoin information; it must not
+    fabricate a straight line as a drivable road.
+13. The Rider may deliberately choose **Cari rute baru**. A candidate is
     previewed before adoption.
-13. A shared route change is persisted only by Leader/Navigator as a new
+14. A shared route change is persisted only by Leader/Navigator as a new
     RoutePlan revision, then broadcast to connected Riders.
 
 A provider outage must not be presented as a successful route replacement.
