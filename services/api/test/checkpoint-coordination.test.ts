@@ -203,6 +203,7 @@ function routePlan(): RoutePlan {
     distanceMeters: 130000,
     durationSeconds: 9000,
     encodedPolyline: 'polyline-v2',
+    maneuvers: [],
     isCurrent: true,
     createdAt: '2026-09-18T00:00:00Z',
     stops: [
