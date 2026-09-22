@@ -36,40 +36,43 @@ void main() {
       durationSeconds: 11000,
     );
 
-    final RouteOption? selected = selectNavigationRoute(
-      plan,
-      <RouteOption>[differentDefault, selectedAlternative],
-    );
+    final RouteOption? selected = selectNavigationRoute(plan, <RouteOption>[
+      differentDefault,
+      selectedAlternative,
+    ]);
 
     expect(selected?.routeToken, 'token-selected');
   });
 
-  test('rejects a materially different fresh route instead of silently switching', () {
-    final SavedRoutePlan plan = _plan(
-      _route(
+  test(
+    'rejects a materially different fresh route instead of silently switching',
+    () {
+      final SavedRoutePlan plan = _plan(
+        _route(
+          polyline: _encode(<GeoPoint>[
+            const GeoPoint(latitude: -6.70, longitude: 108.55),
+            const GeoPoint(latitude: -6.82, longitude: 108.10),
+            const GeoPoint(latitude: -6.92, longitude: 107.62),
+          ]),
+          distanceMeters: 128000,
+          durationSeconds: 10800,
+        ),
+      );
+
+      final RouteOption candidate = _route(
+        token: 'token-other',
         polyline: _encode(<GeoPoint>[
           const GeoPoint(latitude: -6.70, longitude: 108.55),
-          const GeoPoint(latitude: -6.82, longitude: 108.10),
+          const GeoPoint(latitude: -5.95, longitude: 108.05),
           const GeoPoint(latitude: -6.92, longitude: 107.62),
         ]),
-        distanceMeters: 128000,
-        durationSeconds: 10800,
-      ),
-    );
+        distanceMeters: 165000,
+        durationSeconds: 15000,
+      );
 
-    final RouteOption candidate = _route(
-      token: 'token-other',
-      polyline: _encode(<GeoPoint>[
-        const GeoPoint(latitude: -6.70, longitude: 108.55),
-        const GeoPoint(latitude: -5.95, longitude: 108.05),
-        const GeoPoint(latitude: -6.92, longitude: 107.62),
-      ]),
-      distanceMeters: 165000,
-      durationSeconds: 15000,
-    );
-
-    expect(selectNavigationRoute(plan, <RouteOption>[candidate]), isNull);
-  });
+      expect(selectNavigationRoute(plan, <RouteOption>[candidate]), isNull);
+    },
+  );
 
   test('ignores candidates without a usable route token', () {
     final RouteOption route = _route(

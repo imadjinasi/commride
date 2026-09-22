@@ -155,13 +155,10 @@ List<GeoPoint> _sampleByDistance(List<GeoPoint> points, int sampleCount) {
   int segment = 1;
 
   for (int sample = 0; sample < sampleCount; sample += 1) {
-    final double fraction = sampleCount == 1
-        ? 0
-        : sample / (sampleCount - 1);
+    final double fraction = sampleCount == 1 ? 0 : sample / (sampleCount - 1);
     final double target = total * fraction;
 
-    while (segment < cumulative.length - 1 &&
-        cumulative[segment] < target) {
+    while (segment < cumulative.length - 1 && cumulative[segment] < target) {
       segment += 1;
     }
 
@@ -216,10 +213,7 @@ List<GeoPoint>? _decodePolyline(String encoded) {
       }
 
       points.add(
-        GeoPoint(
-          latitude: decodedLatitude,
-          longitude: decodedLongitude,
-        ),
+        GeoPoint(latitude: decodedLatitude, longitude: decodedLongitude),
       );
     }
   } on FormatException {
@@ -271,12 +265,9 @@ double _haversineMeters(GeoPoint a, GeoPoint b) {
   final double sinLat = math.sin(deltaLatitude / 2);
   final double sinLon = math.sin(deltaLongitude / 2);
   final double value =
-      (sinLat * sinLat) +
-      (math.cos(lat1) * math.cos(lat2) * sinLon * sinLon);
-  final double centralAngle = 2 * math.atan2(
-    math.sqrt(value),
-    math.sqrt(math.max(0, 1 - value)),
-  );
+      (sinLat * sinLat) + (math.cos(lat1) * math.cos(lat2) * sinLon * sinLon);
+  final double centralAngle =
+      2 * math.atan2(math.sqrt(value), math.sqrt(math.max(0, 1 - value)));
   return earthRadiusMeters * centralAngle;
 }
 
