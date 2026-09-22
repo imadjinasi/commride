@@ -108,7 +108,7 @@ def configure_android() -> None:
         )
 
         content, count = re.subn(
-            r'(applicationId\s*=?\s*)[\"'][^\"']+[\"']',
+            r"""(applicationId\s*=?\s*)["'][^"']+["']""",
             lambda match: match[1] + '"' + ANDROID_APPLICATION_ID + '"',
             content,
         )
