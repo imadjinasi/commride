@@ -180,7 +180,10 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
           .timeout(_timeout);
 
       await controller
-          .addGeoJsonSource(_recoverySource, _recoveryGeoJson(widget.recoveryRoutePoints))
+          .addGeoJsonSource(
+            _recoverySource,
+            _recoveryGeoJson(widget.recoveryRoutePoints),
+          )
           .timeout(_timeout);
       await controller
           .addLineLayer(
