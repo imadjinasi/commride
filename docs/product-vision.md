@@ -243,6 +243,17 @@ Typography direction:
 
 Use clear modern sans-serif typography. Avoid exaggerated futuristic/racing typography.
 
+Canonical pilot identity assets:
+- `apps/mobile/assets/branding/commride-app-icon.png` — launcher/app icon;
+- `apps/mobile/assets/branding/commride-primary-logo.png` — primary product identity;
+- `apps/mobile/assets/branding/commride-monochrome.png` — neutral/compact identity.
+
+Use the approved artwork directly. Do not regenerate a substitute logo from
+generic motorcycle/map imagery. The primary logo belongs on authentication and
+startup branding; the monochrome mark may be used on neutral setup surfaces.
+Keep operational Active Ride chrome restrained so branding does not compete with
+maneuver, RiderPresence, communication or SOS information.
+
 ## 13. Non-goals for the initial product
 
 The first release does not need to:
