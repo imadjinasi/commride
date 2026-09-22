@@ -1,14 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 
 import '../../active_ride/active_ride_runtime.dart';
-import '../../active_ride/live_group_models.dart';
-import '../../active_ride/navigation_route_matcher.dart';
+import '../../active_ride/commride_navigation_engine.dart';
+import '../../active_ride/location_provider.dart';
 import '../../active_ride/realtime_client.dart';
 import '../../api/route_planner_api.dart';
+import '../../maps/commride_navigation_map_view.dart';
 import '../../models/club_ride.dart';
 import '../../models/route_planner.dart';
 import 'route_planner_screen.dart';
@@ -42,16 +41,16 @@ class ActiveRideNavigationScreen extends StatefulWidget {
 
 class _ActiveRideNavigationScreenState
     extends State<ActiveRideNavigationScreen> {
-  GoogleNavigationViewController? _viewController;
   _PreparedNavigation? _prepared;
+  CommRideNavigationSnapshot? _snapshot;
+  List<TrafficIncident> _trafficIncidents = const <TrafficIncident>[];
   bool _preparing = false;
-  bool _guidanceStarting = false;
-  bool _guidanceRunning = false;
-  bool _markerSyncRunning = false;
-  bool _markerSyncPending = false;
   bool _routeRevisionRefreshing = false;
+  bool _rerouteSearching = false;
+  DateTime? _lastObservedAt;
   StreamSubscription<ActiveRideRealtimeEvent>? _realtimeSubscription;
   String? _error;
+  String? _guidanceNotice;
 
   bool get _canManageRoute =>
       widget.membership.role == RideRole.leader ||
@@ -61,6 +60,7 @@ class _ActiveRideNavigationScreenState
   void initState() {
     super.initState();
     widget.runtime.groupController.addListener(_onGroupChanged);
+    widget.runtime.locationSession.addListener(_onLocationChanged);
     _realtimeSubscription = widget.runtime.realtimeClient.events.listen(
       _onRealtimeEvent,
     );
@@ -69,10 +69,8 @@ class _ActiveRideNavigationScreenState
   @override
   void dispose() {
     widget.runtime.groupController.removeListener(_onGroupChanged);
+    widget.runtime.locationSession.removeListener(_onLocationChanged);
     unawaited(_realtimeSubscription?.cancel());
-    if (_guidanceRunning) {
-      unawaited(GoogleMapsNavigator.stopGuidance());
-    }
     super.dispose();
   }
 
@@ -88,7 +86,8 @@ class _ActiveRideNavigationScreenState
           if (_canManageRoute)
             IconButton(
               tooltip: 'Rute',
-              onPressed: _preparing || _routeRevisionRefreshing
+              onPressed:
+                  _preparing || _routeRevisionRefreshing || _rerouteSearching
                   ? null
                   : _showRouteActions,
               icon: const Icon(Icons.alt_route),
@@ -113,7 +112,7 @@ class _ActiveRideNavigationScreenState
             Expanded(
               child: _prepared == null
                   ? _buildPreparation(context)
-                  : _buildNavigationMap(),
+                  : _buildNavigationSurface(),
             ),
             _CommunicationDock(
               voiceIntercomEnabled: widget.voiceIntercomEnabled,
@@ -149,8 +148,9 @@ class _ActiveRideNavigationScreenState
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Mulai navigasi dan tracking secara eksplisit. CommRide '
-                    'akan menampilkan posisi rombongan di atas peta navigasi.',
+                    'CommRide memakai RoutePlan yang sudah disepakati. '
+                    'Jika Anda menyimpang, rute tidak akan diganti diam-diam: '
+                    'CommRide akan membantu kembali ke rute utama.',
                     textAlign: TextAlign.center,
                   ),
                   if (_error != null) ...<Widget>[
@@ -187,22 +187,39 @@ class _ActiveRideNavigationScreenState
     );
   }
 
-  Widget _buildNavigationMap() {
+  Widget _buildNavigationSurface() {
+    final _PreparedNavigation prepared = _prepared!;
+    final groupState = widget.runtime.groupController.state;
+
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        GoogleMapsNavigationView(
-          onViewCreated: _onViewCreated,
-          initialNavigationUIEnabledPreference:
-              NavigationUIEnabledPreference.automatic,
-          initialMapToolbarEnabled: false,
-          initialZoomControlsEnabled: false,
+        CommRideNavigationMapView(
+          routePoints: prepared.engine.routePoints,
+          routeRevision: prepared.plan.revision,
+          snapshot: _snapshot,
+          presences: groupState.presences,
+          incidents: _trafficIncidents,
+          now: DateTime.now(),
         ),
-        if (_guidanceStarting)
+        Positioned(
+          left: 12,
+          right: 12,
+          top: 12,
+          child: _NavigationBanner(
+            snapshot: _snapshot,
+            trafficCount: _trafficIncidents.length,
+            guidanceNotice: _guidanceNotice,
+            rerouteBusy: _rerouteSearching,
+            onFindNewRoute:
+                _snapshot?.shouldOfferReroute == true ? _findNewRoute : null,
+          ),
+        ),
+        if (_routeRevisionRefreshing || _rerouteSearching)
           const Positioned(
             left: 12,
             right: 12,
-            top: 12,
+            top: 4,
             child: LinearProgressIndicator(),
           ),
         if (_error != null)
@@ -232,39 +249,17 @@ class _ActiveRideNavigationScreenState
     });
 
     try {
-      bool termsAccepted = await GoogleMapsNavigator.areTermsAccepted();
-      if (!termsAccepted) {
-        termsAccepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
-          'Navigasi CommRide',
-          'CommRide',
-        );
-      }
-      if (!termsAccepted) {
+      final SavedRoutePlan? plan = await widget.routePlannerApi.fetchRoutePlan(
+        widget.ride.id,
+      );
+      if (plan == null) {
         throw const _NavigationPreparationException(
-          'Syarat Google Navigation belum disetujui.',
+          'RoutePlan belum tersedia. Susun dan simpan rute sebelum '
+          'memulai Ride.',
         );
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw const _NavigationPreparationException(
-          'Izin lokasi diperlukan untuk navigasi Active Ride.',
-        );
-      }
-
-      if (!await GoogleMapsNavigator.isInitialized()) {
-        await GoogleMapsNavigator.initializeNavigationSession(
-          notificationOptions: const NavigationNotificationOptions(
-            resumeAppOnTap: true,
-          ),
-        );
-      }
-
-      final _PreparedNavigation prepared = await _loadPreparedNavigation();
+      final CommRideNavigationEngine engine = CommRideNavigationEngine(plan);
 
       if (!widget.runtime.locationSession.state.isTracking) {
         await widget.runtime.locationSession.startTracking(widget.ride);
@@ -272,55 +267,27 @@ class _ActiveRideNavigationScreenState
 
       if (!mounted) return;
       setState(() {
-        _prepared = prepared;
+        _prepared = _PreparedNavigation(plan: plan, engine: engine);
         _preparing = false;
+        _guidanceNotice = plan.route.maneuvers.isEmpty
+            ? 'RoutePlan lama belum memiliki instruksi belok. '
+                  'Simpan ulang rute untuk turn-by-turn lengkap.'
+            : null;
       });
+
+      _consumeLatestLocation();
+      unawaited(_refreshTraffic(plan.route));
     } on _NavigationPreparationException catch (error) {
       _setPreparationError(error.message);
+    } on FormatException {
+      _setPreparationError(
+        'Geometry RoutePlan tidak valid. Review dan simpan ulang rute.',
+      );
     } catch (_) {
       _setPreparationError(
-        'Navigasi belum dapat disiapkan. Periksa konfigurasi Google Maps '
-        'Platform dan koneksi lalu coba lagi.',
+        'Navigasi belum dapat disiapkan. RoutePlan lama tetap tidak diubah.',
       );
     }
-  }
-
-  Future<_PreparedNavigation> _loadPreparedNavigation() async {
-    final SavedRoutePlan? plan = await widget.routePlannerApi.fetchRoutePlan(
-      widget.ride.id,
-    );
-    if (plan == null) {
-      throw const _NavigationPreparationException(
-        'RoutePlan belum tersedia. Susun dan simpan rute sebelum memulai Ride.',
-      );
-    }
-
-    final List<RouteOption> refreshed = await widget.routePlannerApi
-        .computeRoutes(
-          origin: ResolvedPlace(
-            reference: 'commride-route-origin',
-            formattedAddress: plan.originLabel,
-            location: plan.origin,
-          ),
-          destination: ResolvedPlace(
-            reference: 'commride-route-destination',
-            formattedAddress: plan.destinationLabel,
-            location: plan.destination,
-          ),
-          stops: plan.stops,
-          travelMode: plan.travelMode,
-          computeAlternatives: plan.stops.isEmpty,
-        );
-    final RouteOption? matchedRoute = selectNavigationRoute(plan, refreshed);
-    if (matchedRoute == null) {
-      throw const _NavigationPreparationException(
-        'Rute navigasi terbaru sudah berbeda dari RoutePlan tersimpan. '
-        'Review dan simpan ulang rute agar CommRide tidak diam-diam '
-        'mengganti jalur pilihan Anda.',
-      );
-    }
-
-    return _PreparedNavigation(plan: plan, route: matchedRoute);
   }
 
   Future<void> _showRouteActions() async {
@@ -337,8 +304,8 @@ class _ActiveRideNavigationScreenState
                 const ListTile(
                   title: Text('Rute saat riding'),
                   subtitle: Text(
-                    'Navigasi tetap menjadi konteks utama. Perubahan rute '
-                    'baru berlaku setelah RoutePlan disimpan.',
+                    'Perubahan rute baru berlaku setelah RoutePlan baru '
+                    'disimpan. GPS tidak pernah menggantinya otomatis.',
                   ),
                 ),
                 ListTile(
@@ -393,10 +360,11 @@ class _ActiveRideNavigationScreenState
   }
 
   void _onRealtimeEvent(ActiveRideRealtimeEvent event) {
+    final _PreparedNavigation? prepared = _prepared;
     if (event is! ActiveRideRoutePlanUpdated ||
         event.rideId != widget.ride.id ||
-        _prepared == null ||
-        event.revision <= _prepared!.plan.revision) {
+        prepared == null ||
+        event.revision <= prepared.plan.revision) {
       return;
     }
 
@@ -404,246 +372,329 @@ class _ActiveRideNavigationScreenState
   }
 
   Future<void> _refreshRouteRevision({int? expectedRevision}) async {
-    if (_routeRevisionRefreshing || _preparing || _prepared == null) {
+    final _PreparedNavigation? current = _prepared;
+    if (_routeRevisionRefreshing || _preparing || current == null) {
       return;
     }
     if (expectedRevision != null &&
-        expectedRevision <= _prepared!.plan.revision) {
+        expectedRevision <= current.plan.revision) {
       return;
     }
 
     _routeRevisionRefreshing = true;
+    if (mounted) setState(() {});
+
     try {
-      final _PreparedNavigation next = await _loadPreparedNavigation();
-      final _PreparedNavigation current = _prepared!;
-      if (next.plan.revision <= current.plan.revision) {
+      final SavedRoutePlan? plan = await widget.routePlannerApi.fetchRoutePlan(
+        widget.ride.id,
+      );
+      if (plan == null || plan.revision <= current.plan.revision) {
         return;
       }
 
-      if (_guidanceRunning) {
-        await GoogleMapsNavigator.stopGuidance();
-      }
-
+      final CommRideNavigationEngine engine = CommRideNavigationEngine(plan);
       if (!mounted) return;
+
       setState(() {
-        _prepared = next;
-        _guidanceRunning = false;
-        _guidanceStarting = false;
+        _prepared = _PreparedNavigation(plan: plan, engine: engine);
+        _snapshot = null;
+        _guidanceNotice = plan.route.maneuvers.isEmpty
+            ? 'RoutePlan terbaru belum memiliki instruksi belok.'
+            : null;
         _error = null;
       });
+      _lastObservedAt = null;
+      _consumeLatestLocation();
+      unawaited(_refreshTraffic(plan.route));
 
-      await _startGuidanceIfReady();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'RoutePlan revision ${next.plan.revision} diterapkan ke navigasi.',
+              'RoutePlan revision ${plan.revision} diterapkan.',
             ),
           ),
         );
       }
-    } on _NavigationPreparationException catch (error) {
+    } on FormatException {
       if (mounted) {
         setState(() {
-          _error = 'RoutePlan terbaru belum dapat diterapkan: ${error.message}';
+          _error =
+              'RoutePlan terbaru tidak valid. Rute sebelumnya tidak '
+              'diganti di layar navigasi.';
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _error =
-              'RoutePlan terbaru belum dapat diterapkan. Navigasi lama tetap '
-              'dipakai sampai rute baru tervalidasi.';
+              'RoutePlan terbaru belum dapat diterapkan. Navigasi tetap '
+              'mempertahankan rute terakhir yang valid.';
         });
       }
     } finally {
       _routeRevisionRefreshing = false;
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     }
   }
 
-  Future<void> _onViewCreated(GoogleNavigationViewController controller) async {
-    _viewController = controller;
-    try {
-      await controller.setMyLocationEnabled(true);
-      await _startGuidanceIfReady();
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'Peta navigasi belum siap. Coba buka kembali Active Ride.';
-        });
-      }
-    }
+  void _onLocationChanged() {
+    _consumeLatestLocation();
   }
 
-  Future<void> _startGuidanceIfReady() async {
-    final GoogleNavigationViewController? controller = _viewController;
+  void _consumeLatestLocation() {
     final _PreparedNavigation? prepared = _prepared;
-    if (controller == null ||
-        prepared == null ||
-        _guidanceStarting ||
-        _guidanceRunning) {
+    final RideLocationSample? sample =
+        widget.runtime.locationSession.state.lastSample;
+    if (prepared == null ||
+        sample == null ||
+        sample.observedAt == _lastObservedAt) {
       return;
     }
 
-    final String? routeToken = prepared.route.routeToken;
-    if (routeToken == null) return;
+    _lastObservedAt = sample.observedAt;
+    final CommRideNavigationSnapshot next = prepared.engine.update(
+      GeoPoint(
+        latitude: sample.latitude,
+        longitude: sample.longitude,
+      ),
+      sample.observedAt,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _snapshot = next;
+    });
+  }
+
+  void _onGroupChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _refreshTraffic(RouteOption route) async {
+    try {
+      final List<TrafficIncident> incidents =
+          await widget.routePlannerApi.fetchTrafficIncidents(route);
+      if (!mounted || _prepared?.plan.route.encodedPolyline !=
+          route.encodedPolyline) {
+        return;
+      }
+      setState(() {
+        _trafficIncidents = incidents;
+      });
+    } on RoutePlannerApiException catch (error) {
+      if (error.code == 'traffic_not_configured') {
+        return;
+      }
+      // Traffic is advisory. Navigation and the RoutePlan remain usable.
+    } catch (_) {
+      // Provider/network degradation must not block navigation.
+    }
+  }
+
+  Future<void> _findNewRoute() async {
+    final _PreparedNavigation? prepared = _prepared;
+    final CommRideNavigationSnapshot? snapshot = _snapshot;
+    final RideLocationSample? sample =
+        widget.runtime.locationSession.state.lastSample;
+    if (prepared == null ||
+        snapshot == null ||
+        sample == null ||
+        _rerouteSearching) {
+      return;
+    }
+
+    if (!_canManageRoute) {
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Rute Ride tetap dipertahankan'),
+          content: const Text(
+            'Hanya Leader atau Navigator yang dapat mengganti shared '
+            'RoutePlan. CommRide akan tetap membantu Anda kembali ke rute '
+            'utama.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Mengerti'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     setState(() {
-      _guidanceStarting = true;
+      _rerouteSearching = true;
       _error = null;
     });
 
     try {
-      final List<NavigationWaypoint> waypoints = <NavigationWaypoint>[
-        ...prepared.plan.stops.map(
-          (PlanningStop stop) => NavigationWaypoint.withLatLngTarget(
-            title: stop.label,
-            target: LatLng(
-              latitude: stop.location.latitude,
-              longitude: stop.location.longitude,
-            ),
-          ),
-        ),
-        NavigationWaypoint.withLatLngTarget(
-          title: prepared.plan.destinationLabel ?? 'Tujuan',
-          target: LatLng(
-            latitude: prepared.plan.destination.latitude,
-            longitude: prepared.plan.destination.longitude,
-          ),
-        ),
-      ];
+      final GeoPoint currentLocation = GeoPoint(
+        latitude: sample.latitude,
+        longitude: sample.longitude,
+      );
+      final List<PlanningStop> remainingStops = prepared.plan.stops
+          .where(
+            (PlanningStop stop) =>
+                prepared.engine.closestShapeIndex(stop.location) >
+                snapshot.routeProgressShapeIndex,
+          )
+          .toList(growable: false);
 
-      final NavigationRouteStatus status =
-          await GoogleMapsNavigator.setDestinations(
-            Destinations(
-              waypoints: waypoints,
-              displayOptions: NavigationDisplayOptions(
-                showDestinationMarkers: false,
-              ),
-              routeTokenOptions: RouteTokenOptions(
-                routeToken: routeToken,
-                travelMode:
-                    prepared.plan.travelMode == RouteTravelMode.twoWheeler
-                    ? NavigationTravelMode.twoWheeler
-                    : NavigationTravelMode.driving,
-              ),
-            ),
+      final ResolvedPlace current = ResolvedPlace(
+        reference: 'commride-current-location',
+        formattedAddress: 'Posisi sekarang',
+        location: currentLocation,
+      );
+      final ResolvedPlace destination = ResolvedPlace(
+        reference: 'commride-route-destination',
+        formattedAddress: prepared.plan.destinationLabel,
+        location: prepared.plan.destination,
+      );
+
+      final List<RouteOption> candidates = await widget.routePlannerApi
+          .computeRoutes(
+            origin: current,
+            destination: destination,
+            stops: remainingStops,
+            travelMode: prepared.plan.travelMode,
+            computeAlternatives: remainingStops.isEmpty,
           );
-
-      if (status != NavigationRouteStatus.statusOk) {
-        final String statusName = status.name;
-        throw _NavigationPreparationException(
-          'Google Navigation menolak rute ($statusName).',
+      if (candidates.isEmpty) {
+        throw const _NavigationPreparationException(
+          'Belum ditemukan kandidat rute baru.',
         );
       }
 
-      await controller.setNavigationUIEnabled(true);
-      await GoogleMapsNavigator.setAudioGuidance(
-        NavigationAudioGuidanceSettings(
-          isBluetoothAudioEnabled: true,
-          guidanceType: NavigationAudioGuidanceType.alertsAndGuidance,
-        ),
-      );
-      await GoogleMapsNavigator.startGuidance();
+      if (!mounted) return;
+      final RouteOption? selected = await _selectCandidate(candidates);
+      if (selected == null || !mounted) return;
 
+      final bool confirm = await _confirmReplacement(
+        selected,
+        remainingStops.length,
+      );
+      if (!confirm || !mounted) return;
+
+      final SavedRoutePlan saved = await widget.routePlannerApi.saveRoutePlan(
+        rideId: widget.ride.id,
+        origin: current,
+        destination: destination,
+        route: selected,
+        travelMode: prepared.plan.travelMode,
+        stops: remainingStops,
+      );
+
+      final CommRideNavigationEngine engine = CommRideNavigationEngine(saved);
       if (!mounted) return;
       setState(() {
-        _guidanceStarting = false;
-        _guidanceRunning = true;
+        _prepared = _PreparedNavigation(plan: saved, engine: engine);
+        _snapshot = null;
+        _guidanceNotice = saved.route.maneuvers.isEmpty
+            ? 'Rute baru tersimpan tanpa instruksi belok lengkap.'
+            : null;
       });
-      _scheduleMarkerSync();
+      _lastObservedAt = null;
+      _consumeLatestLocation();
+      unawaited(_refreshTraffic(saved.route));
+
+      final bool broadcastOk = saved.activeRideBroadcast != false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            broadcastOk
+                ? 'RoutePlan baru disimpan untuk Ride.'
+                : 'RoutePlan baru tersimpan, tetapi broadcast realtime '
+                      'sedang terganggu.',
+          ),
+        ),
+      );
     } on _NavigationPreparationException catch (error) {
-      if (mounted) {
-        setState(() {
-          _guidanceStarting = false;
-          _error = error.message;
-        });
-      }
+      if (mounted) setState(() => _error = error.message);
+    } on RoutePlannerApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
     } catch (_) {
       if (mounted) {
         setState(() {
-          _guidanceStarting = false;
           _error =
-              'Panduan navigasi belum dapat dimulai. Periksa API key, '
-              'billing, dan Navigation SDK.';
+              'Rute baru belum dapat dihitung. RoutePlan lama tetap '
+              'dipertahankan.';
         });
       }
-    }
-  }
-
-  void _onGroupChanged() {
-    if (mounted) {
-      setState(() {});
-    }
-    _scheduleMarkerSync();
-  }
-
-  void _scheduleMarkerSync() {
-    if (_viewController == null || !_guidanceRunning) return;
-    if (_markerSyncRunning) {
-      _markerSyncPending = true;
-      return;
-    }
-    unawaited(_syncMarkers());
-  }
-
-  Future<void> _syncMarkers() async {
-    final GoogleNavigationViewController? controller = _viewController;
-    if (controller == null || _markerSyncRunning) return;
-
-    _markerSyncRunning = true;
-    try {
-      do {
-        _markerSyncPending = false;
-        final DateTime now = DateTime.now();
-        final List<LiveRiderPresence> presences =
-            widget.runtime.groupController.state.presences;
-
-        await controller.clearMarkers();
-        if (presences.isNotEmpty) {
-          await controller.addMarkers(
-            presences
-                .map((LiveRiderPresence presence) {
-                  final LivePresenceFreshness freshness = presence
-                      .effectiveFreshness(now);
-                  final double alpha = switch (freshness) {
-                    LivePresenceFreshness.live => 1,
-                    LivePresenceFreshness.stale => 0.65,
-                    LivePresenceFreshness.offline => 0.4,
-                  };
-                  final String roleLabel = presence.role.label;
-                  final String riderName = presence.displayName;
-                  final String freshnessLabel = freshness.label;
-                  final String movementLabel = presence.movement.name;
-                  return MarkerOptions(
-                    position: LatLng(
-                      latitude: presence.latitude,
-                      longitude: presence.longitude,
-                    ),
-                    alpha: alpha,
-                    zIndex:
-                        presence.role == RideRole.leader ||
-                            presence.role == RideRole.sweeper
-                        ? 2
-                        : 1,
-                    infoWindow: InfoWindow(
-                      title: '$roleLabel · $riderName',
-                      snippet: '$freshnessLabel · $movementLabel',
-                    ),
-                  );
-                })
-                .toList(growable: false),
-          );
-        }
-      } while (_markerSyncPending);
-    } catch (_) {
-      // Navigation remains authoritative even if a convoy overlay update fails.
     } finally {
-      _markerSyncRunning = false;
+      _rerouteSearching = false;
+      if (mounted) setState(() {});
     }
+  }
+
+  Future<RouteOption?> _selectCandidate(
+    List<RouteOption> candidates,
+  ) async {
+    return showModalBottomSheet<RouteOption>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            const ListTile(
+              title: Text('Kandidat rute baru'),
+              subtitle: Text(
+                'RoutePlan Ride belum berubah. Pilih kandidat untuk '
+                'ditinjau.',
+              ),
+            ),
+            ...candidates.map(
+              (RouteOption route) => ListTile(
+                leading: const Icon(Icons.route_outlined),
+                title: Text(
+                  '${_formatDistance(route.distanceMeters.toDouble())} · '
+                  '${_formatDuration(route.durationSeconds)}',
+                ),
+                subtitle: Text(
+                  route.labels.isEmpty
+                      ? 'Kandidat rute'
+                      : route.labels.join(' · '),
+                ),
+                onTap: () => Navigator.of(context).pop(route),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmReplacement(
+    RouteOption route,
+    int remainingStopCount,
+  ) async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Ganti RoutePlan Ride?'),
+        content: Text(
+          'Rute baru: ${_formatDistance(route.distanceMeters.toDouble())}, '
+          '${_formatDuration(route.durationSeconds)}.'
+          '${remainingStopCount > 0 ? ' $remainingStopCount Stop yang masih '
+              'di depan akan dipertahankan.' : ''}\n\n'
+          'Rute lama baru diganti setelah Anda menekan Gunakan rute baru.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Tetap rute lama'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Gunakan rute baru'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _setPreparationError(String message) {
@@ -656,16 +707,195 @@ class _ActiveRideNavigationScreenState
 }
 
 class _PreparedNavigation {
-  const _PreparedNavigation({required this.plan, required this.route});
+  const _PreparedNavigation({
+    required this.plan,
+    required this.engine,
+  });
 
   final SavedRoutePlan plan;
-  final RouteOption route;
+  final CommRideNavigationEngine engine;
 }
 
 class _NavigationPreparationException implements Exception {
   const _NavigationPreparationException(this.message);
 
   final String message;
+}
+
+class _NavigationBanner extends StatelessWidget {
+  const _NavigationBanner({
+    required this.snapshot,
+    required this.trafficCount,
+    required this.guidanceNotice,
+    required this.rerouteBusy,
+    required this.onFindNewRoute,
+  });
+
+  final CommRideNavigationSnapshot? snapshot;
+  final int trafficCount;
+  final String? guidanceNotice;
+  final bool rerouteBusy;
+  final Future<void> Function()? onFindNewRoute;
+
+  @override
+  Widget build(BuildContext context) {
+    final CommRideNavigationSnapshot? state = snapshot;
+    final _BannerCopy copy = _copy(state);
+
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(16),
+      color: Theme.of(context).colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(copy.icon, size: 28),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        copy.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (copy.subtitle != null)
+                        Text(
+                          copy.subtitle!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                if (trafficCount > 0)
+                  Chip(
+                    avatar: const Icon(Icons.traffic, size: 16),
+                    label: Text('$trafficCount'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+            if (guidanceNotice != null) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(
+                guidanceNotice!,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (onFindNewRoute != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: rerouteBusy
+                      ? null
+                      : () => unawaited(onFindNewRoute!()),
+                  icon: const Icon(Icons.alt_route),
+                  label: const Text('Cari rute baru'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  _BannerCopy _copy(CommRideNavigationSnapshot? state) {
+    if (state == null) {
+      return const _BannerCopy(
+        icon: Icons.gps_fixed,
+        title: 'Menunggu posisi GPS…',
+        subtitle: 'RoutePlan tetap siap di peta.',
+      );
+    }
+
+    switch (state.phase) {
+      case CommRideNavigationPhase.suspectedOffRoute:
+        return _BannerCopy(
+          icon: Icons.gps_not_fixed,
+          title: 'Memeriksa posisi terhadap rute',
+          subtitle:
+              'RoutePlan belum berubah · '
+              '${_formatDistance(state.distanceFromRouteMeters)} dari jalur',
+        );
+      case CommRideNavigationPhase.confirmedOffRoute:
+      case CommRideNavigationPhase.recovery:
+        return _BannerCopy(
+          icon: Icons.u_turn_left,
+          title: 'Anda keluar dari rute',
+          subtitle: state.distanceToRejoinMeters == null
+              ? 'Kembali ke rute utama'
+              : 'Kembali ke rute utama · '
+                    '${_formatDistance(state.distanceToRejoinMeters!)}',
+        );
+      case CommRideNavigationPhase.rejoined:
+        return const _BannerCopy(
+          icon: Icons.check_circle_outline,
+          title: 'Kembali ke rute utama',
+          subtitle: 'RoutePlan yang sama tetap digunakan.',
+        );
+      case CommRideNavigationPhase.onRoute:
+        final RouteManeuver? maneuver = state.nextManeuver;
+        if (maneuver == null) {
+          return const _BannerCopy(
+            icon: Icons.navigation,
+            title: 'Ikuti RoutePlan',
+            subtitle: 'Tidak ada manuver berikutnya yang tersedia.',
+          );
+        }
+        return _BannerCopy(
+          icon: _maneuverIcon(maneuver.type),
+          title: maneuver.instruction,
+          subtitle: state.distanceToNextManeuverMeters == null
+              ? null
+              : _formatDistance(state.distanceToNextManeuverMeters!),
+        );
+    }
+  }
+}
+
+class _BannerCopy {
+  const _BannerCopy({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+}
+
+IconData _maneuverIcon(String? type) {
+  final String normalized = type?.toLowerCase() ?? '';
+  if (normalized.contains('left')) return Icons.turn_left;
+  if (normalized.contains('right')) return Icons.turn_right;
+  if (normalized.contains('uturn') || normalized.contains('u_turn')) {
+    return Icons.u_turn_left;
+  }
+  if (normalized.contains('roundabout')) return Icons.roundabout_left;
+  return Icons.straight;
+}
+
+String _formatDistance(double meters) {
+  if (meters < 1000) {
+    return '${meters.round()} m';
+  }
+  return '${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km';
+}
+
+String _formatDuration(int seconds) {
+  final int minutes = (seconds / 60).round();
+  if (minutes < 60) return '$minutes mnt';
+  final int hours = minutes ~/ 60;
+  final int remainder = minutes % 60;
+  return remainder == 0 ? '$hours jam' : '$hours jam $remainder mnt';
 }
 
 class _GroupStatusBar extends StatelessWidget {
@@ -810,7 +1040,11 @@ class _DockButton extends StatelessWidget {
       style: TextButton.styleFrom(foregroundColor: foreground),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: <Widget>[Icon(icon), const SizedBox(height: 2), Text(label)],
+        children: <Widget>[
+          Icon(icon),
+          const SizedBox(height: 2),
+          Text(label),
+        ],
       ),
     );
   }
