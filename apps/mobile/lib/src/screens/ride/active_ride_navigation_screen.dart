@@ -576,10 +576,7 @@ class _ActiveRideNavigationScreenState
       final CommRideNavigationSnapshot? latestSnapshot = latest == null
           ? null
           : recoveryEngine.update(
-              GeoPoint(
-                latitude: latest.latitude,
-                longitude: latest.longitude,
-              ),
+              GeoPoint(latitude: latest.latitude, longitude: latest.longitude),
               latest.observedAt,
             );
 
