@@ -448,7 +448,7 @@ Possible future changes without changing the product model:
 - more advanced job/queue infrastructure;
 - dedicated analytics pipeline;
 - alternative route/place provider;
-- embedded navigation;
+- richer offline navigation/data packages;
 - richer media pipeline;
 - multi-region strategy.
 
@@ -462,5 +462,6 @@ Not recommended for MVP:
 - always-on VPS solely for API;
 - storing every GPS point permanently;
 - Firestore as a high-frequency location event log;
-- building a custom navigation engine;
+- building a new map/routing dataset or routing graph from scratch;
+- turning the local CommRide Navigation Engine into an unbounded provider clone;
 - AI planner before deterministic planning flows work.

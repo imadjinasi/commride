@@ -474,9 +474,10 @@ without requiring the group to manually recreate the same coordination through m
 ## 16. Explicit non-goals for MVP
 
 The original draft excluded embedded full turn-by-turn navigation. That decision
-is superseded for the next Active Ride implementation: embedded navigation is now
-part of the accepted product direction, but activation still depends on Google
-Maps Platform billing/API configuration and device acceptance.
+is superseded: embedded navigation is now part of the accepted Active Ride
+direction. Pilot activation depends on CommRide Navigation Engine + MapLibre
+device acceptance and whichever route/traffic adapters are explicitly configured;
+Google Maps Platform is optional and is not a billing prerequisite.
 
 Remaining non-goals:
 

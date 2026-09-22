@@ -61,38 +61,36 @@ For iOS push delivery:
 - connect the actual APNs key/certificate to Firebase;
 - verify the signed build contains the correct `aps-environment` entitlement.
 
-## 3. Map provider gate — MapLibre + Geoapify pilot
+## 3. Map/navigation provider gate
 
-The accepted pilot target is **MapLibre + Geoapify**. Google Maps is deferred
-and is not a pilot billing/credential prerequisite.
+The accepted navigation-first pilot direction is **MapLibre + CommRide
+Navigation Engine**. Geoapify is the proven route/place fallback; Valhalla is the
+target self-hosted motorcycle router; TomTom REST traffic/incidents are optional
+until explicitly configured. Google remains optional and is not a pilot billing
+prerequisite.
 
-Repository reality remains important: the integrated source still contains the
-earlier Google Maps provider/runtime. Before map runtime can be accepted:
+Repository/provider boundaries must remain explicit:
 
-- land a separate reviewed provider-migration PR rather than hiding the
-  migration inside deployment-readiness work;
-- use MapLibre for mobile map rendering;
-- adapt the backend provider boundary to Geoapify for autocomplete/geocoding,
-  place lookup/search, and motorcycle routing;
-- keep Geoapify response models inside provider adapters and return CommRide
-  DTOs to domain/mobile code;
-- use separate server and mobile map credentials/trust boundaries where
-  practical;
-- keep the server provider key only in the Cloudflare secret store;
-- keep any mobile tile/style credential out of Git and do not reuse the server
-  key in the app;
-- keep Search Along Route on-demand and preserve existing RoutePlan
-  stop/result caps;
-- if Geoapify has no single Google-equivalent along-route primitive, compose the
-  feature server-side from route/polyline corridor sampling + Places queries,
-  then deduplicate and rank;
-- expose route alternatives only when they are materially different rather
-  than pretending Geoapify behavior is Google-identical;
-- verify the current Geoapify plan/quota and provider restrictions before the
-  first real Club Ride.
+- MapLibre renders the embedded Active Ride map;
+- CommRide Navigation Engine consumes the persisted provider-independent
+  RoutePlan locally for progress, maneuver and recovery state;
+- Geoapify remains available for autocomplete/place/Search Along Route and
+  motorcycle routes while replacement providers are unproven;
+- Valhalla may replace only the route adapter after real HTTPS runtime,
+  motorcycle costing, Stops, maneuvers and error behavior pass acceptance;
+- TomTom traffic may be enabled only with a server-side key and verified
+  Indonesian runtime evidence;
+- keep provider response models inside adapters and return CommRide DTOs;
+- keep provider/server keys only in the Cloudflare secret store;
+- keep any mobile map/style credential out of Git and do not reuse a server key;
+- Search Along Route and recovery-route computation are bounded/on-demand, not
+  triggered by every map or GPS update;
+- route alternatives must be materially different;
+- a provider failure must preserve the previous valid RoutePlan;
+- off-route recovery must not automatically replace the shared RoutePlan.
 
-Do not enable the pilot map runtime merely because the Geoapify account/key
-exists; source integration must be implemented and tested first.
+Do not call Valhalla, TomTom traffic, embedded navigation or field behavior
+accepted merely because source support exists.
 
 ## 4. Cloudflare operator gate
 

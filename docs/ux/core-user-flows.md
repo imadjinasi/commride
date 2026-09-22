@@ -385,13 +385,22 @@ Never animate stale position as though it is live.
 ## 21. Rider deviates from Route
 
 MVP:
-1. server/client detects basic deviation threshold
-2. Rider sees off-route warning
-3. Leader may see attention state
-4. Rider can open external navigation to next checkpoint
+1. local navigation uses distance/time hysteresis so one noisy GPS sample does
+   not trigger a route change;
+2. sustained deviation enters **Recovery** while the accepted RoutePlan remains
+   authoritative;
+3. CommRide selects a sensible future rejoin point on the existing route;
+4. when a route provider is available, CommRide computes a temporary road-aware
+   recovery path to that rejoin point; it is not persisted as RoutePlan truth;
+5. if temporary recovery routing fails, CommRide keeps honest rejoin/RoutePlan
+   information and does not draw a fake drivable straight line;
+6. after meaningful deviation, Rider may tap **Cari rute baru**;
+7. the replacement is previewed and requires explicit confirmation;
+8. only Leader/Navigator may persist a replacement shared RoutePlan revision;
+   Member/Sweeper continue recovery and cannot reroute the convoy.
 
-Future:
-- recommended rejoin/intercept point.
+Leader may still see group/separation attention independently of the Rider's
+local recovery guidance.
 
 ## 22. End Ride
 

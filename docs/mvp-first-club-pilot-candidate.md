@@ -40,9 +40,8 @@ Repository-side supporting behavior includes:
 - explicit contextual location permission;
 - background-capable location-session declarations;
 - Live/Stale/Offline Rider presence semantics;
-- guarded Live Group map rendering currently implemented with Google Maps in
-  the integrated source; the accepted pilot migration to MapLibre + Geoapify is
-  still pending;
+- MapLibre Live Group rendering with Geoapify style fallback plus a
+  repository-side provider-neutral Active Ride navigation surface;
 - shared Active Ride realtime ownership;
 - server-derived convoy-separation attention;
 - low-frequency Completed Ride journey sampling;
@@ -85,10 +84,12 @@ Before inviting real Riders, complete
 - register/configure the iOS Firebase app only after its bundle ID is final;
 - API FCM service-account secrets in the deployment secret store;
 - real APNs configuration and signed iOS entitlement;
-- a separate reviewed source migration from the existing Google Maps runtime to
-  MapLibre + Geoapify;
+- exact-source deployment of the reviewed MapLibre/provider-neutral navigation
+  branch before installed-device acceptance;
 - separate Geoapify trust boundaries for the server provider key and the mobile
   map/style key where required;
+- optional TomTom traffic secret/runtime verification before traffic is enabled;
+- Valhalla HTTPS runtime verification before it can replace Geoapify routing;
 - Android/iOS physical-device background tracking;
 - notification receipt on real devices;
 - lock-screen and network-recovery tests;
@@ -109,7 +110,8 @@ The first pilot does not claim:
 - automatic emergency-service dispatch;
 - crash/fall detection;
 - voice-note/media messaging;
-- turn-by-turn embedded navigation;
+- production/field-accepted embedded navigation; repository support exists but
+  still requires installed-device and road acceptance;
 - public social feed/follow/badge implementation;
 - terminated-app GPS behavior beyond what a real device test proves;
 - exact full-trip GPS history.
