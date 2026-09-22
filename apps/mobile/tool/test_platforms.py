@@ -65,11 +65,12 @@ func application() {
         self.assertNotIn("GoogleMaps", delegate)
         self.assertNotIn("GMSServices", delegate)
         manifest = (self.root / "android/app/src/main/AndroidManifest.xml").read_text()
-        self.assertIn("com.google.android.geo.API_KEY", manifest)
-        self.assertIn("${MAPS_API_KEY}", manifest)
+        self.assertNotIn("com.google.android.geo.API_KEY", manifest)
+        self.assertNotIn("MAPS_API_KEY", manifest)
         gradle = (self.root / "android/app/build.gradle.kts").read_text()
-        self.assertIn('manifestPlaceholders["MAPS_API_KEY"] = commRideMapsApiKey', gradle)
-        self.assertIn("isCoreLibraryDesugaringEnabled = true", gradle)
+        self.assertNotIn("MAPS_API_KEY", gradle)
+        self.assertNotIn("commRideMapsApiKey", gradle)
+        self.assertNotIn("coreLibraryDesugaring", gradle)
 
     def test_release_internet_permission_is_required(self):
         configure.main()
