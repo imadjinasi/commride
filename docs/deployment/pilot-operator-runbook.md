@@ -266,8 +266,12 @@ npx wrangler secret put TOMTOM_API_KEY
 
 Enable the non-secret traffic selector only after the secret is present.
 Provider calls must be bounded and server-side; one shared Ride result should not
-be fetched independently by every Rider. Verify real Indonesian incident/traffic
-responses and account usage before calling this Provider/runtime PASS.
+be fetched independently by every Rider. Active Ride refreshes advisory traffic
+at a bounded 10-minute cadence, while the Worker shares the exact-RoutePlan
+result through a short edge-cache TTL. Verify repeated Rider requests really
+reuse cached data, verify failed refreshes do not leave old incidents presented
+indefinitely, then verify real Indonesian incident/traffic responses and account
+usage before calling this Provider/runtime PASS.
 
 ### 7.3 Valhalla routing target
 
