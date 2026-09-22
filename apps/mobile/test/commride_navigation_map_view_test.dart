@@ -25,14 +25,11 @@ void main() {
         feature['properties'] as Map<String, dynamic>;
 
     expect(geometry['type'], 'LineString');
-    expect(
-      geometry['coordinates'],
-      <Object>[
-        <double>[108.50, -6.70],
-        <double>[108.49, -6.71],
-        <double>[108.48, -6.72],
-      ],
-    );
+    expect(geometry['coordinates'], <Object>[
+      <double>[108.50, -6.70],
+      <double>[108.49, -6.71],
+      <double>[108.48, -6.72],
+    ]);
     expect(properties['color'], '#B71C1C');
   });
 
@@ -62,9 +59,7 @@ void main() {
   test('point-only incident is not fabricated as an affected road line', () {
     final TrafficIncident incident = _incident(
       category: 'accident',
-      points: const <GeoPoint>[
-        GeoPoint(latitude: -6.70, longitude: 108.50),
-      ],
+      points: const <GeoPoint>[GeoPoint(latitude: -6.70, longitude: 108.50)],
     );
 
     final Map<String, dynamic> data = trafficIncidentLineGeoJson(
