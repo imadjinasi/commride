@@ -215,12 +215,18 @@ Start Ride must be idempotent.
 9. Latest observations publish to the authenticated Active Ride room.
 10. Leader/Navigator/Sweeper see group attention state without opening a
     separate tracking dashboard for routine operation.
-11. Checkpoint approaches and Riders arrive/check in.
-12. if Regroup:
+11. If the route must change, Leader or Navigator deliberately opens RoutePlan,
+    reviews/recomputes the candidate, and saves a new immutable revision.
+12. Connected navigation clients receive `ride.route_plan_updated`, fetch the
+    persisted revision, validate a fresh compatible provider route token, and
+    only then change guidance. A materially different provider route is not
+    accepted silently.
+13. Checkpoint approaches and Riders arrive/check in.
+14. if Regroup:
     - Leader sees arrival count;
     - waits as needed.
-13. Leader releases group.
-14. next Segment becomes active and guidance continues.
+15. Leader releases group.
+16. next Segment becomes active and guidance continues.
 
 ## 13. I'm Stopping
 

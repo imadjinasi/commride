@@ -178,7 +178,9 @@ The user can search for:
 - custom map points.
 
 ### Add Stop
-A Leader can insert stops into the route and reorder them.
+Before departure, a Leader can insert stops into the route and reorder them.
+During an Active Ride, Leader or Navigator may deliberately revise Stops as part
+of an explicit RoutePlan update.
 
 Every change recalculates:
 - route geometry;
@@ -190,11 +192,17 @@ Persistence rule:
 - only a successful recomputation may become the new current RoutePlan;
 - the previous valid plan remains current if provider recomputation fails;
 - each saved plan is a new revision so reorder/add/remove history is recoverable;
-- Draft and Published Rides may replace the current plan in the initial MVP;
-- Active Ride replanning is deferred to an explicit operational flow.
+- Draft and Published Rides may replace the current plan through the Leader;
+- during an Active Ride, Leader or Navigator may explicitly save a new revision;
+- an Active Ride revision is broadcast to connected Riders after persistence so
+  navigation clients can fetch and validate it before changing guidance;
+- failed/degraded realtime delivery must be surfaced and must not be presented
+  as synchronized group navigation.
 
 ### Search Along Route
-The Leader can search categories along the planned route without manually panning the map.
+The Leader can search categories along the planned route without manually
+panning the map before departure. During Active Ride replanning, the assigned
+Navigator may use the same deliberate planning tools.
 
 Examples:
 - Fuel along route
