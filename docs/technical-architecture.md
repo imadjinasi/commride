@@ -128,7 +128,12 @@ Expected pilot capabilities:
 
 Cost discipline is architectural: shared Ride traffic/search data should be
 queried server-side, cached/bounded where provider terms allow, and never fetched
-independently by every Rider when one shared result is enough.
+independently by every Rider when one shared result is enough. The Active Ride
+surface refreshes advisory traffic on a bounded 10-minute cadence rather than on
+GPS updates. The Worker caches the normalized exact-RoutePlan traffic result for
+a short TTL so Riders following the same route share upstream calls. Traffic
+refresh failures are surfaced as degraded; old incidents are not kept
+indefinitely as if they were current.
 
 ## 3. Provider abstraction
 
