@@ -189,7 +189,18 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
         message: 'CommRide API response does not contain a RoutePlan.',
       );
     }
-    return SavedRoutePlan.fromJson(raw);
+    final Object? broadcast = body['activeRideBroadcast'];
+    if (broadcast != null && broadcast is! bool) {
+      throw const RoutePlannerApiException(
+        statusCode: 500,
+        code: 'invalid_response',
+        message: 'CommRide API returned invalid Active Ride broadcast status.',
+      );
+    }
+    return SavedRoutePlan.fromJson(
+      raw,
+      activeRideBroadcast: broadcast as bool?,
+    );
   }
 
   Future<Map<String, Object?>> _post(

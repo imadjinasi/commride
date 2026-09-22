@@ -290,6 +290,7 @@ class SavedRoutePlan {
     required this.destination,
     required this.route,
     required this.stops,
+    this.activeRideBroadcast,
   });
 
   final int revision;
@@ -301,7 +302,14 @@ class SavedRoutePlan {
   final RouteOption route;
   final List<PlanningStop> stops;
 
-  factory SavedRoutePlan.fromJson(Map<String, Object?> json) {
+  /// Realtime delivery metadata returned only by Active Ride route updates.
+  /// null means the response did not include Active Ride broadcast status.
+  final bool? activeRideBroadcast;
+
+  factory SavedRoutePlan.fromJson(
+    Map<String, Object?> json, {
+    bool? activeRideBroadcast,
+  }) {
     final int distanceMeters = json['distanceMeters'] as int;
     final int durationSeconds = json['durationSeconds'] as int;
 
@@ -329,6 +337,7 @@ class SavedRoutePlan {
                 PlanningStop.fromJson(value as Map<String, Object?>),
           )
           .toList(growable: false),
+      activeRideBroadcast: activeRideBroadcast,
     );
   }
 }

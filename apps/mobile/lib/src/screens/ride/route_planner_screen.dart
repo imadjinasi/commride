@@ -589,7 +589,15 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
       setState(() {
         _savedRevision = saved.revision;
       });
-      _showMessage('RoutePlan revision ${saved.revision} tersimpan.');
+      if (saved.activeRideBroadcast == false) {
+        _showMessage(
+          'RoutePlan revision ${saved.revision} tersimpan, tetapi update '
+          'realtime ke Rider lain belum terkirim. Pastikan rombongan '
+          'memuat ulang RoutePlan sebelum mengikuti rute baru.',
+        );
+      } else {
+        _showMessage('RoutePlan revision ${saved.revision} tersimpan.');
+      }
     });
   }
 
