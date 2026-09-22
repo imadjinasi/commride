@@ -18,6 +18,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   bool _creatingAccount = false;
   bool _submitting = false;
+  bool _resettingPassword = false;
   String? _errorMessage;
 
   @override
@@ -81,6 +82,22 @@ class _SignInScreenState extends State<SignInScreen> {
                         border: OutlineInputBorder(),
                       ),
                     ),
+                    if (!_creatingAccount) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _submitting || _resettingPassword
+                              ? null
+                              : _resetPassword,
+                          child: Text(
+                            _resettingPassword
+                                ? 'Mengirim…'
+                                : 'Lupa kata sandi?',
+                          ),
+                        ),
+                      ),
+                    ],
                     if (_errorMessage != null) ...<Widget>[
                       const SizedBox(height: 16),
                       Text(
@@ -132,6 +149,57 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _resetPassword() async {
+    final String email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() {
+        _errorMessage = 'Masukkan email terlebih dahulu untuk reset kata sandi.';
+      });
+      return;
+    }
+
+    final AuthGateway authGateway = widget.authGateway;
+    if (authGateway is! PasswordResetAuthGateway) {
+      setState(() {
+        _errorMessage = 'Reset kata sandi belum tersedia pada konfigurasi ini.';
+      });
+      return;
+    }
+
+    setState(() {
+      _resettingPassword = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await authGateway.sendPasswordResetEmail(email: email);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Jika email terdaftar, tautan reset kata sandi akan dikirim.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage =
+            'Reset kata sandi belum dapat dikirim. Periksa email dan koneksi.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _resettingPassword = false;
+        });
+      }
+    }
   }
 
   Future<void> _submit() async {
