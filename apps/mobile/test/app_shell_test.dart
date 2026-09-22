@@ -417,6 +417,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rider One'), findsOneWidget);
+    expect(find.text('Rider ID'), findsOneWidget);
+    expect(find.text('rider-1'), findsOneWidget);
     expect(find.text('Black · Honda · CB150R'), findsOneWidget);
     expect(find.textContaining('Safe range 220 km'), findsOneWidget);
   });
