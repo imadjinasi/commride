@@ -44,7 +44,10 @@ class _RidePreStartScreenState extends State<RidePreStartScreen> {
             }
 
             if (snapshot.hasError) {
-              return _LoadError(onRetry: _refresh);
+              return _LoadError(
+                onRetry: _refresh,
+                onContinue: () => Navigator.of(context).pop(true),
+              );
             }
 
             final RideBriefingView? view = snapshot.data;
@@ -164,9 +167,10 @@ class _BriefingReadinessCard extends StatelessWidget {
 }
 
 class _LoadError extends StatelessWidget {
-  const _LoadError({required this.onRetry});
+  const _LoadError({required this.onRetry, required this.onContinue});
 
   final VoidCallback onRetry;
+  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -179,6 +183,11 @@ class _LoadError extends StatelessWidget {
           FilledButton.tonal(
             onPressed: onRetry,
             child: const Text('Coba lagi'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onContinue,
+            child: const Text('Start tanpa status Briefing'),
           ),
         ],
       ),
