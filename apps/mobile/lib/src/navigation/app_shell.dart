@@ -141,9 +141,8 @@ class _AppShellState extends State<AppShell> {
     }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => NotificationCenterScreen(
-          notificationApi: notificationApi,
-        ),
+        builder: (BuildContext context) =>
+            NotificationCenterScreen(notificationApi: notificationApi),
       ),
     );
   }
@@ -160,7 +159,6 @@ class _AppShellState extends State<AppShell> {
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
         rideRecapApi: widget.rideRecapApi,
-        notificationApi: widget.notificationApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
         navigationEnabled: widget.config.navigationEnabled,
@@ -175,6 +173,7 @@ class _AppShellState extends State<AppShell> {
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
         rideRecapApi: widget.rideRecapApi,
+        notificationApi: widget.notificationApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
         navigationEnabled: widget.config.navigationEnabled,
