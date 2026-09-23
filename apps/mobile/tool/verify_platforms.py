@@ -37,6 +37,20 @@ def verify_android() -> None:
     application = manifest.find("application")
     if application is None:
         raise SystemExit("Android application element missing.")
+    main_activity = next(
+        (
+            node
+            for node in application.findall("activity")
+            if node.get(android_attr("name")) == ".MainActivity"
+        ),
+        None,
+    )
+    if main_activity is None:
+        raise SystemExit("Android MainActivity element missing.")
+    if main_activity.get(android_attr("screenOrientation")) != "user":
+        raise SystemExit(
+            "Android MainActivity must respect the user's device orientation preference."
+        )
     maps_metadata = [
         node for node in application.findall("meta-data")
         if node.get(android_attr("name")) == "com.google.android.geo.API_KEY"

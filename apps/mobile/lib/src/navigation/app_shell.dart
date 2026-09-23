@@ -22,6 +22,7 @@ import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/ride/ride_screen.dart';
+import '../widgets/commride_brand.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -170,7 +171,17 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(index: _selectedIndex, children: destinations),
+        child: Column(
+          children: <Widget>[
+            const _MainAppBrandHeader(),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: destinations,
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -206,6 +217,35 @@ class _AppShellState extends State<AppShell> {
             label: 'Profile',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MainAppBrandHeader extends StatelessWidget {
+  const _MainAppBrandHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+        ),
+        child: const Align(
+          alignment: Alignment.centerLeft,
+          child: CommRideBrandImage(
+            variant: CommRideBrandVariant.primary,
+            size: 44,
+          ),
+        ),
       ),
     );
   }

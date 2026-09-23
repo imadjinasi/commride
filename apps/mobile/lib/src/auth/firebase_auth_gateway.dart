@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'auth_gateway.dart';
 
-class FirebaseAuthGateway implements AuthGateway {
+class FirebaseAuthGateway implements AuthGateway, PasswordResetAuthGateway {
   FirebaseAuthGateway(this._firebaseAuth);
 
   final FirebaseAuth _firebaseAuth;
@@ -29,6 +29,11 @@ class FirebaseAuthGateway implements AuthGateway {
       email: email,
       password: password,
     );
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) {
+    return _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
   @override

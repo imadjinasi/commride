@@ -396,6 +396,7 @@ class _ClubInviteDialogState extends State<_ClubInviteDialog> {
             controller: _riderIdController,
             decoration: const InputDecoration(
               labelText: 'Rider ID',
+              helperText: 'Minta Rider membuka Profile → Rider ID.',
               border: OutlineInputBorder(),
             ),
           ),

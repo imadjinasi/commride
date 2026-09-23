@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../api/vehicle_api.dart';
 import '../../auth/auth_gateway.dart';
@@ -64,6 +65,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
+              const SizedBox(height: 20),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.badge_outlined),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              'Rider ID',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            SelectableText(
+                              profile.id,
+                              key: const ValueKey<String>('profile-rider-id'),
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Bagikan ID ini kepada admin Club agar Anda dapat diundang.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Salin Rider ID',
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: profile.id),
+                          );
+                          if (!context.mounted) {
+                            return;
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Rider ID disalin.')),
+                          );
+                        },
+                        icon: const Icon(Icons.copy_outlined),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 28),
               Row(
                 children: <Widget>[

@@ -50,6 +50,21 @@ def configure_android() -> None:
     application = manifest.find("application")
     if application is None:
         raise SystemExit("Android application element missing.")
+
+    main_activity = next(
+        (
+            node
+            for node in application.findall("activity")
+            if node.get(android_attr("name")) == ".MainActivity"
+        ),
+        None,
+    )
+    if main_activity is None:
+        raise SystemExit("Android MainActivity element missing.")
+    # Respect the Rider's Android rotation preference. "user" follows the
+    # device-level orientation choice instead of forcing sensor rotation.
+    main_activity.set(android_attr("screenOrientation"), "user")
+
     for node in list(application.findall("meta-data")):
         if node.get(android_attr("name")) == "com.google.android.geo.API_KEY":
             application.remove(node)

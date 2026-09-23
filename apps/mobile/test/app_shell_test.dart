@@ -365,6 +365,10 @@ void main() {
   ) async {
     await tester.pumpWidget(buildShell());
 
+    expect(
+      find.byKey(const ValueKey<String>('commride-brand-primary')),
+      findsOneWidget,
+    );
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Ride'), findsOneWidget);
     expect(find.text('Explore'), findsOneWidget);
@@ -413,6 +417,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rider One'), findsOneWidget);
+    expect(find.text('Rider ID'), findsOneWidget);
+    expect(find.text('rider-1'), findsOneWidget);
     expect(find.text('Black · Honda · CB150R'), findsOneWidget);
     expect(find.textContaining('Safe range 220 km'), findsOneWidget);
   });

@@ -81,6 +81,8 @@ not assume generating an unused options file alone completes integration.
 Authentication flow:
 
 1. Firebase determines signed-in/out state; signed-out users see Sign In / Create Account.
+   Sign In also exposes a deliberate forgot-password action that sends Firebase's
+   password-reset email without revealing whether an address is registered.
 2. Signed-in users call `GET /v1/me` with a Firebase ID token.
 3. `404 rider_profile_not_found` enters profile onboarding.
 4. `PUT /v1/me` creates/updates only the authenticated Rider's profile.
