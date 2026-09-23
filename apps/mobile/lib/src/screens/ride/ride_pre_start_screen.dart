@@ -35,63 +35,64 @@ class _RidePreStartScreenState extends State<RidePreStartScreen> {
         minimum: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         child: FutureBuilder<RideBriefingView?>(
           future: _briefingFuture,
-          builder: (
-            BuildContext context,
-            AsyncSnapshot<RideBriefingView?> snapshot,
-          ) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          builder:
+              (
+                BuildContext context,
+                AsyncSnapshot<RideBriefingView?> snapshot,
+              ) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            if (snapshot.hasError) {
-              return _LoadError(
-                onRetry: _refresh,
-                onContinue: () => Navigator.of(context).pop(true),
-              );
-            }
+                if (snapshot.hasError) {
+                  return _LoadError(
+                    onRetry: _refresh,
+                    onContinue: () => Navigator.of(context).pop(true),
+                  );
+                }
 
-            final RideBriefingView? view = snapshot.data;
-            return ListView(
-              children: <Widget>[
-                Text(
-                  widget.ride.title,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Review kesiapan rombongan sebelum Ride menjadi Active.',
-                ),
-                const SizedBox(height: 20),
-                _BriefingReadinessCard(view: view),
-                const SizedBox(height: 12),
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Start Ride tidak menyalakan GPS Rider lain secara '
-                      'otomatis. Setiap Rider tetap mengaktifkan tracking '
-                      'secara eksplisit dari Active Ride.',
+                final RideBriefingView? view = snapshot.data;
+                return ListView(
+                  children: <Widget>[
+                    Text(
+                      widget.ride.title,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  icon: const Icon(Icons.flag_outlined),
-                  label: Text(
-                    view == null || !view.routePlanIsCurrent
-                        ? 'Tetap Start Ride'
-                        : 'Start Ride',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Kembali'),
-                ),
-              ],
-            );
-          },
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Review kesiapan rombongan sebelum Ride menjadi Active.',
+                    ),
+                    const SizedBox(height: 20),
+                    _BriefingReadinessCard(view: view),
+                    const SizedBox(height: 12),
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'Start Ride tidak menyalakan GPS Rider lain secara '
+                          'otomatis. Setiap Rider tetap mengaktifkan tracking '
+                          'secara eksplisit dari Active Ride.',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      icon: const Icon(Icons.flag_outlined),
+                      label: Text(
+                        view == null || !view.routePlanIsCurrent
+                            ? 'Tetap Start Ride'
+                            : 'Start Ride',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Kembali'),
+                    ),
+                  ],
+                );
+              },
         ),
       ),
     );
