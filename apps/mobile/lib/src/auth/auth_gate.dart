@@ -32,7 +32,7 @@ class AuthGate extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
-    required this.notificationApi,
+    this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -50,7 +50,7 @@ class AuthGate extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
-  final NotificationApi notificationApi;
+  final NotificationApi? notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -112,7 +112,7 @@ class _RiderProfileGate extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
-    required this.notificationApi,
+    this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -130,7 +130,7 @@ class _RiderProfileGate extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
-  final NotificationApi notificationApi;
+  final NotificationApi? notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
