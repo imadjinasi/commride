@@ -21,7 +21,7 @@ class NotificationCenterScreen extends StatelessWidget {
       return _NotificationListScaffold(
         title: clubName == null
             ? 'Notifikasi Club'
-            : 'Notifikasi · ' + clubName!,
+            : 'Notifikasi · ${clubName!}',
         notificationApi: notificationApi,
         scope: RiderNotificationScope.club,
         clubId: clubId,
@@ -165,7 +165,7 @@ class _NotificationListState extends State<_NotificationList> {
                             : null,
                       ),
                       subtitle: Text(
-                        item.body + '\n' + _formatTime(item.createdAt),
+                        '${item.body}\n${_formatTime(item.createdAt)}',
                       ),
                       isThreeLine: true,
                       trailing: item.isUnread
@@ -202,15 +202,8 @@ class _NotificationListState extends State<_NotificationList> {
   String _formatTime(DateTime value) {
     final DateTime local = value.toLocal();
     String two(int number) => number.toString().padLeft(2, '0');
-    return two(local.day) +
-        '/' +
-        two(local.month) +
-        '/' +
-        local.year.toString() +
-        ' ' +
-        two(local.hour) +
-        ':' +
-        two(local.minute);
+    return '${two(local.day)}/${two(local.month)}/${local.year} '
+        '${two(local.hour)}:${two(local.minute)}';
   }
 }
 
