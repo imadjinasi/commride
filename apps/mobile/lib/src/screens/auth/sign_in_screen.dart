@@ -168,6 +168,8 @@ class _SignInScreenState extends State<SignInScreen> {
       });
       return;
     }
+    final PasswordResetAuthGateway passwordResetGateway =
+        authGateway as PasswordResetAuthGateway;
 
     setState(() {
       _resettingPassword = true;
@@ -175,7 +177,7 @@ class _SignInScreenState extends State<SignInScreen> {
     });
 
     try {
-      await authGateway.sendPasswordResetEmail(email: email);
+      await passwordResetGateway.sendPasswordResetEmail(email: email);
       if (!mounted) {
         return;
       }
