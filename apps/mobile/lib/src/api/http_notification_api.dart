@@ -69,7 +69,7 @@ class HttpNotificationApi implements NotificationApi {
   Future<void> markRead(String notificationId) async {
     final http.Response response = await _client.post(
       _apiBaseUrl.resolve(
-        '/v1/me/notifications/' + Uri.encodeComponent(notificationId) + '/read',
+        '/v1/me/notifications/${Uri.encodeComponent(notificationId)}/read',
       ),
       headers: await _headers(),
     );
