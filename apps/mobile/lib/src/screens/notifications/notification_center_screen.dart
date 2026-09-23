@@ -19,7 +19,9 @@ class NotificationCenterScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (clubId != null) {
       return _NotificationListScaffold(
-        title: clubName == null ? 'Notifikasi Club' : 'Notifikasi · ' + clubName!,
+        title: clubName == null
+            ? 'Notifikasi Club'
+            : 'Notifikasi · ' + clubName!,
         notificationApi: notificationApi,
         scope: RiderNotificationScope.club,
         clubId: clubId,
@@ -190,7 +192,9 @@ class _NotificationListState extends State<_NotificationList> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notifikasi belum dapat ditandai dibaca.')),
+        const SnackBar(
+          content: Text('Notifikasi belum dapat ditandai dibaca.'),
+        ),
       );
     }
   }
@@ -218,10 +222,7 @@ class _EmptyNotifications extends StatelessWidget {
     return const Center(
       child: Padding(
         padding: EdgeInsets.all(24),
-        child: Text(
-          'Belum ada notifikasi.',
-          textAlign: TextAlign.center,
-        ),
+        child: Text('Belum ada notifikasi.', textAlign: TextAlign.center),
       ),
     );
   }
