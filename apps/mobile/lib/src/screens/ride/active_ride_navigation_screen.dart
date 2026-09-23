@@ -10,6 +10,7 @@ import '../../api/route_planner_api.dart';
 import '../../maps/commride_navigation_map_view.dart';
 import '../../models/club_ride.dart';
 import '../../models/route_planner.dart';
+import 'ride_quick_actions_sheet.dart';
 import 'route_planner_screen.dart';
 
 class ActiveRideNavigationScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class ActiveRideNavigationScreen extends StatefulWidget {
     required this.voiceIntercomEnabled,
     required this.onOpenLiveGroup,
     required this.onOpenTracking,
+    required this.onOpenComms,
     required this.onOpenSos,
     super.key,
   });
@@ -32,6 +34,7 @@ class ActiveRideNavigationScreen extends StatefulWidget {
   final bool voiceIntercomEnabled;
   final Future<void> Function() onOpenLiveGroup;
   final Future<void> Function() onOpenTracking;
+  final Future<void> Function() onOpenComms;
   final Future<void> Function() onOpenSos;
 
   @override
@@ -131,6 +134,8 @@ class _ActiveRideNavigationScreenState
               voiceIntercomEnabled: widget.voiceIntercomEnabled,
               onOpenLiveGroup: widget.onOpenLiveGroup,
               onOpenTracking: widget.onOpenTracking,
+              onOpenComms: widget.onOpenComms,
+              onOpenQuickActions: _openQuickActions,
               onOpenSos: widget.onOpenSos,
             ),
           ],
@@ -260,6 +265,13 @@ class _ActiveRideNavigationScreenState
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _openQuickActions() {
+    return showRideQuickActionsSheet(
+      context,
+      onSend: widget.runtime.groupController.raiseQuickAction,
     );
   }
 
@@ -1181,12 +1193,16 @@ class _CommunicationDock extends StatelessWidget {
     required this.voiceIntercomEnabled,
     required this.onOpenLiveGroup,
     required this.onOpenTracking,
+    required this.onOpenComms,
+    required this.onOpenQuickActions,
     required this.onOpenSos,
   });
 
   final bool voiceIntercomEnabled;
   final Future<void> Function() onOpenLiveGroup;
   final Future<void> Function() onOpenTracking;
+  final Future<void> Function() onOpenComms;
+  final Future<void> Function() onOpenQuickActions;
   final Future<void> Function() onOpenSos;
 
   @override
@@ -1217,9 +1233,16 @@ class _CommunicationDock extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: _DockButton(
-                    icon: Icons.mic_off_outlined,
-                    label: 'Mic',
-                    onPressed: null,
+                    icon: Icons.bolt_outlined,
+                    label: 'Status',
+                    onPressed: () => unawaited(onOpenQuickActions()),
+                  ),
+                ),
+                Expanded(
+                  child: _DockButton(
+                    icon: Icons.forum_outlined,
+                    label: 'Comms',
+                    onPressed: () => unawaited(onOpenComms()),
                   ),
                 ),
                 Expanded(
