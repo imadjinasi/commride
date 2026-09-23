@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/notification_api.dart';
 import '../api/push_token_api.dart';
 import '../api/rider_profile_api.dart';
 import '../api/ride_briefing_api.dart';
@@ -31,6 +32,7 @@ class AuthGate extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    required this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -48,6 +50,7 @@ class AuthGate extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -86,6 +89,7 @@ class AuthGate extends StatelessWidget {
           rideCommsApi: rideCommsApi,
           rideSosApi: rideSosApi,
           rideRecapApi: rideRecapApi,
+          notificationApi: notificationApi,
           pushTokenApi: pushTokenApi,
           pushMessaging: pushMessaging,
           pushPlatform: pushPlatform,
@@ -108,6 +112,7 @@ class _RiderProfileGate extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    required this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -125,6 +130,7 @@ class _RiderProfileGate extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -185,6 +191,7 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           rideCommsApi: widget.rideCommsApi,
           rideSosApi: widget.rideSosApi,
           rideRecapApi: widget.rideRecapApi,
+          notificationApi: widget.notificationApi,
           pushTokenApi: widget.pushTokenApi,
           pushMessaging: widget.pushMessaging,
           pushPlatform: widget.pushPlatform,
