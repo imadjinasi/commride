@@ -69,9 +69,7 @@ class HttpNotificationApi implements NotificationApi {
   Future<void> markRead(String notificationId) async {
     final http.Response response = await _client.post(
       _apiBaseUrl.resolve(
-        '/v1/me/notifications/' +
-            Uri.encodeComponent(notificationId) +
-            '/read',
+        '/v1/me/notifications/' + Uri.encodeComponent(notificationId) + '/read',
       ),
       headers: await _headers(),
     );
@@ -81,9 +79,7 @@ class HttpNotificationApi implements NotificationApi {
 
   Future<Map<String, String>> _headers() async {
     final String token = await _authGateway.idToken();
-    return <String, String>{
-      'authorization': 'Bearer $token',
-    };
+    return <String, String>{'authorization': 'Bearer $token'};
   }
 
   Map<String, Object?> _decodeObject(http.Response response) {
