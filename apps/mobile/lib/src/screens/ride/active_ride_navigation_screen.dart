@@ -132,7 +132,6 @@ class _ActiveRideNavigationScreenState
             ),
             _CommunicationDock(
               voiceIntercomEnabled: widget.voiceIntercomEnabled,
-              onOpenLiveGroup: widget.onOpenLiveGroup,
               onOpenTracking: widget.onOpenTracking,
               onOpenComms: widget.onOpenComms,
               onOpenQuickActions: _openQuickActions,
@@ -1191,7 +1190,6 @@ class _GroupStatusBar extends StatelessWidget {
 class _CommunicationDock extends StatelessWidget {
   const _CommunicationDock({
     required this.voiceIntercomEnabled,
-    required this.onOpenLiveGroup,
     required this.onOpenTracking,
     required this.onOpenComms,
     required this.onOpenQuickActions,
@@ -1199,7 +1197,6 @@ class _CommunicationDock extends StatelessWidget {
   });
 
   final bool voiceIntercomEnabled;
-  final Future<void> Function() onOpenLiveGroup;
   final Future<void> Function() onOpenTracking;
   final Future<void> Function() onOpenComms;
   final Future<void> Function() onOpenQuickActions;
@@ -1243,13 +1240,6 @@ class _CommunicationDock extends StatelessWidget {
                     icon: Icons.forum_outlined,
                     label: 'Comms',
                     onPressed: () => unawaited(onOpenComms()),
-                  ),
-                ),
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.groups_outlined,
-                    label: 'Riders',
-                    onPressed: () => unawaited(onOpenLiveGroup()),
                   ),
                 ),
                 Expanded(
