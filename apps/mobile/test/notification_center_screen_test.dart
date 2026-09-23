@@ -78,9 +78,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: NotificationCenterScreen(
-          notificationApi: FakeNotificationApi(),
-        ),
+        home: NotificationCenterScreen(notificationApi: FakeNotificationApi()),
       ),
     );
     await tester.pumpAndSettle();
