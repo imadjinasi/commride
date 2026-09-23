@@ -121,7 +121,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Briefing belum dipublikasikan'), findsOneWidget);
+    expect(
+      find.textContaining('Briefing belum dipublikasikan'),
+      findsOneWidget,
+    );
     expect(find.text('Tetap Start Ride'), findsOneWidget);
   });
 
