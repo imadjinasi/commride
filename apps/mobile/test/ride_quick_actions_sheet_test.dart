@@ -17,10 +17,7 @@ void main() {
               body: TextButton(
                 onPressed: () => showRideQuickActionsSheet(
                   context,
-                  onSend: (
-                    LiveQuickActionKind kind, {
-                    String? reason,
-                  }) async {
+                  onSend: (LiveQuickActionKind kind, {String? reason}) async {
                     sentKind = kind;
                   },
                 ),
@@ -73,9 +70,7 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.byTooltip('Kirim Butuh Bantuan dengan alasan'),
-    );
+    await tester.tap(find.byTooltip('Kirim Butuh Bantuan dengan alasan'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'ban bocor');
     await tester.tap(find.text('Kirim'));
