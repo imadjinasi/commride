@@ -770,6 +770,9 @@ export async function handleRequest(
             overrides.ridePushNotifier ??
             resolveRidePushNotifier(env) ??
             undefined,
+          notificationRepository:
+            overrides.notificationRepository ??
+            (env.DB == null ? undefined : new D1NotificationRepository(env.DB)),
           idFactory: overrides.idFactory,
           now: overrides.now,
         },
