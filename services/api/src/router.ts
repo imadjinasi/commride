@@ -43,6 +43,14 @@ import {
 import type { Env } from './env';
 import { errorResponse, jsonResponse } from './http/json';
 import {
+  handleNotificationRequest,
+  isNotificationPath,
+} from './notifications/handler';
+import {
+  D1NotificationRepository,
+  type NotificationRepository,
+} from './notifications/repository';
+import {
   CachedTrafficIncidentProvider,
   type TrafficResponseCache,
 } from './maps/cached-traffic-provider';
@@ -132,6 +140,7 @@ export interface RouterOverrides {
   readonly rideSosRepository?: RideSosRepository;
   readonly rideRecapRepository?: RideRecapRepository;
   readonly pushRepository?: PushRepository;
+  readonly notificationRepository?: NotificationRepository;
   readonly ridePushNotifier?: RidePushNotifier;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
@@ -808,6 +817,51 @@ export async function handleRequest(
           riderRepository,
           vehicleRepository,
           idFactory: overrides.idFactory,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isNotificationPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const notificationRepository =
+        overrides.notificationRepository ??
+        (env.DB == null ? null : new D1NotificationRepository(env.DB));
+
+      if (riderRepository == null || notificationRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Notification persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleNotificationRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          notificationRepository,
+          now: overrides.now,
         },
       );
 
