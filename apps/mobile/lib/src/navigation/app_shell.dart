@@ -160,6 +160,7 @@ class _AppShellState extends State<AppShell> {
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
         rideRecapApi: widget.rideRecapApi,
+        notificationApi: widget.notificationApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
         navigationEnabled: widget.config.navigationEnabled,
