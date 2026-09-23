@@ -80,8 +80,9 @@ class HttpNotificationApi implements NotificationApi {
   }
 
   Future<Map<String, String>> _headers() async {
+    final String token = await _authGateway.idToken();
     return <String, String>{
-      'authorization': 'Bearer ' + await _authGateway.idToken(),
+      'authorization': 'Bearer $token',
     };
   }
 
