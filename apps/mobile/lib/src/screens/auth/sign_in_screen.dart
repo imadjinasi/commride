@@ -45,7 +45,8 @@ class _SignInScreenState extends State<SignInScreen> {
                       alignment: Alignment.center,
                       child: CommRideBrandImage(
                         variant: CommRideBrandVariant.primary,
-                        size: 128,
+                        width: 220,
+                        height: 96,
                       ),
                     ),
                     const SizedBox(height: 12),

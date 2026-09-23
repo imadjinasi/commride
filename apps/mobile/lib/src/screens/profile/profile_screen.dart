@@ -289,7 +289,7 @@ class _RideNotificationCard extends StatelessWidget {
         final String status = switch (state.permission) {
           RidePushPermission.authorized || RidePushPermission.provisional
               when state.registered =>
-            'Aktif untuk alert Ride penting.',
+            'Aktif untuk alert penting di perangkat.',
           RidePushPermission.authorized || RidePushPermission.provisional =>
             'Izin aktif, tetapi perangkat belum terdaftar.',
           RidePushPermission.denied =>
@@ -310,7 +310,7 @@ class _RideNotificationCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Notifikasi Ride',
+                        'Notifikasi perangkat',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
@@ -333,7 +333,7 @@ class _RideNotificationCard extends StatelessWidget {
                     label: Text(
                       state.working
                           ? 'Mengaktifkan…'
-                          : 'Aktifkan notifikasi Ride',
+                          : 'Aktifkan notifikasi perangkat',
                     ),
                   ),
                 ],

@@ -4,12 +4,14 @@ import '../../active_ride/active_ride_runtime.dart';
 
 import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
+import '../../api/notification_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/ride_comms_api.dart';
 import '../../api/ride_recap_api.dart';
 import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
+import '../notifications/notification_center_screen.dart';
 import '../ride/create_ride_screen.dart';
 import '../ride/ride_detail_screen.dart';
 
@@ -23,6 +25,7 @@ class ClubDetailScreen extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.notificationApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
     this.navigationEnabled = false,
@@ -39,6 +42,7 @@ class ClubDetailScreen extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi? notificationApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
   final bool navigationEnabled;
@@ -71,7 +75,17 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
             membership.role == ClubRole.admin);
 
     return Scaffold(
-      appBar: AppBar(title: Text(club.name)),
+      appBar: AppBar(
+        title: Text(club.name),
+        actions: <Widget>[
+          if (widget.notificationApi != null)
+            IconButton(
+              tooltip: 'Notifikasi Club',
+              onPressed: _openClubNotifications,
+              icon: const Icon(Icons.notifications_none),
+            ),
+        ],
+      ),
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               onPressed: _openCreateRide,
@@ -250,6 +264,22 @@ class _ClubDetailScreenState extends State<ClubDetailScreen> {
         });
       }
     }
+  }
+
+  void _openClubNotifications() {
+    final NotificationApi? notificationApi = widget.notificationApi;
+    if (notificationApi == null) {
+      return;
+    }
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => NotificationCenterScreen(
+          notificationApi: notificationApi,
+          clubId: _item.club.id,
+          clubName: _item.club.name,
+        ),
+      ),
+    );
   }
 
   Future<void> _openCreateRide() async {

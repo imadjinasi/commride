@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api/checkpoint_api.dart';
 import 'api/club_ride_api.dart';
+import 'api/notification_api.dart';
 import 'api/push_token_api.dart';
 import 'api/rider_profile_api.dart';
 import 'api/ride_briefing_api.dart';
@@ -31,6 +32,7 @@ class CommRideApp extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -48,6 +50,7 @@ class CommRideApp extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi? notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -75,6 +78,7 @@ class CommRideApp extends StatelessWidget {
         rideCommsApi: rideCommsApi,
         rideSosApi: rideSosApi,
         rideRecapApi: rideRecapApi,
+        notificationApi: notificationApi,
         pushTokenApi: pushTokenApi,
         pushMessaging: pushMessaging,
         pushPlatform: pushPlatform,
