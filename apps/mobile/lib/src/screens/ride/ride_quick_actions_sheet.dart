@@ -139,8 +139,7 @@ class _QuickActionTile extends StatelessWidget {
               child: const Text('Batal'),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(draft.trim()),
+              onPressed: () => Navigator.of(dialogContext).pop(draft.trim()),
               child: const Text('Kirim'),
             ),
           ],
