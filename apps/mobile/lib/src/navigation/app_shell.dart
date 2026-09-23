@@ -38,7 +38,7 @@ class AppShell extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
-    required this.notificationApi,
+    this.notificationApi,
     required this.authGateway,
     this.pushTokenApi,
     this.pushMessaging,
@@ -56,7 +56,7 @@ class AppShell extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
-  final NotificationApi notificationApi;
+  final NotificationApi? notificationApi;
   final AuthGateway authGateway;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
@@ -135,10 +135,14 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _openNotifications() {
+    final NotificationApi? notificationApi = widget.notificationApi;
+    if (notificationApi == null) {
+      return;
+    }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (BuildContext context) => NotificationCenterScreen(
-          notificationApi: widget.notificationApi,
+          notificationApi: notificationApi,
         ),
       ),
     );
