@@ -52,10 +52,7 @@ void main() {
               body: TextButton(
                 onPressed: () => showRideQuickActionsSheet(
                   context,
-                  onSend: (
-                    LiveQuickActionKind kind, {
-                    String? reason,
-                  }) async {
+                  onSend: (LiveQuickActionKind kind, {String? reason}) async {
                     sentKind = kind;
                     sentReason = reason;
                   },
