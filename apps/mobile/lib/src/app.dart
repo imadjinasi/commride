@@ -32,7 +32,7 @@ class CommRideApp extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
-    required this.notificationApi,
+    this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -50,7 +50,7 @@ class CommRideApp extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
-  final NotificationApi notificationApi;
+  final NotificationApi? notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
