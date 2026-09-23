@@ -48,3 +48,22 @@ can cover the next meaningful device pass.
 Repository implementation is not Device PASS. Background/lock-screen continuity,
 notification delivery, multi-device presence and field convoy behavior remain
 operator/device acceptance work after the next APK is installed.
+
+
+## Round 2 device findings — 23 September 2026
+
+- Password reset returned the Rider to an account state without the expected
+  history. Treat this as a blocking identity-continuity defect; password reset
+  must preserve the Firebase identity mapping and Rider history.
+- The persistent CommRide header logo is visually too small. The primary logo
+  needs a horizontal layout slot rather than a square 44 px box. The repository
+  already contains the PR #80 branding assets; any newer operator-local artwork
+  still requires an explicit asset handoff before it can be committed.
+- RoutePlan and Briefing both fail to load on the current pilot runtime.
+  Repository review shows both read paths now depend on
+  `route_plans.maneuvers_json`, introduced by migration
+  `0009_route_plan_maneuvers.sql`. Remote D1 migration state must be verified
+  and 0009 applied before classifying this as a mobile defect.
+- Add persistent in-app notification surfaces for **Account** and **Club**.
+  OS push remains an optional delivery channel; notification history must not
+  disappear merely because push permission is denied.
