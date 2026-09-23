@@ -105,9 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             return;
                           }
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Rider ID disalin.'),
-                            ),
+                            const SnackBar(content: Text('Rider ID disalin.')),
                           );
                         },
                         icon: const Icon(Icons.copy_outlined),

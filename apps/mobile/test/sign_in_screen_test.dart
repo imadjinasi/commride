@@ -44,10 +44,7 @@ void main() {
       MaterialApp(home: SignInScreen(authGateway: gateway)),
     );
 
-    await tester.enterText(
-      find.byType(TextField).first,
-      'rider@example.com',
-    );
+    await tester.enterText(find.byType(TextField).first, 'rider@example.com');
     await tester.tap(find.text('Lupa kata sandi?'));
     await tester.pumpAndSettle();
 

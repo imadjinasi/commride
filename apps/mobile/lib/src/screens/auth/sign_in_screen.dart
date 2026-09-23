@@ -155,7 +155,8 @@ class _SignInScreenState extends State<SignInScreen> {
     final String email = _emailController.text.trim();
     if (email.isEmpty) {
       setState(() {
-        _errorMessage = 'Masukkan email terlebih dahulu untuk reset kata sandi.';
+        _errorMessage =
+            'Masukkan email terlebih dahulu untuk reset kata sandi.';
       });
       return;
     }

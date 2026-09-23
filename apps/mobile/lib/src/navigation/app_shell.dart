@@ -222,7 +222,6 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-
 class _MainAppBrandHeader extends StatelessWidget {
   const _MainAppBrandHeader();
 
