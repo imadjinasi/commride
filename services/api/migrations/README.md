@@ -60,6 +60,17 @@ Primary keys are opaque application-generated TEXT IDs.
 
 The initial migration intentionally does not lock the project to a database-specific ID generator. The API layer will define the concrete ID format when the first write service is implemented.
 
+## Current ordered migrations
+
+- `0009_route_plan_maneuvers.sql` adds persisted provider-neutral maneuver data
+  required by current RoutePlan and Briefing reads.
+- `0010_notification_inbox.sql` adds persistent Rider notification history for
+  Account and Club scopes. OS push permission and FCM delivery are not required
+  to read this inbox.
+
+Remote environments must apply migrations in order before deploying code that
+reads the corresponding columns or tables.
+
 ## Local validation
 
 Once Wrangler/D1 is available:
