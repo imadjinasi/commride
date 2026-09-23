@@ -4,6 +4,7 @@ import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
 import type { RiderRepository } from '../riders/rider-repository';
 import type { RidePushNotifier } from '../push/notifier';
+import type { NotificationRepository } from '../notifications/repository';
 import type { RoutePlanRepository } from '../route-plans/repository';
 import type {
   PublishRideBriefingInput,
@@ -18,6 +19,7 @@ export interface RideBriefingHandlerDependencies {
   readonly routePlanRepository: RoutePlanRepository;
   readonly rideBriefingRepository: RideBriefingRepository;
   readonly pushNotifier?: RidePushNotifier;
+  readonly notificationRepository?: NotificationRepository;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -207,6 +209,14 @@ export async function handleRideBriefingRequest(
       ride.title,
       dependencies,
     );
+    await persistBriefingNotificationBestEffort(
+      view.briefing.id,
+      ride.clubId,
+      path.rideId,
+      rider.id,
+      ride.title,
+      dependencies,
+    );
 
     return jsonResponse({ briefingView: view }, 200, requestId);
   }
@@ -270,6 +280,44 @@ export async function handleRideBriefingRequest(
   }
 
   return jsonResponse({ briefingView: view }, 200, requestId);
+}
+
+async function persistBriefingNotificationBestEffort(
+  briefingId: string,
+  clubId: string,
+  rideId: string,
+  leaderRiderId: string,
+  rideTitle: string,
+  dependencies: RideBriefingHandlerDependencies,
+): Promise<void> {
+  const repository = dependencies.notificationRepository;
+  if (repository == null) {
+    return;
+  }
+  try {
+    await repository.createForRideParticipants(
+      rideId,
+      {
+        eventKey: `briefing:${briefingId}`,
+        scope: 'club',
+        clubId,
+        rideId,
+        kind: 'briefing_published',
+        title: 'Briefing diperbarui',
+        body: `${rideTitle}: Briefing terbaru siap dibaca.`,
+        data: {
+          type: 'ride.briefing_published',
+          clubId,
+          rideId,
+          briefingId,
+        },
+        createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
+      },
+      { excludeRiderId: leaderRiderId },
+    );
+  } catch {
+    // Briefing publication remains authoritative if inbox persistence fails.
+  }
 }
 
 async function notifyBriefingBestEffort(
