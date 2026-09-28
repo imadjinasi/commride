@@ -131,6 +131,14 @@ class RideSosController extends ChangeNotifier {
   }
 
   Future<void> raise(String? reason) {
+    final FailedRideSosRaise? failed = _state.failedRaise;
+    if (failed != null) {
+      return _raise(
+        clientCommandId: failed.clientCommandId,
+        reason: failed.reason,
+      );
+    }
+
     final String? normalized = _normalizeReason(reason);
     return _raise(
       clientCommandId: _clientCommandIdFactory(),
