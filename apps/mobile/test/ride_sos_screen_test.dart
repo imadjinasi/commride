@@ -4,6 +4,7 @@ import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/ride_sos.dart';
 import 'package:commride_mobile/src/screens/ride/ride_sos_screen.dart';
 import 'package:commride_mobile/src/theme/commride_theme.dart';
+import 'package:commride_mobile/src/widgets/sos_hold_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -60,6 +61,7 @@ class FakeRideSosApi implements RideSosApi {
   int raises = 0;
   int cancels = 0;
   int resolves = 0;
+  bool failNextRaise = false;
 
   @override
   Future<List<RideSos>> fetchSos(String rideId) async => items;
@@ -71,6 +73,10 @@ class FakeRideSosApi implements RideSosApi {
     required String? reason,
   }) async {
     raises += 1;
+    if (failNextRaise) {
+      failNextRaise = false;
+      throw Exception('network unavailable');
+    }
     final RideSos created = RideSos(
       id: 'sos-created',
       rideId: rideId,
@@ -160,7 +166,7 @@ Widget buildScreen({
 }
 
 void main() {
-  testWidgets('Rider confirms SOS and no GPS does not block activation', (
+  testWidgets('Rider holds SOS and no GPS does not block activation', (
     WidgetTester tester,
   ) async {
     final FakeRideSosApi api = FakeRideSosApi();
@@ -170,20 +176,51 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Aktifkan SOS'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Aktifkan SOS?'), findsOneWidget);
     expect(
-      find.textContaining('tidak otomatis menghubungi ambulans'),
+      find.textContaining('tidak menghubungi ambulans'),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Kirim SOS'));
+    final Finder hold = find.byType(SosHoldButton);
+    final TestGesture gesture = await tester.startGesture(
+      tester.getCenter(hold),
+    );
+    await tester.pump(const Duration(seconds: 3, milliseconds: 100));
+    await gesture.up();
     await tester.pumpAndSettle();
 
     expect(api.raises, 1);
     expect(find.textContaining('SOS tetap aktif tanpa GPS'), findsOneWidget);
+    expect(find.text('Batalkan SOS'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('failed SOS exposes retry and retry succeeds', (
+    WidgetTester tester,
+  ) async {
+    final FakeRideSosApi api = FakeRideSosApi()..failNextRaise = true;
+
+    await tester.pumpWidget(
+      buildScreen(status: RideStatus.active, role: RideRole.member, api: api),
+    );
+    await tester.pumpAndSettle();
+
+    final Finder hold = find.byType(SosHoldButton);
+    final TestGesture gesture = await tester.startGesture(
+      tester.getCenter(hold),
+    );
+    await tester.pump(const Duration(seconds: 3, milliseconds: 100));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(api.raises, 1);
+    expect(find.text('Kirim ulang'), findsOneWidget);
+
+    await tester.tap(find.text('Kirim ulang'));
+    await tester.pumpAndSettle();
+
+    expect(api.raises, 2);
     expect(find.text('Batalkan SOS'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
