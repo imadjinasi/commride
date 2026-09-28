@@ -68,7 +68,7 @@ class RideNotificationsScreen extends StatelessWidget {
                 CommRideSpacing.xl,
               ),
               itemCount: items.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(height: CommRideSpacing.xs),
               itemBuilder: (BuildContext context, int index) {
                 final RideNotificationEntry item = items[index];
