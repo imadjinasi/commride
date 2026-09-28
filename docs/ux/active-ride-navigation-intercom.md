@@ -30,12 +30,22 @@ offline observation stays visibly stale/offline and is never animated as live.
 Routine use must not require switching to a separate map solely to see the
 convoy.
 
-### Bottom — communication dock
-Primary controls:
-- **Mic On / Mic Off**;
-- group listening/output state;
-- Riders/participants sheet;
+### Bottom — riding dock
+The dock contains only actions that are appropriate while moving:
+- **Interkom** control when a verified media provider is available;
+- **Status cepat** for Saya Berhenti, Saya Tertinggal and Butuh Bantuan;
+- **Rombongan** / participant state;
 - deliberate **SOS**.
+
+SOS is always visible and uses the critical-red treatment. Activation is a
+continuous **press-and-hold for 3 seconds**. The control shows hold progress;
+releasing early cancels with no request. At 3 seconds CommRide sends through the
+existing SOS controller/API immediately without first opening a page, dialog or
+reason form. GPS availability never blocks the request. Sending, active/sent and
+retryable failure state remain visible on the navigation surface.
+
+Text Comms, tracking settings, Route Planner, Search Along Route, Add Stop and
+RoutePlan editing live in secondary surfaces rather than the riding dock.
 
 PTT can be selected as an alternate voice mode. It is not the default.
 
@@ -87,8 +97,8 @@ real-device acceptance and cannot be guaranteed uniformly in repository tests.
 
 SOS is a deliberate Ride-internal alert, not public-emergency dispatch.
 
-After deliberate activation:
-- persist the existing SOS incident;
+After the 3-second hold completes:
+- persist the existing SOS incident using the existing idempotent command flow;
 - highlight the Rider and last trusted position/freshness;
 - send a high-priority Ride audio alert, for example
   “SOS — <callsign> — <vehicle>”;
@@ -221,19 +231,19 @@ Repository PASS is not Provider PASS or Device PASS.
 
 ## Route changes while moving
 
-Leader and Navigator should not have to abandon the Active Ride context just to
-perform a routine route change.
+Route editing is secondary to riding. It must not occupy the bottom dock or
+compete with maneuver, group, Quick Action or SOS controls.
 
-The navigation surface exposes a compact Route action sheet with:
+Leader/Navigator can deliberately open the secondary Route action surface for:
 - **Tambah Stop**;
 - **Cari sepanjang rute**;
 - **Kelola RoutePlan lengkap**.
 
-The quick actions open the existing Route Planner with the requested action
-already selected. Guidance remains the operational context, but a changed route
-is never applied merely because a place was selected. The user must save the
-new RoutePlan revision; only then can connected Riders fetch and apply the new
-authoritative plan.
+These actions open the existing Route Planner with the requested action already
+selected. Guidance remains authoritative while the candidate is reviewed. A
+changed route is never applied merely because a place was selected or because
+GPS deviated. The user must review and explicitly save the new RoutePlan
+revision; only then can connected Riders fetch and apply the new authoritative
+plan.
 
-This keeps the interaction close to familiar navigation products while
-preserving CommRide's explicit shared-route revision model.
+Member/Sweeper do not receive shared-route replacement authority.
