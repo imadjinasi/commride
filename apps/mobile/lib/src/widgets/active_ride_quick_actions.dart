@@ -30,9 +30,7 @@ class ActiveRideQuickActionsSheet extends StatelessWidget {
           children: <Widget>[
             Text('Status cepat', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: CommRideSpacing.xxs),
-            const Text(
-              'Pilih kondisi. Keterangan tambahan bersifat opsional.',
-            ),
+            const Text('Pilih kondisi. Keterangan tambahan bersifat opsional.'),
             const SizedBox(height: CommRideSpacing.sm),
             _QuickActionTile(
               kind: LiveQuickActionKind.stopping,
