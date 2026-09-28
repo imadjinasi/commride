@@ -196,8 +196,7 @@ class _ActiveRideNavigationScreenState
               padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
+                  children: <Widget>[
                   const Icon(Icons.navigation_outlined, size: 42),
                   const SizedBox(height: 12),
                   Text(
