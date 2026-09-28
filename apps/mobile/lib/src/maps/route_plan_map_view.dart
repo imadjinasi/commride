@@ -183,8 +183,7 @@ class _NativeRoutePlanMapState extends State<_NativeRoutePlanMap> {
                   },
                   onStyleLoadedCallback: () => unawaited(_initialize()),
                 ),
-                if (!_ready)
-                  const Center(child: CircularProgressIndicator()),
+                if (!_ready) const Center(child: CircularProgressIndicator()),
               ],
             ),
           ),
