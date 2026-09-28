@@ -138,7 +138,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
           animation: _progress,
           builder: (BuildContext context, Widget? child) {
             final int secondsLeft =
-                ((1 - _progress.value) * 3).ceil().clamp(1, 3) as int;
+                ((1 - _progress.value) * 3).ceil().clamp(1, 3);
             return ConstrainedBox(
               constraints: const BoxConstraints(
                 minHeight: CommRideTargets.sos,
