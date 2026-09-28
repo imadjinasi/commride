@@ -42,6 +42,7 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "ride_location_samples",
         "rider_push_tokens",
         "push_notification_events",
+        "rider_notification_events",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -854,6 +855,46 @@ def assert_push_notification_invariants(
         pass
     else:
         raise AssertionError("Duplicate push event dedupe key was accepted")
+
+
+    connection.execute(
+        """
+        INSERT INTO rider_notification_events(
+          event_key,
+          rider_id,
+          kind,
+          created_at
+        ) VALUES (?, ?, ?, ?)
+        """,
+        (
+            "club-invite:club-1:rider-1:member",
+            "rider-1",
+            "club_invitation",
+            "2026-09-18T10:24:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            """
+            INSERT INTO rider_notification_events(
+              event_key,
+              rider_id,
+              kind,
+              created_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (
+                "club-invite:club-1:rider-1:member",
+                "rider-1",
+                "club_invitation",
+                "2026-09-18T10:25:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate Rider notification key was accepted")
 
 
 def main() -> None:
