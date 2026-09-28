@@ -133,22 +133,23 @@ class _ActiveRideNavigationScreenState
                 unawaited(widget.onOpenSos());
               }
             },
-            itemBuilder: (BuildContext context) => const <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'tracking',
-                child: ListTile(
-                  leading: Icon(Icons.my_location),
-                  title: Text('Pengaturan tracking'),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'sos-detail',
-                child: ListTile(
-                  leading: Icon(Icons.sos_outlined),
-                  title: Text('Detail SOS'),
-                ),
-              ),
-            ],
+            itemBuilder: (BuildContext context) =>
+                const <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'tracking',
+                    child: ListTile(
+                      leading: Icon(Icons.my_location),
+                      title: Text('Pengaturan tracking'),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'sos-detail',
+                    child: ListTile(
+                      leading: Icon(Icons.sos_outlined),
+                      title: Text('Detail SOS'),
+                    ),
+                  ),
+                ],
           ),
         ],
       ),
@@ -196,7 +197,7 @@ class _ActiveRideNavigationScreenState
               padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
+                children: <Widget>[
                   const Icon(Icons.navigation_outlined, size: 42),
                   const SizedBox(height: 12),
                   Text(
@@ -1254,10 +1255,7 @@ class _GroupStatusBar extends StatelessWidget {
             Text('$total Rider'),
             Text('$live Live'),
             if (stale > 0)
-              _AttentionLabel(
-                icon: Icons.schedule,
-                label: '$stale Stale',
-              ),
+              _AttentionLabel(icon: Icons.schedule, label: '$stale Stale'),
             if (offline > 0)
               _AttentionLabel(
                 icon: Icons.location_off_outlined,
@@ -1486,11 +1484,7 @@ class _DockButton extends StatelessWidget {
         children: <Widget>[
           Icon(icon, size: 28),
           const SizedBox(height: CommRideSpacing.xxs),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-          ),
+          Text(label, textAlign: TextAlign.center, maxLines: 2),
         ],
       ),
     );
