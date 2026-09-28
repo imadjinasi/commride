@@ -82,6 +82,7 @@ class _ActiveRideCommandCenterScreenState
                 membership: widget.membership,
                 runtime: runtime,
                 routePlannerApi: widget.routePlannerApi,
+                rideSosApi: widget.rideSosApi,
                 voiceIntercomEnabled: widget.voiceIntercomEnabled,
                 onOpenLiveGroup: () => _openLiveGroup(runtime),
                 onOpenTracking: () => _openTracking(runtime),
