@@ -1,4 +1,5 @@
 import 'package:commride_mobile/src/api/route_planner_api.dart';
+import 'package:commride_mobile/src/maps/route_plan_map_view.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/screens/ride/route_planner_screen.dart';
 import 'package:commride_mobile/src/theme/commride_theme.dart';
@@ -126,6 +127,24 @@ void main() {
     expect(find.text('RoutePlan revision 3'), findsOneWidget);
     expect(find.text('130 km · 2 j 30 mnt'), findsOneWidget);
     expect(find.text('Fuel One'), findsOneWidget);
+    expect(find.text('Atur Ride plan'), findsOneWidget);
+    expect(find.byType(RoutePlanMapView), findsOneWidget);
+    expect(find.text('Simpan RoutePlan'), findsNothing);
+  });
+
+  testWidgets('new plan starts with endpoint stage instead of all controls', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPlanner(
+        api: FakeRoutePlannerApi(plan: null),
+        canEdit: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pilih titik & mode'), findsOneWidget);
+    expect(find.text('Atur Ride plan'), findsNothing);
     expect(find.text('Simpan RoutePlan'), findsNothing);
   });
 
