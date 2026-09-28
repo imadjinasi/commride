@@ -49,29 +49,32 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       rides.addAll(
         clubRides.map(
-          (RideListItem ride) =>
-              _RideWithClub(club: club, rideItem: ride),
+          (RideListItem ride) => _RideWithClub(club: club, rideItem: ride),
         ),
       );
     }
 
     final List<_RideWithClub> active = rides
-        .where((_RideWithClub item) => item.rideItem.ride.status == RideStatus.active)
-        .toList(growable: false);
-    final List<_RideWithClub> upcoming = rides
         .where(
           (_RideWithClub item) =>
-              item.rideItem.ride.status == RideStatus.published,
+              item.rideItem.ride.status == RideStatus.active,
         )
-        .toList()
-      ..sort((_RideWithClub a, _RideWithClub b) {
-        final DateTime? left = a.rideItem.ride.scheduledStartAt;
-        final DateTime? right = b.rideItem.ride.scheduledStartAt;
-        if (left == null && right == null) return 0;
-        if (left == null) return 1;
-        if (right == null) return -1;
-        return left.compareTo(right);
-      });
+        .toList(growable: false);
+    final List<_RideWithClub> upcoming =
+        rides
+            .where(
+              (_RideWithClub item) =>
+                  item.rideItem.ride.status == RideStatus.published,
+            )
+            .toList()
+          ..sort((_RideWithClub a, _RideWithClub b) {
+            final DateTime? left = a.rideItem.ride.scheduledStartAt;
+            final DateTime? right = b.rideItem.ride.scheduledStartAt;
+            if (left == null && right == null) return 0;
+            if (left == null) return 1;
+            if (right == null) return -1;
+            return left.compareTo(right);
+          });
 
     final List<ClubListItem> clubInvites = clubs
         .where(
@@ -82,8 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<_RideWithClub> rideInvites = rides
         .where(
           (_RideWithClub item) =>
-              item.rideItem.membership?.status ==
-              RideMembershipStatus.invited,
+              item.rideItem.membership?.status == RideMembershipStatus.invited,
         )
         .toList(growable: false);
 
@@ -170,9 +172,12 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _RideWithClub? active = data.active.isEmpty ? null : data.active.first;
-    final _RideWithClub? upcoming =
-        data.upcoming.isEmpty ? null : data.upcoming.first;
+    final _RideWithClub? active = data.active.isEmpty
+        ? null
+        : data.active.first;
+    final _RideWithClub? upcoming = data.upcoming.isEmpty
+        ? null
+        : data.upcoming.first;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -204,7 +209,10 @@ class _HomeContent extends StatelessWidget {
           ),
           const SizedBox(height: CommRideSpacing.md),
         ],
-        Text('Undangan & perhatian', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'Undangan & perhatian',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: CommRideSpacing.xs),
         if (data.clubInvites.isEmpty && data.rideInvites.isEmpty)
           const _QuietCard(
@@ -217,7 +225,9 @@ class _HomeContent extends StatelessWidget {
               child: ListTile(
                 leading: const Icon(Icons.groups_outlined),
                 title: Text('Undangan Club · ${item.club.name}'),
-                subtitle: const Text('Buka Club untuk melihat detail undangan.'),
+                subtitle: const Text(
+                  'Buka Club untuk melihat detail undangan.',
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => onOpenClub(item),
               ),
@@ -315,16 +325,16 @@ class _PriorityRideCard extends StatelessWidget {
                     const SizedBox(height: CommRideSpacing.xxs),
                     Text(
                       item.rideItem.ride.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: foreground,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: foreground),
                     ),
                     const SizedBox(height: CommRideSpacing.xxs),
                     Text(
                       _rideMeta(item),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: foreground,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: foreground),
                     ),
                   ],
                 ),
