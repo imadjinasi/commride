@@ -88,16 +88,16 @@ class RideNotificationsScreen extends StatelessWidget {
                           ? item.message.title!.trim()
                           : 'Notifikasi CommRide',
                       style: TextStyle(
-                        fontWeight:
-                            item.read ? FontWeight.w600 : FontWeight.w800,
+                        fontWeight: item.read
+                            ? FontWeight.w600
+                            : FontWeight.w800,
                       ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        if (item.message.body?.trim().isNotEmpty == true) ...<
-                          Widget
-                        >[
+                        if (item.message.body?.trim().isNotEmpty ==
+                            true) ...<Widget>[
                           const SizedBox(height: CommRideSpacing.xxs),
                           Text(item.message.body!.trim()),
                         ],
