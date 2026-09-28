@@ -76,8 +76,9 @@ void main() {
     );
 
     expect(
-      materials.any((Material material) =>
-          material.color == CommRideColors.criticalRed),
+      materials.any(
+        (Material material) => material.color == CommRideColors.criticalRed,
+      ),
       isTrue,
     );
   });
