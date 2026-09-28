@@ -14,6 +14,7 @@ import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
 import '../auth/auth_gateway.dart';
 import '../config/app_config.dart';
+import '../models/club_ride.dart';
 import '../models/rider_profile.dart';
 import '../push/ride_push_controller.dart';
 import '../push/ride_push_messaging.dart';
