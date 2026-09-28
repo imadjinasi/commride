@@ -1366,32 +1366,34 @@ class _CommunicationDock extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(Icons.headset_mic_outlined, size: 18),
-                const SizedBox(width: CommRideSpacing.xs),
-                Expanded(
-                  child: Text(
-                    voiceIntercomEnabled
-                        ? 'Group Intercom · media belum terhubung'
-                        : 'Group Intercom · belum tersedia',
-                    style: Theme.of(context).textTheme.labelMedium,
+            if (voiceIntercomEnabled) ...<Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.headset_mic_outlined, size: 18),
+                  const SizedBox(width: CommRideSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Group Intercom · media belum terhubung',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: CommRideSpacing.xs),
+                ],
+              ),
+              const SizedBox(height: CommRideSpacing.xs),
+            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.mic_none_outlined,
-                    label: 'Interkom',
-                    onPressed: null,
+                if (voiceIntercomEnabled) ...<Widget>[
+                  Expanded(
+                    child: _DockButton(
+                      icon: Icons.mic_none_outlined,
+                      label: 'Interkom',
+                      onPressed: null,
+                    ),
                   ),
-                ),
-                const SizedBox(width: CommRideSpacing.xxs),
+                  const SizedBox(width: CommRideSpacing.xxs),
+                ],
                 Expanded(
                   child: _DockButton(
                     icon: Icons.bolt_outlined,
