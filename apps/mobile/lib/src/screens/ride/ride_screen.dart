@@ -309,7 +309,10 @@ class _CreateRideCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Rencanakan Ride', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Rencanakan Ride',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 6),
             Text(
               'Buat Ride lalu susun rute, Stop, dan Checkpoint dari '
