@@ -89,7 +89,8 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     }
 
     final RouteOption? selectedRoute = _selectedRoute;
-    final List<RouteOption> mapRoutes = _routeOptions.isEmpty && selectedRoute != null
+    final List<RouteOption> mapRoutes =
+        _routeOptions.isEmpty && selectedRoute != null
         ? <RouteOption>[selectedRoute]
         : _routeOptions;
 
@@ -113,9 +114,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<RouteTravelMode>(
               initialValue: _travelMode,
-              decoration: const InputDecoration(
-                labelText: 'Mode perjalanan',
-              ),
+              decoration: const InputDecoration(labelText: 'Mode perjalanan'),
               items: RouteTravelMode.values
                   .map(
                     (RouteTravelMode mode) => DropdownMenuItem<RouteTravelMode>(
@@ -171,9 +170,9 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
             enabled: widget.canEdit && !_working,
             onTap: () => _chooseEndpoint(isOrigin: false),
           ),
-          if (widget.canEdit && _origin != null && _destination != null) ...<
-            Widget
-          >[
+          if (widget.canEdit &&
+              _origin != null &&
+              _destination != null) ...<Widget>[
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _working ? null : _computeInitialRoutes,
