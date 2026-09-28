@@ -19,6 +19,17 @@ export interface PushRepository {
     },
   ): Promise<readonly RiderPushToken[]>;
 
+  listRiderTokens?(
+    riderId: string,
+  ): Promise<readonly RiderPushToken[]>;
+
+  claimRiderEvent?(input: {
+    readonly eventKey: string;
+    readonly riderId: string;
+    readonly kind: string;
+    readonly createdAt: string;
+  }): Promise<boolean>;
+
   claimEvent(input: {
     readonly eventKey: string;
     readonly rideId: string;
@@ -142,6 +153,53 @@ export class D1PushRepository implements PushRepository {
       .all<PushTokenRow>();
 
     return rows.results.map(mapToken);
+  }
+
+  async listRiderTokens(
+    riderId: string,
+  ): Promise<readonly RiderPushToken[]> {
+    const rows = await this.database
+      .prepare(
+        `
+        SELECT id, rider_id, token, platform, created_at, updated_at
+        FROM rider_push_tokens
+        WHERE rider_id = ?
+        ORDER BY updated_at DESC, id
+        `,
+      )
+      .bind(riderId)
+      .all<PushTokenRow>();
+
+    return rows.results.map(mapToken);
+  }
+
+  async claimRiderEvent(input: {
+    readonly eventKey: string;
+    readonly riderId: string;
+    readonly kind: string;
+    readonly createdAt: string;
+  }): Promise<boolean> {
+    const result = await this.database
+      .prepare(
+        `
+        INSERT INTO rider_notification_events(
+          event_key,
+          rider_id,
+          kind,
+          created_at
+        ) VALUES (?, ?, ?, ?)
+        ON CONFLICT(event_key) DO NOTHING
+        `,
+      )
+      .bind(
+        input.eventKey,
+        input.riderId,
+        input.kind,
+        input.createdAt,
+      )
+      .run();
+
+    return (result.meta.changes ?? 0) > 0;
   }
 
   async claimEvent(input: {
