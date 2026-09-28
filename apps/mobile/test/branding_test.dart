@@ -43,9 +43,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: CommRideHeaderBrand()),
-      ),
+      const MaterialApp(home: Scaffold(body: CommRideHeaderBrand())),
     );
 
     expect(
