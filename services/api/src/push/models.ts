@@ -20,6 +20,15 @@ export interface RidePushMessage {
   readonly leaderOnly?: boolean;
 }
 
+export interface RiderPushMessage {
+  readonly eventKey: string;
+  readonly riderId: string;
+  readonly kind: string;
+  readonly title: string;
+  readonly body: string;
+  readonly data: Readonly<Record<string, string>>;
+}
+
 export interface PushDeliveryResult {
   readonly delivered: number;
   readonly failed: number;
