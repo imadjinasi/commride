@@ -176,10 +176,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('tidak menghubungi ambulans'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('tidak menghubungi ambulans'), findsOneWidget);
 
     final Finder hold = find.byType(SosHoldButton);
     final TestGesture gesture = await tester.startGesture(
