@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
+import '../active_ride/commride_navigation_engine.dart';
 import '../config/app_config.dart';
 import '../models/route_planner.dart';
 import 'map_style_scope.dart';
