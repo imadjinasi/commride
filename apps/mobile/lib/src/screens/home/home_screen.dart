@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
         future: _future,
         builder: (BuildContext context, AsyncSnapshot<_HomeData> snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const ListView(
+            return ListView(
               physics: AlwaysScrollableScrollPhysics(),
               children: <Widget>[
                 SizedBox(height: 180),
