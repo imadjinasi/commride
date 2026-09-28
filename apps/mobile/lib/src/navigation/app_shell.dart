@@ -119,8 +119,9 @@ class _AppShellState extends State<AppShell> {
       return;
     }
     final RidePushState state = controller.state;
-    final RideNotificationEntry? notification =
-        state.notifications.isEmpty ? null : state.notifications.first;
+    final RideNotificationEntry? notification = state.notifications.isEmpty
+        ? null
+        : state.notifications.first;
     if (notification == null ||
         notification.id == _shownForegroundNotificationId) {
       return;
@@ -204,9 +205,7 @@ class _AppShellState extends State<AppShell> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tujuan notifikasi belum dapat dibuka.'),
-        ),
+        const SnackBar(content: Text('Tujuan notifikasi belum dapat dibuka.')),
       );
     }
   }
@@ -403,10 +402,12 @@ class _MainAppBrandHeader extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            const Expanded(child: Align(
-              alignment: Alignment.centerLeft,
-              child: CommRideHeaderBrand(),
-            )),
+            const Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: CommRideHeaderBrand(),
+              ),
+            ),
             if (ridePushController == null)
               IconButton(
                 tooltip: 'Notifikasi',
