@@ -4,12 +4,17 @@ import 'package:flutter/material.dart';
 
 import '../../active_ride/active_ride_runtime.dart';
 import '../../active_ride/commride_navigation_engine.dart';
+import '../../active_ride/ride_sos_controller.dart';
 import '../../active_ride/location_provider.dart';
 import '../../active_ride/realtime_client.dart';
+import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../maps/commride_navigation_map_view.dart';
 import '../../models/club_ride.dart';
 import '../../models/route_planner.dart';
+import '../../theme/commride_theme.dart';
+import '../../widgets/active_ride_quick_actions.dart';
+import '../../widgets/sos_hold_button.dart';
 import 'route_planner_screen.dart';
 
 class ActiveRideNavigationScreen extends StatefulWidget {
@@ -18,6 +23,7 @@ class ActiveRideNavigationScreen extends StatefulWidget {
     required this.membership,
     required this.runtime,
     required this.routePlannerApi,
+    required this.rideSosApi,
     required this.voiceIntercomEnabled,
     required this.onOpenLiveGroup,
     required this.onOpenTracking,
@@ -29,6 +35,7 @@ class ActiveRideNavigationScreen extends StatefulWidget {
   final RideMembership membership;
   final ActiveRideRuntime runtime;
   final RoutePlannerApi routePlannerApi;
+  final RideSosApi rideSosApi;
   final bool voiceIntercomEnabled;
   final Future<void> Function() onOpenLiveGroup;
   final Future<void> Function() onOpenTracking;
@@ -63,6 +70,7 @@ class _ActiveRideNavigationScreenState
   StreamSubscription<ActiveRideRealtimeEvent>? _realtimeSubscription;
   String? _error;
   String? _guidanceNotice;
+  late final RideSosController _sosController;
 
   bool get _canManageRoute =>
       widget.membership.role == RideRole.leader ||
@@ -71,6 +79,14 @@ class _ActiveRideNavigationScreenState
   @override
   void initState() {
     super.initState();
+    _sosController = RideSosController(
+      rideId: widget.ride.id,
+      api: widget.rideSosApi,
+      realtimeClient: widget.runtime.realtimeClient,
+    );
+    _sosController.addListener(_onSosChanged);
+    _sosController.start();
+    unawaited(_sosController.load());
     widget.runtime.groupController.addListener(_onGroupChanged);
     widget.runtime.locationSession.addListener(_onLocationChanged);
     _realtimeSubscription = widget.runtime.realtimeClient.events.listen(
@@ -80,6 +96,8 @@ class _ActiveRideNavigationScreenState
 
   @override
   void dispose() {
+    _sosController.removeListener(_onSosChanged);
+    _sosController.dispose();
     widget.runtime.groupController.removeListener(_onGroupChanged);
     widget.runtime.locationSession.removeListener(_onLocationChanged);
     _trafficRefreshTimer?.cancel();
@@ -91,6 +109,7 @@ class _ActiveRideNavigationScreenState
   Widget build(BuildContext context) {
     final groupState = widget.runtime.groupController.state;
     final counts = groupState.counts(DateTime.now());
+    final RideSosViewState sosState = _sosController.state;
 
     return Scaffold(
       appBar: AppBar(
@@ -105,10 +124,32 @@ class _ActiveRideNavigationScreenState
                   : _showRouteActions,
               icon: const Icon(Icons.alt_route),
             ),
-          IconButton(
-            tooltip: 'Live Group',
-            onPressed: () => unawaited(widget.onOpenLiveGroup()),
-            icon: const Icon(Icons.groups_outlined),
+          PopupMenuButton<String>(
+            tooltip: 'Aksi sekunder',
+            onSelected: (String value) {
+              if (value == 'tracking') {
+                unawaited(widget.onOpenTracking());
+              } else if (value == 'sos-detail') {
+                unawaited(widget.onOpenSos());
+              }
+            },
+            itemBuilder: (BuildContext context) =>
+                const <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'tracking',
+                    child: ListTile(
+                      leading: Icon(Icons.my_location),
+                      title: Text('Pengaturan tracking'),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'sos-detail',
+                    child: ListTile(
+                      leading: Icon(Icons.sos_outlined),
+                      title: Text('Detail SOS'),
+                    ),
+                  ),
+                ],
           ),
         ],
       ),
@@ -129,8 +170,14 @@ class _ActiveRideNavigationScreenState
             ),
             _CommunicationDock(
               voiceIntercomEnabled: widget.voiceIntercomEnabled,
+              sosState: sosState,
+              hasOwnActiveSos: sosState.activeItems.any(
+                (item) => item.riderId == widget.membership.riderId,
+              ),
+              onQuickActions: _showQuickActions,
               onOpenLiveGroup: widget.onOpenLiveGroup,
-              onOpenTracking: widget.onOpenTracking,
+              onRaiseSos: _raiseSos,
+              onRetrySos: _retrySos,
               onOpenSos: widget.onOpenSos,
             ),
           ],
@@ -150,7 +197,6 @@ class _ActiveRideNavigationScreenState
               padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   const Icon(Icons.navigation_outlined, size: 42),
                   const SizedBox(height: 12),
@@ -895,6 +941,35 @@ class _ActiveRideNavigationScreenState
     return result ?? false;
   }
 
+  void _onSosChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _showQuickActions() async {
+    await showActiveRideQuickActions(
+      context: context,
+      controller: widget.runtime.groupController,
+    );
+  }
+
+  Future<void> _raiseSos() async {
+    try {
+      await _sosController.raise(null);
+    } catch (_) {
+      // Controller retains the same idempotency key for an explicit retry.
+    }
+  }
+
+  Future<void> _retrySos() async {
+    try {
+      await _sosController.retryFailedRaise();
+    } catch (_) {
+      // Visible retry state remains until the request succeeds.
+    }
+  }
+
   void _setPreparationError(String message) {
     if (!mounted) return;
     setState(() {
@@ -1152,25 +1227,94 @@ class _GroupStatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int total = live + stale + offline;
-    final String roleLabel = role.label;
-    final String staleLabel = stale > 0 ? ' · $stale Stale' : '';
-    final String offlineLabel = offline > 0 ? ' · $offline Offline' : '';
+    final bool attention = stale > 0 || offline > 0 || !connected;
+
     return Material(
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(
+          CommRideSpacing.md,
+          CommRideSpacing.xs,
+          CommRideSpacing.md,
+          CommRideSpacing.sm,
+        ),
+        child: Wrap(
+          spacing: CommRideSpacing.xs,
+          runSpacing: CommRideSpacing.xxs,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
-            Icon(connected ? Icons.wifi : Icons.wifi_off, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '$roleLabel · $total Rider · $live Live$staleLabel$offlineLabel',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+            Icon(
+              connected ? Icons.wifi : Icons.wifi_off,
+              size: 18,
+              semanticLabel: connected ? 'Terhubung' : 'Koneksi terputus',
             ),
+            Text(
+              role.label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            Text('$total Rider'),
+            Text('$live Live'),
+            if (stale > 0)
+              _AttentionLabel(icon: Icons.schedule, label: '$stale Stale'),
+            if (offline > 0)
+              _AttentionLabel(
+                icon: Icons.location_off_outlined,
+                label: '$offline Offline',
+              ),
+            if (!connected)
+              const _AttentionLabel(
+                icon: Icons.link_off,
+                label: 'Realtime terputus',
+              ),
+            if (!attention && connected)
+              const _AttentionLabel(
+                icon: Icons.check_circle_outline,
+                label: 'Rombongan normal',
+                neutral: true,
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AttentionLabel extends StatelessWidget {
+  const _AttentionLabel({
+    required this.icon,
+    required this.label,
+    this.neutral = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool neutral;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: label,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(
+            icon,
+            size: 16,
+            color: neutral
+                ? Theme.of(context).colorScheme.onSurface
+                : Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(width: CommRideSpacing.xxs),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: neutral
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.error,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1179,72 +1323,134 @@ class _GroupStatusBar extends StatelessWidget {
 class _CommunicationDock extends StatelessWidget {
   const _CommunicationDock({
     required this.voiceIntercomEnabled,
+    required this.sosState,
+    required this.hasOwnActiveSos,
+    required this.onQuickActions,
     required this.onOpenLiveGroup,
-    required this.onOpenTracking,
+    required this.onRaiseSos,
+    required this.onRetrySos,
     required this.onOpenSos,
   });
 
   final bool voiceIntercomEnabled;
+  final RideSosViewState sosState;
+  final bool hasOwnActiveSos;
+  final Future<void> Function() onQuickActions;
   final Future<void> Function() onOpenLiveGroup;
-  final Future<void> Function() onOpenTracking;
+  final Future<void> Function() onRaiseSos;
+  final Future<void> Function() onRetrySos;
   final Future<void> Function() onOpenSos;
 
   @override
   Widget build(BuildContext context) {
+    final bool failed = sosState.failedRaise != null;
+    final String sosStatus = hasOwnActiveSos
+        ? 'SOS aktif · rombongan sudah diberi tahu'
+        : sosState.working
+        ? 'Mengirim SOS…'
+        : failed
+        ? 'SOS gagal dikirim'
+        : 'SOS tahan 3 detik';
+
     return Material(
       elevation: 8,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+      color: Theme.of(context).colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(
+          CommRideSpacing.xs,
+          CommRideSpacing.xs,
+          CommRideSpacing.xs,
+          CommRideSpacing.sm,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            if (voiceIntercomEnabled) ...<Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.headset_mic_outlined, size: 18),
+                  const SizedBox(width: CommRideSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Group Intercom · media belum terhubung',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: CommRideSpacing.xs),
+            ],
             Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const Icon(Icons.headset_mic_outlined, size: 18),
-                const SizedBox(width: 6),
+                if (voiceIntercomEnabled) ...<Widget>[
+                  Expanded(
+                    child: _DockButton(
+                      icon: Icons.mic_none_outlined,
+                      label: 'Interkom',
+                      onPressed: null,
+                    ),
+                  ),
+                  const SizedBox(width: CommRideSpacing.xxs),
+                ],
                 Expanded(
-                  child: Text(
-                    voiceIntercomEnabled
-                        ? 'Group Intercom · media belum terhubung'
-                        : 'Group Intercom · belum diaktifkan',
-                    style: Theme.of(context).textTheme.labelMedium,
+                  child: _DockButton(
+                    icon: Icons.bolt_outlined,
+                    label: 'Status',
+                    onPressed: () => unawaited(onQuickActions()),
+                  ),
+                ),
+                const SizedBox(width: CommRideSpacing.xxs),
+                Expanded(
+                  child: _DockButton(
+                    icon: Icons.groups_outlined,
+                    label: 'Rombongan',
+                    onPressed: () => unawaited(onOpenLiveGroup()),
+                  ),
+                ),
+                const SizedBox(width: CommRideSpacing.xxs),
+                Expanded(
+                  child: SosHoldButton(
+                    active: hasOwnActiveSos,
+                    working: sosState.working,
+                    enabled: !sosState.rideEnded,
+                    onCompleted: onRaiseSos,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: CommRideSpacing.xxs),
             Row(
               children: <Widget>[
                 Expanded(
-                  child: _DockButton(
-                    icon: Icons.mic_off_outlined,
-                    label: 'Mic',
-                    onPressed: null,
+                  child: Text(
+                    sosStatus,
+                    key: const ValueKey<String>('active-ride-sos-status'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: hasOwnActiveSos || failed
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.groups_outlined,
-                    label: 'Riders',
-                    onPressed: () => unawaited(onOpenLiveGroup()),
+                if (failed)
+                  TextButton(
+                    onPressed: sosState.working
+                        ? null
+                        : () => unawaited(onRetrySos()),
+                    child: const Text('Coba lagi'),
                   ),
-                ),
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.my_location,
-                    label: 'Tracking',
-                    onPressed: () => unawaited(onOpenTracking()),
-                  ),
-                ),
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.sos,
-                    label: 'SOS',
-                    critical: true,
-                    onPressed: () => unawaited(onOpenSos()),
-                  ),
+                TextButton(
+                  onPressed: () => unawaited(onOpenSos()),
+                  child: const Text('Detail'),
                 ),
               ],
+            ),
+            const Text(
+              'CommRide tidak menghubungi ambulans, polisi, atau layanan darurat publik.',
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1258,25 +1464,30 @@ class _DockButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
-    this.critical = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
-  final bool critical;
 
   @override
   Widget build(BuildContext context) {
-    final Color? foreground = critical
-        ? Theme.of(context).colorScheme.error
-        : null;
     return TextButton(
       onPressed: onPressed,
-      style: TextButton.styleFrom(foregroundColor: foreground),
+      style: TextButton.styleFrom(
+        minimumSize: const Size(0, CommRideTargets.activeRide),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CommRideSpacing.xxs,
+          vertical: CommRideSpacing.xs,
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: <Widget>[Icon(icon), const SizedBox(height: 2), Text(label)],
+        children: <Widget>[
+          Icon(icon, size: 28),
+          const SizedBox(height: CommRideSpacing.xxs),
+          Text(label, textAlign: TextAlign.center, maxLines: 2),
+        ],
       ),
     );
   }

@@ -34,3 +34,45 @@ class CommRideBrandImage extends StatelessWidget {
     CommRideBrandVariant.monochrome => CommRideBrandAssets.monochrome,
   };
 }
+
+class CommRideHeaderBrand extends StatelessWidget {
+  const CommRideHeaderBrand({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'CommRide · Ride Connected.',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const CommRideBrandImage(
+            variant: CommRideBrandVariant.appIcon,
+            size: 36,
+          ),
+          const SizedBox(width: 10),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'CommRide',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Ride Connected.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

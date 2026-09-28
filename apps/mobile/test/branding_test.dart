@@ -39,4 +39,18 @@ void main() {
     expect(image.width, 96);
     expect(image.height, 96);
   });
+  testWidgets('header lockup keeps brand readable in compact slot', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: CommRideHeaderBrand())),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('commride-brand-appIcon')),
+      findsOneWidget,
+    );
+    expect(find.text('CommRide'), findsOneWidget);
+    expect(find.text('Ride Connected.'), findsOneWidget);
+  });
 }

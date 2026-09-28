@@ -249,6 +249,22 @@ async function inviteClubMember(
     inputResult.value.role,
   );
 
+  try {
+    await dependencies.pushNotifier?.notifyRider?.({
+      eventKey: `club-invite:${clubId}:${target.id}:${membership.role}`,
+      riderId: target.id,
+      kind: 'club_invitation',
+      title: 'Undangan Club',
+      body: 'Anda diundang bergabung ke Club di CommRide.',
+      data: {
+        type: 'club.invited',
+        clubId,
+      },
+    });
+  } catch {
+    // Invitation state is authoritative; push remains best effort.
+  }
+
   return jsonResponse({ membership }, 200, requestId);
 }
 
@@ -420,6 +436,23 @@ async function inviteRideMember(
     target.id,
     inputResult.value.role,
   );
+
+  try {
+    await dependencies.pushNotifier?.notifyRider?.({
+      eventKey: `ride-invite:${rideId}:${target.id}:${membership.role}`,
+      riderId: target.id,
+      kind: 'ride_invitation',
+      title: 'Undangan Ride',
+      body: `${ride.title}: Anda diundang bergabung ke Ride.`,
+      data: {
+        type: 'ride.invited',
+        rideId,
+        clubId: ride.clubId,
+      },
+    });
+  } catch {
+    // Invitation state is authoritative; push remains best effort.
+  }
 
   return jsonResponse({ membership }, 200, requestId);
 }

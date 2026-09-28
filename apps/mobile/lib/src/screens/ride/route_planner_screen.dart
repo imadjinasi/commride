@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/route_planner_api.dart';
+import '../../maps/route_plan_map_view.dart';
 import '../../models/route_planner.dart';
 
 enum RoutePlannerInitialAction { none, addStop, searchAlongRoute }
@@ -87,6 +88,12 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
       );
     }
 
+    final RouteOption? selectedRoute = _selectedRoute;
+    final List<RouteOption> mapRoutes =
+        _routeOptions.isEmpty && selectedRoute != null
+        ? <RouteOption>[selectedRoute]
+        : _routeOptions;
+
     return ListView(
       children: <Widget>[
         if (_savedRevision != null)
@@ -97,115 +104,158 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
               style: Theme.of(context).textTheme.labelLarge,
             ),
           ),
-        if (widget.canEdit) ...<Widget>[
-          DropdownButtonFormField<RouteTravelMode>(
-            initialValue: _travelMode,
-            decoration: const InputDecoration(
-              labelText: 'Mode perjalanan',
-              border: OutlineInputBorder(),
-            ),
-            items: RouteTravelMode.values
-                .map(
-                  (RouteTravelMode mode) => DropdownMenuItem<RouteTravelMode>(
-                    value: mode,
-                    child: Text(mode.label),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: _working || _selectedRoute != null
-                ? null
-                : (RouteTravelMode? value) {
-                    if (value != null) {
-                      setState(() {
-                        _travelMode = value;
-                      });
-                    }
-                  },
+        if (selectedRoute == null) ...<Widget>[
+          const _PlannerStepHeader(
+            step: '1',
+            title: 'Pilih titik & mode',
+            subtitle: 'Tentukan kebutuhan dasar dulu sebelum memilih rute.',
           ),
-          const SizedBox(height: 16),
-        ],
-        if (_travelMode == RouteTravelMode.twoWheeler) ...<Widget>[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Icon(Icons.info_outline, size: 20),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Rute motor dari penyedia navigasi dapat belum '
-                      'mencakup semua jalan atau pembatasan. Tetap ikuti '
-                      'rambu, aturan setempat, dan kondisi jalan aktual.',
+          if (widget.canEdit) ...<Widget>[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<RouteTravelMode>(
+              initialValue: _travelMode,
+              decoration: const InputDecoration(labelText: 'Mode perjalanan'),
+              items: RouteTravelMode.values
+                  .map(
+                    (RouteTravelMode mode) => DropdownMenuItem<RouteTravelMode>(
+                      value: mode,
+                      child: Text(mode.label),
                     ),
-                  ),
-                ],
-              ),
+                  )
+                  .toList(growable: false),
+              onChanged: _working
+                  ? null
+                  : (RouteTravelMode? value) {
+                      if (value != null) {
+                        setState(() {
+                          _travelMode = value;
+                        });
+                      }
+                    },
             ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        _PlaceTile(
-          title: 'Titik awal',
-          value: _origin?.formattedAddress,
-          enabled: widget.canEdit && !_working && _selectedRoute == null,
-          onTap: () => _chooseEndpoint(isOrigin: true),
-        ),
-        const SizedBox(height: 10),
-        _PlaceTile(
-          title: 'Tujuan',
-          value: _destination?.formattedAddress,
-          enabled: widget.canEdit && !_working && _selectedRoute == null,
-          onTap: () => _chooseEndpoint(isOrigin: false),
-        ),
-        if (widget.canEdit &&
-            _origin != null &&
-            _destination != null &&
-            _selectedRoute == null) ...<Widget>[
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _working ? null : _computeInitialRoutes,
-            icon: const Icon(Icons.route_outlined),
-            label: Text(_working ? 'Menghitung…' : 'Cari rute'),
-          ),
-        ],
-        if (_routeOptions.isNotEmpty && _selectedRoute == null) ...<Widget>[
-          const SizedBox(height: 28),
-          Text('Pilih rute', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          ..._routeOptions.map(
-            (RouteOption route) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Card(
-                child: ListTile(
-                  title: Text(_formatDistance(route.distanceMeters)),
-                  subtitle: Text(
-                    '${_formatDuration(route.durationSeconds)}'
-                    '${route.labels.isEmpty ? '' : ' · ${route.labels.join(', ')}'}',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    setState(() {
-                      _selectedRoute = route;
-                    });
-                  },
+            const SizedBox(height: 16),
+          ],
+          if (_travelMode == RouteTravelMode.twoWheeler) ...<Widget>[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Icon(Icons.info_outline, size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Rute motor dari penyedia navigasi dapat belum '
+                        'mencakup semua jalan atau pembatasan. Tetap ikuti '
+                        'rambu, aturan setempat, dan kondisi jalan aktual.',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
-        if (_selectedRoute != null) ...<Widget>[
-          const SizedBox(height: 28),
-          _RouteSummaryCard(route: _selectedRoute!, travelMode: _travelMode),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: _working ? null : _navigateExternally,
-            icon: const Icon(Icons.navigation_outlined),
-            label: const Text('Buka Navigasi'),
+            const SizedBox(height: 12),
+          ],
+          _PlaceTile(
+            title: 'Titik awal',
+            value: _origin?.formattedAddress,
+            enabled: widget.canEdit && !_working,
+            onTap: () => _chooseEndpoint(isOrigin: true),
           ),
           const SizedBox(height: 10),
-          if (widget.canEdit) _buildPlanningActions(),
+          _PlaceTile(
+            title: 'Tujuan',
+            value: _destination?.formattedAddress,
+            enabled: widget.canEdit && !_working,
+            onTap: () => _chooseEndpoint(isOrigin: false),
+          ),
+          if (widget.canEdit &&
+              _origin != null &&
+              _destination != null) ...<Widget>[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _working ? null : _computeInitialRoutes,
+              icon: const Icon(Icons.route_outlined),
+              label: Text(_working ? 'Menghitung…' : 'Cari rute'),
+            ),
+          ],
+          if (_routeOptions.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 28),
+            const _PlannerStepHeader(
+              step: '2',
+              title: 'Pilih rute',
+              subtitle:
+                  'Bandingkan jalur secara spasial, lalu pilih satu Route.',
+            ),
+            const SizedBox(height: 12),
+            RoutePlanMapView(
+              routes: _routeOptions,
+              selectedRoute: null,
+              onSelect: widget.canEdit && !_working
+                  ? (RouteOption route) {
+                      setState(() {
+                        _selectedRoute = route;
+                        _stops = <PlanningStop>[];
+                      });
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            ..._routeOptions.map(
+              (RouteOption route) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Card(
+                  child: ListTile(
+                    title: Text(_formatDistance(route.distanceMeters)),
+                    subtitle: Text(
+                      '${_formatDuration(route.durationSeconds)}'
+                      '${route.labels.isEmpty ? '' : ' · ${route.labels.join(', ')}'}',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      setState(() {
+                        _selectedRoute = route;
+                        _stops = <PlanningStop>[];
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ] else ...<Widget>[
+          const _PlannerStepHeader(
+            step: '3',
+            title: 'Atur Ride plan',
+            subtitle:
+                'Tambahkan Stop/Checkpoint bila perlu, lalu simpan RoutePlan.',
+          ),
+          const SizedBox(height: 12),
+          _RouteEndpointsSummary(
+            origin: _origin?.formattedAddress,
+            destination: _destination?.formattedAddress,
+            travelMode: _travelMode,
+            canEdit: widget.canEdit,
+            working: _working,
+            onChangeRoute: () {
+              setState(() {
+                _selectedRoute = null;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          RoutePlanMapView(
+            routes: mapRoutes,
+            selectedRoute: selectedRoute,
+            onSelect: null,
+          ),
+          const SizedBox(height: 16),
+          _RouteSummaryCard(route: selectedRoute, travelMode: _travelMode),
+          if (widget.canEdit) ...<Widget>[
+            const SizedBox(height: 16),
+            _buildPlanningActions(),
+          ],
           if (_stops.isNotEmpty) ...<Widget>[
             const SizedBox(height: 24),
             Text(
@@ -223,6 +273,12 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
               label: Text(_working ? 'Menyimpan…' : 'Simpan RoutePlan'),
             ),
           ],
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _working ? null : _navigateExternally,
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Buka navigasi eksternal'),
+          ),
         ],
       ],
     );
@@ -670,6 +726,89 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         '${stop.plannedDurationMinutes} menit',
     ];
     return parts.isEmpty ? 'Stop' : parts.join(' · ');
+  }
+}
+
+class _PlannerStepHeader extends StatelessWidget {
+  const _PlannerStepHeader({
+    required this.step,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String step;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        CircleAvatar(
+          radius: 16,
+          child: Text(
+            step,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 2),
+              Text(subtitle),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RouteEndpointsSummary extends StatelessWidget {
+  const _RouteEndpointsSummary({
+    required this.origin,
+    required this.destination,
+    required this.travelMode,
+    required this.canEdit,
+    required this.working,
+    required this.onChangeRoute,
+  });
+
+  final String? origin;
+  final String? destination;
+  final RouteTravelMode travelMode;
+  final bool canEdit;
+  final bool working;
+  final VoidCallback onChangeRoute;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.route_outlined),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '${origin ?? 'Titik awal'} → ${destination ?? 'Tujuan'}'
+                '\nMode: ${travelMode.label}',
+              ),
+            ),
+            if (canEdit)
+              TextButton(
+                onPressed: working ? null : onChangeRoute,
+                child: const Text('Ubah rute'),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

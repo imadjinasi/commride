@@ -224,8 +224,9 @@ second tracking dashboard.
 │          ⚠ roadworks             │
 │                                  │
 ├──────────────────────────────────┤
-│ Group Intercom · Mic Off         │
-│ [ Mic ] [ Riders ] [ Track ] SOS │
+│ Group Intercom · media status    │
+│ [Interkom][Status][Rombongan][SOS]│
+│                    tahan 3 detik  │
 └──────────────────────────────────┘
 ```
 
@@ -254,8 +255,9 @@ Leaving the accepted route does not silently replace it.
 │       ▲ Saya                     │
 │                                  │
 ├──────────────────────────────────┤
-│ Group Intercom · Mic Off         │
-│ [ Mic ] [ Riders ] [ Track ] SOS │
+│ Group Intercom · media status    │
+│ [Interkom][Status][Rombongan][SOS]│
+│                    tahan 3 detik  │
 └──────────────────────────────────┘
 ```
 
@@ -336,17 +338,24 @@ If ordering confidence is low, replace this with grouped/list state rather than 
 
 ```
 ┌──────────────────────────────────┐
-│ Quick Action                     │
+│ Status cepat                     │
 ├──────────────────────────────────┤
 │ 🛑 Saya Berhenti                 │
 │ ↙ Saya Tertinggal                │
 │ 🆘 Butuh Bantuan                 │
 │                                  │
-│ 🚨 SOS                           │
+│ keterangan opsional via note     │
 └──────────────────────────────────┘
 ```
 
-SOS must be visually and interactionally distinct from ordinary actions.
+The main condition sends on tap; adding a reason is a secondary action. Opening
+Status cepat plus selecting a condition must remain at most two interactions
+from the navigation surface.
+
+SOS does not live inside this sheet. It remains permanently visible in the
+navigation dock, uses critical red, and sends only after a continuous 3-second
+hold. Releasing early cancels. Failure exposes an immediate retry while the map
+stays visible.
 
 ## 15. Ride completed
 

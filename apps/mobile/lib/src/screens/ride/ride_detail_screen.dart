@@ -118,115 +118,184 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
               Text(ride.notes!),
             ],
             const SizedBox(height: 28),
-            if (canReadRoute) ...<Widget>[
-              OutlinedButton.icon(
-                onPressed: _working
-                    ? null
-                    : () => _openRoutePlanner(canEdit: canEditRoute),
-                icon: const Icon(Icons.map_outlined),
-                label: Text(
-                  canEditRoute
-                      ? ride.status == RideStatus.active
-                            ? 'Ubah RoutePlan'
-                            : 'Plan Route'
-                      : 'Lihat RoutePlan',
-                ),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _working
-                    ? null
-                    : () => _openBriefing(
-                        canPublish: canPublishBriefing,
-                        canAcknowledge: canAcknowledgeBriefing,
-                      ),
-                icon: const Icon(Icons.fact_check_outlined),
-                label: const Text('Ride Briefing'),
-              ),
-              const SizedBox(height: 8),
-              if (ride.status == RideStatus.active &&
-                  widget.activeRideRuntimeManager != null) ...<Widget>[
-                FilledButton.tonalIcon(
-                  onPressed: _working ? null : _openActiveRide,
-                  icon: const Icon(Icons.radar_outlined),
-                  label: const Text('Active Ride'),
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (ride.status == RideStatus.completed &&
-                  widget.rideRecapApi != null) ...<Widget>[
-                FilledButton.tonalIcon(
-                  onPressed: _working ? null : _openRecap,
-                  icon: const Icon(Icons.summarize_outlined),
-                  label: const Text('Ride Recap'),
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (ride.status == RideStatus.active ||
-                  ride.status == RideStatus.completed) ...<Widget>[
-                OutlinedButton.icon(
-                  onPressed: _working ? null : _openCheckpoints,
-                  icon: const Icon(Icons.flag_outlined),
-                  label: const Text('Checkpoints'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _working ? null : _openComms,
-                  icon: const Icon(Icons.forum_outlined),
-                  label: const Text('Comms'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _working ? null : _openSos,
-                  icon: const Icon(Icons.sos_outlined),
-                  label: const Text('SOS'),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ],
+            Text('Aksi utama', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 10),
             if (membership?.status == RideMembershipStatus.invited)
-              FilledButton(
+              FilledButton.icon(
                 onPressed: _working ? null : _joinRide,
-                child: const Text('Gabung Ride'),
+                icon: const Icon(Icons.group_add_outlined),
+                label: const Text('Gabung Ride'),
+              )
+            else if (ride.status == RideStatus.active &&
+                widget.activeRideRuntimeManager != null)
+              FilledButton.icon(
+                onPressed: _working ? null : _openActiveRide,
+                icon: const Icon(Icons.navigation),
+                label: const Text('Buka Active Ride'),
+              )
+            else if (ride.status == RideStatus.completed &&
+                widget.rideRecapApi != null)
+              FilledButton.icon(
+                onPressed: _working ? null : _openRecap,
+                icon: const Icon(Icons.summarize_outlined),
+                label: const Text('Lihat Ride Recap'),
+              )
+            else if (isLeader && ride.status == RideStatus.draft)
+              FilledButton.icon(
+                onPressed: _working ? null : _publishRide,
+                icon: const Icon(Icons.publish_outlined),
+                label: const Text('Publikasikan Ride'),
+              )
+            else if (isLeader && ride.status == RideStatus.published)
+              FilledButton.icon(
+                onPressed: _working ? null : _startRide,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Mulai Ride'),
+              )
+            else
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Tidak ada tindakan utama yang diperlukan saat ini.',
+                  ),
+                ),
               ),
-            if (isLeader) ...<Widget>[
-              if (ride.status == RideStatus.draft)
-                FilledButton(
-                  onPressed: _working ? null : _publishRide,
-                  child: const Text('Publish Ride'),
-                ),
-              if (ride.status == RideStatus.published)
-                FilledButton(
-                  onPressed: _working ? null : _startRide,
-                  child: const Text('Start Ride'),
-                ),
-              if (ride.status == RideStatus.active)
-                FilledButton(
-                  onPressed: _working ? null : _endRide,
-                  child: const Text('End Ride'),
-                ),
-              if (ride.status == RideStatus.draft ||
-                  ride.status == RideStatus.published) ...<Widget>[
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: _working ? null : _confirmCancelRide,
-                  child: const Text('Cancel Ride'),
-                ),
-              ],
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _working ? null : _inviteRider,
-                icon: const Icon(Icons.person_add_alt_1_outlined),
-                label: const Text('Undang Rider'),
-              ),
-            ],
             if (ride.status == RideStatus.active &&
                 widget.activeRideRuntimeManager == null) ...<Widget>[
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Icon(Icons.info_outline),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Active Ride belum tersedia pada konfigurasi build ini.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (canReadRoute) ...<Widget>[
+              const SizedBox(height: 28),
               Text(
-                'Active Ride runtime belum tersedia pada konfigurasi build ini.',
+                'Rencana & koordinasi',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 10),
+              Card(
+                child: Column(
+                  children: <Widget>[
+                    ListTile(
+                      leading: const Icon(Icons.map_outlined),
+                      title: Text(
+                        canEditRoute
+                            ? ride.status == RideStatus.active
+                                  ? 'Ubah RoutePlan'
+                                  : 'Susun RoutePlan'
+                            : 'Lihat RoutePlan',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _working
+                          ? null
+                          : () => _openRoutePlanner(canEdit: canEditRoute),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.fact_check_outlined),
+                      title: const Text('Briefing Ride'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _working
+                          ? null
+                          : () => _openBriefing(
+                              canPublish: canPublishBriefing,
+                              canAcknowledge: canAcknowledgeBriefing,
+                            ),
+                    ),
+                    if (ride.status == RideStatus.active ||
+                        ride.status == RideStatus.completed) ...<Widget>[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.flag_outlined),
+                        title: const Text('Checkpoint'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _working ? null : _openCheckpoints,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.forum_outlined),
+                        title: const Text('Komunikasi'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _working ? null : _openComms,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(
+                          Icons.sos_outlined,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: const Text('Detail SOS'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _working ? null : _openSos,
+                      ),
+                    ],
+                    if (isLeader) ...<Widget>[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.person_add_alt_1_outlined),
+                        title: const Text('Undang Rider'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _working ? null : _inviteRider,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            if (isLeader &&
+                (ride.status == RideStatus.active ||
+                    ride.status == RideStatus.draft ||
+                    ride.status == RideStatus.published)) ...<Widget>[
+              const SizedBox(height: 32),
+              Text(
+                'Tindakan Ride',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tindakan berikut mengubah status Ride untuk seluruh rombongan.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
+              const SizedBox(height: 10),
+              if (ride.status == RideStatus.active)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onError,
+                  ),
+                  onPressed: _working ? null : _confirmEndRide,
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: const Text('Akhiri Ride'),
+                ),
+              if (ride.status == RideStatus.draft ||
+                  ride.status == RideStatus.published)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  onPressed: _working ? null : _confirmCancelRide,
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text('Batalkan Ride'),
+                ),
             ],
           ],
         ),
@@ -396,6 +465,37 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     return _transition(widget.clubRideApi.startRide);
   }
 
+  Future<void> _confirmEndRide() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Akhiri Ride?'),
+        content: const Text(
+          'Live tracking akan dihentikan untuk Ride ini dan recap mulai diproses. '
+          'Pastikan kondisi rombongan sudah aman.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Kembali'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Akhiri Ride'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _endRide();
+    }
+  }
+
   Future<void> _endRide() async {
     final String rideId = _item.ride.id;
     await _run(() async {
@@ -410,10 +510,10 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Cancel Ride?'),
+          title: const Text('Batalkan Ride?'),
           content: const Text(
-            'Ride yang belum dimulai akan ditandai Cancelled. '
-            'Ride yang sudah Active harus diakhiri dengan End Ride.',
+            'Ride yang belum dimulai akan ditandai dibatalkan. '
+            'Ride yang sudah aktif harus diakhiri dengan Akhiri Ride.',
           ),
           actions: <Widget>[
             TextButton(
@@ -422,7 +522,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Cancel Ride'),
+              child: const Text('Batalkan Ride'),
             ),
           ],
         );

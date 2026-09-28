@@ -22,6 +22,7 @@ import type {
   UpsertRiderProfileInput,
 } from '../src/riders/rider-profile';
 import type { RiderRepository } from '../src/riders/rider-repository';
+import type { RiderPushMessage } from '../src/push/models';
 import { handleRequest } from '../src/router';
 
 const riderOne: RiderProfile = {
@@ -324,6 +325,77 @@ describe('Club and Ride lifecycle API', () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it('sends actionable Club and Ride invitation metadata', async () => {
+    const repository = new MemoryClubRideRepository();
+    const directMessages: RiderPushMessage[] = [];
+    const deps = {
+      ...dependencies(repository),
+      ridePushNotifier: {
+        notify: async () => ({ delivered: 0, failed: 0 }),
+        notifyRider: async (message: RiderPushMessage) => {
+          directMessages.push(message);
+          return { delivered: 1, failed: 0 };
+        },
+      },
+    };
+
+    const clubResponse = await handleRequest(
+      request('/v1/clubs', 'token-1', {
+        name: 'Cirebon Riders',
+        slug: 'cirebon-riders',
+      }),
+      {},
+      deps,
+    );
+    const club = (await clubResponse.json() as { club: Club }).club;
+
+    const clubInvite = await handleRequest(
+      request(`/v1/clubs/${club.id}/members/invite`, 'token-1', {
+        riderId: riderTwo.id,
+        role: 'member',
+      }),
+      {},
+      deps,
+    );
+    expect(clubInvite.status).toBe(200);
+    expect(directMessages[0]).toMatchObject({
+      riderId: riderTwo.id,
+      kind: 'club_invitation',
+      data: {
+        type: 'club.invited',
+        clubId: club.id,
+      },
+    });
+
+    const rideResponse = await handleRequest(
+      request(`/v1/clubs/${club.id}/rides`, 'token-1', {
+        title: 'Sunday Morning Ride',
+      }),
+      {},
+      deps,
+    );
+    const ride = (await rideResponse.json() as { ride: Ride }).ride;
+
+    const rideInvite = await handleRequest(
+      request(`/v1/rides/${ride.id}/members/invite`, 'token-1', {
+        riderId: riderTwo.id,
+        role: 'sweeper',
+      }),
+      {},
+      deps,
+    );
+    expect(rideInvite.status).toBe(200);
+    expect(directMessages[1]).toMatchObject({
+      riderId: riderTwo.id,
+      kind: 'ride_invitation',
+      data: {
+        type: 'ride.invited',
+        rideId: ride.id,
+        clubId: club.id,
+      },
+    });
   });
 
   it('supports invite, join, and Leader-only Ride state transitions', async () => {

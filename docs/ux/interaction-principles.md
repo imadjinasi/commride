@@ -136,9 +136,13 @@ If everything is orange, nothing is a signal.
 SOS needs a distinct critical treatment and deliberate activation.
 
 It should:
-- resist accidental taps;
-- send immediately after confirmation;
-- show sent/received state;
+- use a critical-red treatment distinct from Signal Orange;
+- require a continuous three-second press-and-hold;
+- cancel without sending when released before three seconds;
+- send immediately when the hold completes, without a blocking dialog;
+- remain available even when GPS is unavailable;
+- show sending, active/sent, failed and retry state on the riding surface;
+- preserve the idempotent SOS command on retry;
 - remain visible until resolved;
 - not falsely imply public emergency services were contacted.
 
@@ -237,3 +241,15 @@ Avoid:
 - “Mission”
 - “Enemy”
 - exaggerated danger language.
+
+
+## 19. Active Ride touch and visual tokens
+
+Active Ride controls use a minimum 56 px target, with 64 px preferred for
+riding actions and 72 px for SOS. Critical state is communicated with icon/text
+as well as color.
+
+Signal Orange uses Comm Black foreground for accessible contrast. Secondary body
+text uses a darker neutral than Road Grey when placed on Road White. Consistent
+spacing, radius, disabled, loading, empty and error treatments are part of the
+shared mobile theme rather than one-off screen styling.
