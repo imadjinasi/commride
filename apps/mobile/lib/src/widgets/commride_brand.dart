@@ -35,7 +35,6 @@ class CommRideBrandImage extends StatelessWidget {
   };
 }
 
-
 class CommRideHeaderBrand extends StatelessWidget {
   const CommRideHeaderBrand({super.key});
 
