@@ -136,10 +136,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      buildPlanner(
-        api: FakeRoutePlannerApi(plan: null),
-        canEdit: true,
-      ),
+      buildPlanner(api: FakeRoutePlannerApi(plan: null), canEdit: true),
     );
     await tester.pumpAndSettle();
 
