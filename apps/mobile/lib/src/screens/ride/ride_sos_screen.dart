@@ -252,7 +252,8 @@ class _SafetyNotice extends StatelessWidget {
                     : 'Gunakan SOS untuk kondisi yang membutuhkan perhatian '
                           'tinggi dari rombongan. SOS berbeda dari tombol '
                           'Butuh Bantuan dan tetap tersimpan sampai dibatalkan '
-                          'atau diselesaikan.',
+                          'atau diselesaikan. CommRide tidak menghubungi '
+                          'ambulans, polisi, atau layanan darurat publik.',
               ),
             ),
           ],
