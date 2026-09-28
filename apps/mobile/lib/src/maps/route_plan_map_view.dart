@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -196,7 +197,7 @@ class _NativeRoutePlanMapState extends State<_NativeRoutePlanMap> {
         ),
         const SizedBox(height: 2),
         const Text(
-          '© OpenStreetMap contributors · MapLibre',
+          'Geoapify / © OpenStreetMap contributors · MapLibre',
           textAlign: TextAlign.center,
         ),
       ],
