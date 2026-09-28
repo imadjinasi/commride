@@ -332,7 +332,7 @@ describe('Club and Ride lifecycle API', () => {
     const directMessages: RiderPushMessage[] = [];
     const deps = {
       ...dependencies(repository),
-      pushNotifier: {
+      ridePushNotifier: {
         notify: async () => ({ delivered: 0, failed: 0 }),
         notifyRider: async (message: RiderPushMessage) => {
           directMessages.push(message);
