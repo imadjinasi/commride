@@ -281,9 +281,7 @@ class RidePushController extends ChangeNotifier {
     _setState(
       _state.copyWith(
         latestForegroundPush: message,
-        notifications: List<RideNotificationEntry>.unmodifiable(
-          next.take(50),
-        ),
+        notifications: List<RideNotificationEntry>.unmodifiable(next.take(50)),
         clearLatestError: true,
       ),
     );
