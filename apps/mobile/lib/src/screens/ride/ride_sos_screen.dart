@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../active_ride/ride_sos_controller.dart';
 import '../../models/club_ride.dart';
 import '../../models/ride_sos.dart';
+import '../../theme/commride_theme.dart';
+import '../../widgets/sos_hold_button.dart';
 
 class RideSosScreen extends StatefulWidget {
   const RideSosScreen({
@@ -23,6 +25,7 @@ class RideSosScreen extends StatefulWidget {
 }
 
 class _RideSosScreenState extends State<RideSosScreen> {
+  final TextEditingController _reasonController = TextEditingController();
   @override
   void initState() {
     super.initState();
@@ -33,6 +36,7 @@ class _RideSosScreenState extends State<RideSosScreen> {
 
   @override
   void dispose() {
+    _reasonController.dispose();
     widget.controller.removeListener(_onChanged);
     widget.controller.dispose();
     super.dispose();
@@ -92,11 +96,23 @@ class _RideSosScreenState extends State<RideSosScreen> {
                 ),
               ),
             if (!readOnly && !hasOwnActive) ...<Widget>[
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                onPressed: state.working ? null : _confirmRaise,
-                icon: const Icon(Icons.sos_outlined),
-                label: Text(state.working ? 'Mengirim...' : 'Aktifkan SOS'),
+              const SizedBox(height: CommRideSpacing.sm),
+              TextField(
+                controller: _reasonController,
+                enabled: !state.working,
+                maxLength: 500,
+                minLines: 1,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Keterangan SOS (opsional)',
+                  hintText: 'Contoh: ban bocor, terjatuh, butuh bantuan medis',
+                ),
+              ),
+              const SizedBox(height: CommRideSpacing.xs),
+              SosHoldButton(
+                working: state.working,
+                enabled: !readOnly,
+                onCompleted: _raise,
               ),
             ],
             const SizedBox(height: 28),
@@ -124,19 +140,15 @@ class _RideSosScreenState extends State<RideSosScreen> {
     );
   }
 
-  Future<void> _confirmRaise() async {
-    final String? result = await showDialog<String?>(
-      context: context,
-      builder: (BuildContext context) => const _RaiseSosDialog(),
-    );
-    if (result == null || result == _cancelledDialogValue) {
-      return;
-    }
-
+  Future<void> _raise() async {
+    final String normalized = _reasonController.text.trim();
     try {
-      await widget.controller.raise(result.isEmpty ? null : result);
+      await widget.controller.raise(normalized.isEmpty ? null : normalized);
+      if (mounted) {
+        _reasonController.clear();
+      }
     } catch (_) {
-      // Controller keeps a visible retryable failure.
+      // Controller keeps a visible retryable failure with the same command ID.
     }
   }
 
@@ -215,75 +227,6 @@ class _RideSosScreenState extends State<RideSosScreen> {
     if (mounted) {
       setState(() {});
     }
-  }
-}
-
-const String _cancelledDialogValue = '__commride_cancelled_sos_dialog__';
-
-class _RaiseSosDialog extends StatefulWidget {
-  const _RaiseSosDialog();
-
-  @override
-  State<_RaiseSosDialog> createState() => _RaiseSosDialogState();
-}
-
-class _RaiseSosDialogState extends State<_RaiseSosDialog> {
-  final TextEditingController _reason = TextEditingController();
-
-  @override
-  void dispose() {
-    _reason.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      icon: const Icon(Icons.sos_outlined),
-      title: const Text('Aktifkan SOS?'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Text(
-              'SOS akan memberi perhatian tinggi kepada peserta Ride. '
-              'Jika tersedia, CommRide menyertakan lokasi terakhir yang '
-              'sudah diterima server.',
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'CommRide tidak otomatis menghubungi ambulans, polisi, '
-              'atau layanan darurat publik.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _reason,
-              maxLength: 500,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Keterangan (opsional)',
-                hintText: 'Contoh: ban bocor, terjatuh, butuh bantuan medis',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_cancelledDialogValue),
-          child: const Text('Batal'),
-        ),
-        FilledButton.icon(
-          onPressed: () => Navigator.of(context).pop(_reason.text.trim()),
-          icon: const Icon(Icons.sos_outlined),
-          label: const Text('Kirim SOS'),
-        ),
-      ],
-    );
   }
 }
 
