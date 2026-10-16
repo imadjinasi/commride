@@ -133,6 +133,10 @@ Before public beta, the privacy notice must state what is collected during an
 Active Ride, why it is collected, how long sampled location is retained, and
 who can see it.
 
+The Indonesian privacy notice draft and account-deletion request page live in
+`site/` and publish to GitHub Pages; fill their placeholders first (see
+`site/README.md`).
+
 ## 6. Account export and deletion requirements
 
 These are release requirements even though the MVP does not yet expose a
