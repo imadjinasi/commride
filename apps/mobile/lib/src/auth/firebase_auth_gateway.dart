@@ -2,7 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'auth_gateway.dart';
 
-class FirebaseAuthGateway implements AuthGateway, PasswordResetAuthGateway {
+class FirebaseAuthGateway
+    implements
+        AuthGateway,
+        PasswordResetAuthGateway,
+        AccountDeletionAuthGateway {
   FirebaseAuthGateway(this._firebaseAuth);
 
   final FirebaseAuth _firebaseAuth;
@@ -38,6 +42,29 @@ class FirebaseAuthGateway implements AuthGateway, PasswordResetAuthGateway {
   @override
   Future<void> sendPasswordResetEmail({required String email}) {
     return _firebaseAuth.sendPasswordResetEmail(email: email);
+  }
+
+  @override
+  Future<void> reauthenticate({required String password}) {
+    final User? user = _firebaseAuth.currentUser;
+    final String? email = user?.email;
+    if (user == null || email == null) {
+      throw const AuthFailure(AuthFailureReason.unknown);
+    }
+    return _mapFailure(
+      () => user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteSignedInAccount() {
+    final User? user = _firebaseAuth.currentUser;
+    if (user == null) {
+      return Future<void>.value();
+    }
+    return _mapFailure(user.delete);
   }
 
   @override

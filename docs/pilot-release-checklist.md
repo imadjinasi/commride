@@ -133,6 +133,10 @@ Before public beta, the privacy notice must state what is collected during an
 Active Ride, why it is collected, how long sampled location is retained, and
 who can see it.
 
+The Indonesian privacy notice draft and account-deletion request page live in
+`site/` and publish to GitHub Pages; fill their placeholders first (see
+`site/README.md`).
+
 ## 6. Account export and deletion requirements
 
 These are release requirements even though the MVP does not yet expose a
@@ -162,8 +166,9 @@ Before implementing account deletion, define and test:
 - Firebase Authentication account deletion;
 - a bounded completion timeline and support escalation path.
 
-Do not implement destructive cascades until those shared-record rules are
-approved.
+The shared-record rules were approved on 16 October 2026 and are recorded in
+[account deletion](account-deletion.md). Rider data export remains a separate
+requirement.
 
 ## 7. Android device gate
 

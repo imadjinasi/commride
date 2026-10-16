@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/account_api.dart';
 import '../api/notification_api.dart';
 import '../api/push_token_api.dart';
 import '../api/rider_profile_api.dart';
@@ -33,6 +34,8 @@ class AuthGate extends StatelessWidget {
     required this.rideSosApi,
     this.rideRecapApi,
     this.notificationApi,
+    this.accountDeletionApi,
+    this.clubOwnershipApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -51,6 +54,8 @@ class AuthGate extends StatelessWidget {
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
   final NotificationApi? notificationApi;
+  final AccountDeletionApi? accountDeletionApi;
+  final ClubOwnershipApi? clubOwnershipApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -91,6 +96,8 @@ class AuthGate extends StatelessWidget {
           rideSosApi: rideSosApi,
           rideRecapApi: rideRecapApi,
           notificationApi: notificationApi,
+          accountDeletionApi: accountDeletionApi,
+          clubOwnershipApi: clubOwnershipApi,
           pushTokenApi: pushTokenApi,
           pushMessaging: pushMessaging,
           pushPlatform: pushPlatform,
@@ -115,6 +122,8 @@ class _RiderProfileGate extends StatefulWidget {
     required this.rideSosApi,
     this.rideRecapApi,
     this.notificationApi,
+    this.accountDeletionApi,
+    this.clubOwnershipApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -134,6 +143,8 @@ class _RiderProfileGate extends StatefulWidget {
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
   final NotificationApi? notificationApi;
+  final AccountDeletionApi? accountDeletionApi;
+  final ClubOwnershipApi? clubOwnershipApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -195,6 +206,8 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           rideSosApi: widget.rideSosApi,
           rideRecapApi: widget.rideRecapApi,
           notificationApi: widget.notificationApi,
+          accountDeletionApi: widget.accountDeletionApi,
+          clubOwnershipApi: widget.clubOwnershipApi,
           pushTokenApi: widget.pushTokenApi,
           pushMessaging: widget.pushMessaging,
           pushPlatform: widget.pushPlatform,

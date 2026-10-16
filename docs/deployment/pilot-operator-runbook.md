@@ -113,6 +113,8 @@ present remotely before deploying the matching Worker source:
 
 - `0009_route_plan_maneuvers.sql` — required by current RoutePlan and Briefing reads;
 - `0010_notification_inbox.sql` — required by Account/Club notification history.
+- `0011_account_deletion.sql` — required by account deletion and Club
+  ownership transfer.
 
 If RoutePlan and Briefing both fail together while other authenticated Ride reads
 still work, stop and inspect the remote migration list before changing mobile UI
@@ -367,7 +369,36 @@ by SOS, SOS closure, successful End Ride and planned-vs-sampled Recap.
 Screen interactions must be performed while safely stopped. CommRide is not an
 emergency dispatch service or crash/fall detector.
 
-## 11. Evidence record
+## 11. Web account-deletion requests
+
+Riders can delete their account in the app (Profile → Hapus akun). Requests
+that arrive through the web deletion page must be completed within 30 days with
+the same rules ([account deletion](../account-deletion.md)):
+
+1. Confirm the request came from the account email (reply from that address).
+2. Find the Firebase uid for that email in the Firebase console.
+3. Preview, read-only:
+
+   ```powershell
+   node scripts/account-deletion-sql.mjs preview <firebase-uid> > preview.sql
+   npx wrangler d1 execute commride-pilot --remote --file preview.sql
+   ```
+
+4. If a Club requires transfer or an Active Ride blocks deletion, ask the Rider
+   to transfer ownership or wait for the Ride to end; do not transfer on their
+   behalf without consent.
+5. Delete, passing every Club listed as `club_will_close`:
+
+   ```powershell
+   node scripts/account-deletion-sql.mjs delete <rider-id> <club-id> ... > delete.sql
+   npx wrangler d1 execute commride-pilot --remote --file delete.sql
+   ```
+
+6. Delete the Firebase Authentication user in the Firebase console.
+7. Record the date, request channel and completion; keep no copy of the
+   deleted profile data.
+
+## 12. Evidence record
 
 For each test record exact app/API SHA; Worker URL/version; D1 ID; Firebase project;
 app version/build/signing channel; device models/OS; permission states; Rider count;

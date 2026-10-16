@@ -4,6 +4,7 @@ import '../../active_ride/active_ride_runtime.dart';
 
 import '../../api/checkpoint_api.dart';
 import '../../api/club_ride_api.dart';
+import '../../api/account_api.dart';
 import '../../api/notification_api.dart';
 import '../../api/ride_briefing_api.dart';
 import '../../api/ride_comms_api.dart';
@@ -24,6 +25,7 @@ class ClubsScreen extends StatefulWidget {
     required this.rideSosApi,
     this.rideRecapApi,
     this.notificationApi,
+    this.clubOwnershipApi,
     this.activeRideRuntimeManager,
     this.mapsEnabled = false,
     this.navigationEnabled = false,
@@ -39,6 +41,7 @@ class ClubsScreen extends StatefulWidget {
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
   final NotificationApi? notificationApi;
+  final ClubOwnershipApi? clubOwnershipApi;
   final ActiveRideRuntimeManager? activeRideRuntimeManager;
   final bool mapsEnabled;
   final bool navigationEnabled;
@@ -175,6 +178,7 @@ class _ClubsScreenState extends State<ClubsScreen> {
           rideSosApi: widget.rideSosApi,
           rideRecapApi: widget.rideRecapApi,
           notificationApi: widget.notificationApi,
+          clubOwnershipApi: widget.clubOwnershipApi,
           activeRideRuntimeManager: widget.activeRideRuntimeManager,
           mapsEnabled: widget.mapsEnabled,
           navigationEnabled: widget.navigationEnabled,

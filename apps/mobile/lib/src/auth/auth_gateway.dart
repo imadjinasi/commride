@@ -37,6 +37,16 @@ abstract interface class AuthGateway {
   Future<String> idToken();
 }
 
+/// Deleting the login account needs a recent sign-in, so the Rider confirms
+/// their password right before deletion.
+abstract interface class AccountDeletionAuthGateway {
+  /// Throws [AuthFailure] (for example [AuthFailureReason.wrongCredentials]).
+  Future<void> reauthenticate({required String password});
+
+  /// Deletes the signed-in login account; this also signs the user out.
+  Future<void> deleteSignedInAccount();
+}
+
 abstract interface class PasswordResetAuthGateway {
   Future<void> sendPasswordResetEmail({required String email});
 }
