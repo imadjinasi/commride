@@ -162,8 +162,9 @@ Before implementing account deletion, define and test:
 - Firebase Authentication account deletion;
 - a bounded completion timeline and support escalation path.
 
-Do not implement destructive cascades until those shared-record rules are
-approved.
+The shared-record rules were approved on 16 October 2026 and are recorded in
+[account deletion](account-deletion.md). Rider data export remains a separate
+requirement.
 
 ## 7. Android device gate
 

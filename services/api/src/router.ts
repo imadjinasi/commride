@@ -1,4 +1,20 @@
 import {
+  handleAccountDeletionRequest,
+  isAccountDeletionRequest,
+} from './account-deletion/handler';
+import {
+  type AccountDeletionRepository,
+  D1AccountDeletionRepository,
+} from './account-deletion/repository';
+import {
+  type ClubOwnershipRepository,
+  D1ClubOwnershipRepository,
+} from './club-ownership/repository';
+import {
+  handleClubOwnershipRequest,
+  isClubOwnershipPath,
+} from './club-ownership/handler';
+import {
   DurableObjectActiveRideGateway,
   type ActiveRideGateway,
 } from './active-ride/gateway';
@@ -141,6 +157,8 @@ export interface RouterOverrides {
   readonly rideRecapRepository?: RideRecapRepository;
   readonly pushRepository?: PushRepository;
   readonly notificationRepository?: NotificationRepository;
+  readonly accountDeletionRepository?: AccountDeletionRepository;
+  readonly clubOwnershipRepository?: ClubOwnershipRepository;
   readonly ridePushNotifier?: RidePushNotifier;
   readonly activeRideGateway?: ActiveRideGateway;
   readonly idFactory?: () => string;
@@ -728,6 +746,41 @@ export async function handleRequest(
       }
     }
 
+    if (isClubOwnershipPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubOwnershipRepository =
+        overrides.clubOwnershipRepository ??
+        (env.DB == null ? null : new D1ClubOwnershipRepository(env.DB));
+      if (riderRepository == null || clubOwnershipRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Club persistence is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      return handleClubOwnershipRequest(request, url, requestId, {
+        identityVerifier,
+        riderRepository,
+        clubOwnershipRepository,
+        now: overrides.now,
+      });
+    }
+
     if (isClubRideRequestPath(url.pathname)) {
       const identityVerifier =
         overrides.identityVerifier ?? resolveFirebaseVerifier(env);
@@ -909,6 +962,41 @@ export async function handleRequest(
         riderRepository,
         pushRepository,
         idFactory: overrides.idFactory,
+        now: overrides.now,
+      });
+    }
+
+    if (isAccountDeletionRequest(url.pathname, request.method)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const accountDeletionRepository =
+        overrides.accountDeletionRepository ??
+        (env.DB == null ? null : new D1AccountDeletionRepository(env.DB));
+      if (riderRepository == null || accountDeletionRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Account deletion is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      return handleAccountDeletionRequest(request, url, requestId, {
+        identityVerifier,
+        riderRepository,
+        accountDeletionRepository,
         now: overrides.now,
       });
     }
