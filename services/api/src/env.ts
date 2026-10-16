@@ -14,4 +14,8 @@ export interface Env {
   readonly TRAFFIC_PROVIDER?: string;
   readonly VALHALLA_BASE_URL?: string;
   readonly LOCATION_SAMPLE_RETENTION_DAYS?: string;
+  /** LiveKit Cloud voice intercom; key and secret are Worker secrets. */
+  readonly LIVEKIT_URL?: string;
+  readonly LIVEKIT_API_KEY?: string;
+  readonly LIVEKIT_API_SECRET?: string;
 }

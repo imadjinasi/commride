@@ -11,6 +11,7 @@ import 'dart:ui' as ui;
 
 import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/realtime_client.dart';
+import 'package:commride_mobile/src/active_ride/voice_intercom.dart';
 import 'package:commride_mobile/src/models/club_ride.dart';
 import 'package:commride_mobile/src/models/route_planner.dart';
 import 'package:commride_mobile/src/theme/commride_theme.dart';
@@ -168,6 +169,75 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       h.session.dispose();
       h.group.dispose();
+      debugDisableShadows = true;
+    });
+  }
+
+  for (final RideRole role in <RideRole>[RideRole.member, RideRole.leader]) {
+    testWidgets('intercom · ${role.name}', (WidgetTester tester) async {
+      useRedmi8(tester);
+      final AuditVoiceTransport voice = AuditVoiceTransport();
+      final Harness h = Harness(role, voice: voice);
+      await tester.pumpWidget(frame(h.screen()));
+      await settle(tester);
+
+      await tester.tap(find.text('Mulai navigasi & tracking'));
+      await settle(tester);
+      h.groupSnapshot();
+      h.gps(routePoints.first);
+      voice.controller.add(
+        const RideVoiceParticipantsChanged(<RideVoiceParticipant>[
+          RideVoiceParticipant(
+            riderId: 'rider-l',
+            name: 'Andi',
+            audioEnabled: true,
+          ),
+          RideVoiceParticipant(
+            riderId: 'rider-s',
+            name: 'Budi',
+            audioEnabled: true,
+          ),
+          RideVoiceParticipant(
+            riderId: 'rider-2',
+            name: 'Citra',
+            audioEnabled: false,
+          ),
+        ]),
+      );
+      await settle(tester);
+      await capture(tester, 'intercom_${role.name}_01_listening');
+
+      await tester.tap(find.byKey(const ValueKey<String>('intercom-mic')));
+      await settle(tester);
+      await capture(tester, 'intercom_${role.name}_02_mic_on');
+
+      voice.controller.add(
+        const RideVoiceActiveSpeakersChanged(<String>{'rider-s'}),
+      );
+      await settle(tester);
+      await capture(tester, 'intercom_${role.name}_03_speaker');
+
+      if (role == RideRole.member) {
+        voice.controller.add(const RideVoiceModeratorMutedChanged(muted: true));
+        await settle(tester);
+        await capture(tester, 'intercom_${role.name}_04_muted_by_leader');
+      }
+
+      await tester.tap(find.byKey(const ValueKey<String>('intercom-settings')));
+      await settle(tester);
+      await capture(tester, 'intercom_${role.name}_05_sheet');
+
+      await tester.tap(find.byKey(const ValueKey<String>('intercom-mode-ptt')));
+      await settle(tester);
+      await tester.tapAt(const Offset(180, 80));
+      await settle(tester);
+      await capture(tester, 'intercom_${role.name}_06_tap_to_talk');
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpWidget(const SizedBox.shrink());
+      h.session.dispose();
+      h.group.dispose();
+      await voice.controller.close();
       debugDisableShadows = true;
     });
   }

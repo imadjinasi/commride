@@ -101,6 +101,14 @@ import {
   D1RideMessageRepository,
   type RideMessageRepository,
 } from './ride-comms/repository';
+import {
+  handleRideIntercomRequest,
+  isRideIntercomPath,
+} from './intercom/handler';
+import {
+  type IntercomRoomProvider,
+  LiveKitRoomProvider,
+} from './intercom/provider';
 import { handleRideSosRequest, isRideSosPath } from './ride-sos/handler';
 import {
   handleRideRecapRequest,
@@ -154,6 +162,8 @@ export interface RouterOverrides {
   readonly checkpointRepository?: CheckpointRepository;
   readonly rideMessageRepository?: RideMessageRepository;
   readonly rideSosRepository?: RideSosRepository;
+  /** `null` simulates an environment without intercom credentials. */
+  readonly intercomRoomProvider?: IntercomRoomProvider | null;
   readonly rideRecapRepository?: RideRecapRepository;
   readonly pushRepository?: PushRepository;
   readonly notificationRepository?: NotificationRepository;
@@ -383,6 +393,53 @@ export async function handleRequest(
             resolveRidePushNotifier(env) ??
             undefined,
           now: overrides.now,
+        },
+      );
+
+      if (response != null) {
+        return response;
+      }
+    }
+
+    if (isRideIntercomPath(url.pathname)) {
+      const identityVerifier =
+        overrides.identityVerifier ?? resolveFirebaseVerifier(env);
+      if (identityVerifier == null) {
+        return errorResponse(
+          'authentication_not_configured',
+          'Authentication is not configured for this environment.',
+          503,
+          requestId,
+        );
+      }
+
+      const riderRepository =
+        overrides.riderRepository ??
+        (env.DB == null ? null : new D1RiderRepository(env.DB));
+      const clubRideRepository =
+        overrides.clubRideRepository ??
+        (env.DB == null ? null : new D1ClubRideRepository(env.DB));
+      if (riderRepository == null || clubRideRepository == null) {
+        return errorResponse(
+          'database_not_configured',
+          'Ride intercom persistence is not configured.',
+          503,
+          requestId,
+        );
+      }
+
+      const response = await handleRideIntercomRequest(
+        request,
+        url,
+        requestId,
+        {
+          identityVerifier,
+          riderRepository,
+          clubRideRepository,
+          provider:
+            overrides.intercomRoomProvider === undefined
+              ? resolveIntercomRoomProvider(env)
+              : overrides.intercomRoomProvider,
         },
       );
 
@@ -1139,6 +1196,17 @@ function selector(value: string | undefined): string | null {
   return normalized == null || normalized.length === 0
     ? null
     : normalized;
+}
+
+function resolveIntercomRoomProvider(env: Env): IntercomRoomProvider | null {
+  const url = env.LIVEKIT_URL?.trim();
+  const apiKey = env.LIVEKIT_API_KEY?.trim();
+  const apiSecret = env.LIVEKIT_API_SECRET?.trim();
+  if (!url || !apiKey || !apiSecret) {
+    return null;
+  }
+
+  return new LiveKitRoomProvider({ url, apiKey, apiSecret });
 }
 
 function resolveActiveRideGateway(env: Env): ActiveRideGateway | null {

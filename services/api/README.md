@@ -49,6 +49,21 @@ Additional capabilities:
 - `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL` and `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`:
   FCM deployment secrets;
 - `LOCATION_SAMPLE_RETENTION_DAYS`: bounded retention configuration.
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` (all set with
+  `wrangler secret put`): Ride voice intercom on LiveKit Cloud. Without them the
+  intercom endpoints answer `503 intercom_not_configured`.
+
+## Ride intercom
+
+`POST /v1/rides/{rideId}/intercom/token` returns
+`{ intercom: { provider, serverUrl, authToken, role, canModerate } }` for an
+authenticated Rider with a participating membership in an Active Ride. The
+token is signed locally and only allows joining room `commride-ride-<rideId>`,
+listening and publishing a microphone. `POST /v1/rides/{rideId}/intercom/mute`
+with `{ "riderId": ... }` lets the Ride Leader mute that Rider's microphone for
+everyone through LiveKit's RoomService API. No audio passes through or is
+stored by the Worker. See
+[the decision record](../../docs/voice-intercom-decision-2026-10-16.md).
 
 ID-token verification alone does not require a Firebase service-account private
 key. The verifier uses Firebase's published signing certificates and configured

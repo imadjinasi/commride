@@ -14,12 +14,33 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 ANDROID_NS = "http://schemas.android.com/apk/res/android"
+TOOLS_NS = "http://schemas.android.com/tools"
 ANDROID_APPLICATION_ID = "io.github.imadjinasi.commride"
 ET.register_namespace("android", ANDROID_NS)
+ET.register_namespace("tools", TOOLS_NS)
 
 
 def android_attr(name: str) -> str:
     return f"{{{ANDROID_NS}}}{name}"
+
+
+def tools_attr(name: str) -> str:
+    return f"{{{TOOLS_NS}}}{name}"
+
+
+# Ride voice intercom: LiveKit runs in Dart (livekit_client); Android only
+# needs the microphone foreground service in tool/android/IntercomService.kt.
+# See docs/voice-intercom-decision-2026-10-16.md.
+INTERCOM_SOURCE = Path(__file__).resolve().parent / "android/IntercomService.kt"
+INTERCOM_PERMISSIONS = (
+    "android.permission.RECORD_AUDIO",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+    "android.permission.BLUETOOTH_CONNECT",
+)
+# WebRTC plugins also declare the camera; Ride voice never uses it, so the
+# merged manifest drops it.
+INTERCOM_REMOVED_PERMISSIONS = ("android.permission.CAMERA",)
 
 
 RELEASE_SIGNING_MARKER = "commRideKeystoreProperties"
@@ -74,6 +95,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        IntercomService.register(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "commride/media_keys")
             .setMethodCallHandler { call, result ->
                 val audio = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -125,6 +147,53 @@ def configure_media_keys() -> None:
             "Unexpected Android MainActivity template; refusing unsafe patch."
         )
     path.write_text(package + "\n" + MEDIA_KEYS_ACTIVITY, encoding="utf-8")
+
+
+def configure_intercom_source() -> None:
+    """Place the intercom service next to MainActivity in the app package."""
+    activity = next((ROOT / "android/app/src/main/kotlin").rglob("MainActivity.kt"))
+    package = next(
+        line
+        for line in activity.read_text(encoding="utf-8").splitlines()
+        if line.startswith("package ")
+    )
+    activity.with_name("CommRideIntercom.kt").unlink(missing_ok=True)
+    target = activity.with_name("IntercomService.kt")
+    target.write_text(
+        package + "\n\n" + INTERCOM_SOURCE.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+
+def configure_intercom_manifest(manifest: ET.Element) -> None:
+    existing = {
+        node.get(android_attr("name")): node
+        for node in manifest.findall("uses-permission")
+    }
+    for permission in INTERCOM_PERMISSIONS:
+        if permission not in existing:
+            node = ET.Element("uses-permission")
+            node.set(android_attr("name"), permission)
+            manifest.insert(0, node)
+    for permission in INTERCOM_REMOVED_PERMISSIONS:
+        node = existing.get(permission)
+        if node is None:
+            node = ET.Element("uses-permission")
+            node.set(android_attr("name"), permission)
+            manifest.insert(0, node)
+        node.set(tools_attr("node"), "remove")
+
+    application = manifest.find("application")
+    if application is None:
+        raise SystemExit("Android application element missing.")
+    if not any(
+        node.get(android_attr("name")) == ".IntercomService"
+        for node in application.findall("service")
+    ):
+        service = ET.SubElement(application, "service")
+        service.set(android_attr("name"), ".IntercomService")
+        service.set(android_attr("exported"), "false")
+        service.set(android_attr("foregroundServiceType"), "microphone")
 
 
 def configure_release_signing(content: str) -> str:
@@ -198,6 +267,8 @@ def configure_android() -> None:
     for node in list(application.findall("meta-data")):
         if node.get(android_attr("name")) == "com.google.android.geo.API_KEY":
             application.remove(node)
+
+    configure_intercom_manifest(manifest)
 
     tree.write(manifest_path, encoding="utf-8", xml_declaration=True)
     obsolete = ROOT / "android/app/src/main/res/values/commride_maps.xml"
@@ -273,6 +344,7 @@ def configure_android() -> None:
         raise SystemExit("Android app Gradle file missing.")
 
     configure_media_keys()
+    configure_intercom_source()
 
 
 def configure_ios() -> None:

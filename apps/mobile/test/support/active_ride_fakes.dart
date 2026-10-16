@@ -9,6 +9,7 @@ import 'package:commride_mobile/src/active_ride/live_group_models.dart';
 import 'package:commride_mobile/src/active_ride/location_provider.dart';
 import 'package:commride_mobile/src/active_ride/location_session_controller.dart';
 import 'package:commride_mobile/src/active_ride/realtime_client.dart';
+import 'package:commride_mobile/src/active_ride/voice_intercom.dart';
 import 'package:commride_mobile/src/api/ride_sos_api.dart';
 import 'package:commride_mobile/src/api/route_planner_api.dart';
 import 'package:commride_mobile/src/models/club_ride.dart';
@@ -191,8 +192,56 @@ LiveRiderPresence presence(
   );
 }
 
+/// Voice transport for screens and audits: joins at once, records calls and
+/// lets a test push room events.
+class AuditVoiceTransport implements RideVoiceTransport {
+  final StreamController<RideVoiceEvent> controller =
+      StreamController<RideVoiceEvent>.broadcast();
+  bool? microphoneEnabled;
+  final List<String> moderatorMuted = <String>[];
+
+  @override
+  Stream<RideVoiceEvent> get events => controller.stream;
+
+  @override
+  bool get supportsLocalMute => true;
+
+  @override
+  Future<void> connect({
+    required String rideId,
+    required RideVoiceMode mode,
+    required bool microphoneEnabled,
+  }) async {
+    this.microphoneEnabled = microphoneEnabled;
+  }
+
+  @override
+  Future<void> disconnect() async {}
+
+  @override
+  Future<void> setMode(RideVoiceMode mode) async {}
+
+  @override
+  Future<void> setMicrophoneEnabled(bool enabled) async {
+    microphoneEnabled = enabled;
+  }
+
+  @override
+  Future<void> setPushToTalkActive(bool active) async {
+    microphoneEnabled = active;
+  }
+
+  @override
+  Future<void> setParticipantAudioEnabled(String riderId, bool enabled) async {}
+
+  @override
+  Future<void> moderatorMute(String riderId) async {
+    moderatorMuted.add(riderId);
+  }
+}
+
 class Harness {
-  Harness(RideRole role, {AuditRealtimeClient? realtime})
+  Harness(RideRole role, {AuditRealtimeClient? realtime, this.voice})
     : realtime = realtime ?? AuditRealtimeClient(),
       membership = RideMembership(
         rideId: 'ride-1',
@@ -203,6 +252,9 @@ class Harness {
 
   final RideMembership membership;
   final AuditRealtimeClient realtime;
+
+  /// When set, the screen gets the intercom flag on and this transport.
+  final AuditVoiceTransport? voice;
   final AuditLocationProvider location = AuditLocationProvider();
   late final RideLocationSessionController session =
       RideLocationSessionController(
@@ -219,6 +271,7 @@ class Harness {
     locationProvider: location,
     locationSession: session,
     groupController: group,
+    voiceTransportFactory: voice == null ? null : () => voice!,
   );
 
   Widget screen() => ActiveRideNavigationScreen(
@@ -227,7 +280,7 @@ class Harness {
     runtime: runtime,
     routePlannerApi: AuditRoutePlannerApi(),
     rideSosApi: AuditRideSosApi(),
-    voiceIntercomEnabled: false,
+    voiceIntercomEnabled: voice != null,
     onOpenLiveGroup: () async {},
     onOpenTracking: () async {},
     onOpenComms: () async {},
