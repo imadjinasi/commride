@@ -14,20 +14,11 @@ export class BestEffortRidePushNotifier implements RidePushNotifier {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
+  // Direct Rider pushes are deduplicated by the caller through the persistent
+  // notification inbox (one stored row per Rider and event key).
   async notifyRider(message: RiderPushMessage): Promise<PushDeliveryResult> {
-    const claimRiderEvent = this.repository.claimRiderEvent;
     const listRiderTokens = this.repository.listRiderTokens;
-    if (claimRiderEvent == null || listRiderTokens == null) {
-      return { delivered: 0, failed: 0 };
-    }
-
-    const claimed = await claimRiderEvent.call(this.repository, {
-      eventKey: message.eventKey,
-      riderId: message.riderId,
-      kind: message.kind,
-      createdAt: this.now().toISOString(),
-    });
-    if (!claimed) {
+    if (listRiderTokens == null) {
       return { delivered: 0, failed: 0 };
     }
 

@@ -3,17 +3,25 @@ import 'package:flutter/material.dart';
 import '../../api/notification_api.dart';
 import '../../models/rider_notification.dart';
 
+typedef NotificationOpenCallback =
+    Future<void> Function(RiderNotification notification);
+
 class NotificationCenterScreen extends StatelessWidget {
   const NotificationCenterScreen({
     required this.notificationApi,
     this.clubId,
     this.clubName,
+    this.onOpen,
     super.key,
   });
 
   final NotificationApi notificationApi;
   final String? clubId;
   final String? clubName;
+
+  /// Opens the Ride or Club a notification points to. Called after the
+  /// item is marked read; only offered for items that carry a target.
+  final NotificationOpenCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +33,7 @@ class NotificationCenterScreen extends StatelessWidget {
         notificationApi: notificationApi,
         scope: RiderNotificationScope.club,
         clubId: clubId,
+        onOpen: onOpen,
       );
     }
 
@@ -45,10 +54,12 @@ class NotificationCenterScreen extends StatelessWidget {
             _NotificationList(
               notificationApi: notificationApi,
               scope: RiderNotificationScope.account,
+              onOpen: onOpen,
             ),
             _NotificationList(
               notificationApi: notificationApi,
               scope: RiderNotificationScope.club,
+              onOpen: onOpen,
             ),
           ],
         ),
@@ -63,12 +74,14 @@ class _NotificationListScaffold extends StatelessWidget {
     required this.notificationApi,
     required this.scope,
     this.clubId,
+    this.onOpen,
   });
 
   final String title;
   final NotificationApi notificationApi;
   final RiderNotificationScope scope;
   final String? clubId;
+  final NotificationOpenCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +91,7 @@ class _NotificationListScaffold extends StatelessWidget {
         notificationApi: notificationApi,
         scope: scope,
         clubId: clubId,
+        onOpen: onOpen,
       ),
     );
   }
@@ -88,11 +102,13 @@ class _NotificationList extends StatefulWidget {
     required this.notificationApi,
     required this.scope,
     this.clubId,
+    this.onOpen,
   });
 
   final NotificationApi notificationApi;
   final RiderNotificationScope scope;
   final String? clubId;
+  final NotificationOpenCallback? onOpen;
 
   @override
   State<_NotificationList> createState() => _NotificationListState();
@@ -151,6 +167,7 @@ class _NotificationListState extends State<_NotificationList> {
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (BuildContext context, int index) {
                   final RiderNotification item = items[index];
+                  final bool actionable = _canOpen(item);
                   return Card(
                     child: ListTile(
                       leading: Icon(
@@ -170,8 +187,12 @@ class _NotificationListState extends State<_NotificationList> {
                       isThreeLine: true,
                       trailing: item.isUnread
                           ? const Icon(Icons.circle, size: 10)
+                          : actionable
+                          ? const Icon(Icons.chevron_right)
                           : null,
-                      onTap: item.isUnread ? () => _markRead(item) : null,
+                      onTap: item.isUnread || actionable
+                          ? () => _open(item)
+                          : null,
                     ),
                   );
                 },
@@ -179,6 +200,18 @@ class _NotificationListState extends State<_NotificationList> {
             );
           },
     );
+  }
+
+  bool _canOpen(RiderNotification item) =>
+      widget.onOpen != null && (item.rideId != null || item.clubId != null);
+
+  Future<void> _open(RiderNotification item) async {
+    if (item.isUnread) {
+      await _markRead(item);
+    }
+    if (_canOpen(item) && mounted) {
+      await widget.onOpen!(item);
+    }
   }
 
   Future<void> _markRead(RiderNotification item) async {

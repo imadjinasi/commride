@@ -23,7 +23,8 @@ import '../screens/clubs/club_detail_screen.dart';
 import '../screens/clubs/clubs_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
-import '../screens/notifications/ride_notifications_screen.dart';
+import '../models/rider_notification.dart';
+import '../screens/notifications/notification_center_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/ride/ride_detail_screen.dart';
 import '../screens/ride/ride_screen.dart';
@@ -147,9 +148,11 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  // The persistent inbox is the notification history; OS push is only a
+  // delivery channel and is not required to see past notifications.
   Future<void> _openNotifications() async {
-    final RidePushController? controller = _ridePushController;
-    if (controller == null) {
+    final NotificationApi? notificationApi = widget.notificationApi;
+    if (notificationApi == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Notifikasi belum tersedia pada konfigurasi ini.'),
@@ -160,25 +163,40 @@ class _AppShellState extends State<AppShell> {
 
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => RideNotificationsScreen(
-          controller: controller,
-          onOpen: _openNotification,
+        builder: (BuildContext context) => NotificationCenterScreen(
+          notificationApi: notificationApi,
+          onOpen: _openInboxNotification,
         ),
       ),
+    );
+  }
+
+  Future<void> _openInboxNotification(RiderNotification notification) {
+    return _openNotificationTarget(
+      rideId: notification.rideId,
+      clubId: notification.clubId,
     );
   }
 
   Future<void> _openNotification(RideNotificationEntry notification) async {
     _ridePushController?.markNotificationRead(notification.id);
     _ridePushController?.clearForegroundPush();
+    await _openNotificationTarget(
+      rideId: notification.rideId,
+      clubId: notification.clubId,
+    );
+  }
 
+  Future<void> _openNotificationTarget({
+    required String? rideId,
+    required String? clubId,
+  }) async {
     final NavigatorState navigator = Navigator.of(context);
     if (navigator.canPop()) {
       navigator.pop();
       await Future<void>.delayed(Duration.zero);
     }
 
-    final String? rideId = notification.rideId;
     if (rideId != null) {
       final RideListItem? ride = await _findRide(rideId);
       if (!mounted) {
@@ -190,7 +208,6 @@ class _AppShellState extends State<AppShell> {
       }
     }
 
-    final String? clubId = notification.clubId;
     if (clubId != null) {
       final List<ClubListItem> clubs = await widget.clubRideApi.listClubs();
       if (!mounted) {
@@ -326,10 +343,7 @@ class _AppShellState extends State<AppShell> {
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            _MainAppBrandHeader(
-              ridePushController: _ridePushController,
-              onOpenNotifications: _openNotifications,
-            ),
+            _MainAppBrandHeader(onOpenNotifications: _openNotifications),
             Expanded(
               child: IndexedStack(
                 index: _selectedIndex,
@@ -379,12 +393,8 @@ class _AppShellState extends State<AppShell> {
 }
 
 class _MainAppBrandHeader extends StatelessWidget {
-  const _MainAppBrandHeader({
-    required this.ridePushController,
-    required this.onOpenNotifications,
-  });
+  const _MainAppBrandHeader({required this.onOpenNotifications});
 
-  final RidePushController? ridePushController;
   final Future<void> Function() onOpenNotifications;
 
   @override
@@ -409,34 +419,11 @@ class _MainAppBrandHeader extends StatelessWidget {
                 child: CommRideHeaderBrand(),
               ),
             ),
-            if (ridePushController == null)
-              IconButton(
-                tooltip: 'Notifikasi',
-                onPressed: () => unawaited(onOpenNotifications()),
-                icon: const Icon(Icons.notifications_none),
-              )
-            else
-              ListenableBuilder(
-                listenable: ridePushController!,
-                builder: (BuildContext context, Widget? child) {
-                  final int unread = ridePushController!.state.unreadCount;
-                  return IconButton(
-                    tooltip: unread > 0
-                        ? 'Notifikasi · $unread belum dibaca'
-                        : 'Notifikasi',
-                    onPressed: () => unawaited(onOpenNotifications()),
-                    icon: Badge(
-                      isLabelVisible: unread > 0,
-                      label: Text(unread > 99 ? '99+' : '$unread'),
-                      child: Icon(
-                        unread > 0
-                            ? Icons.notifications_active
-                            : Icons.notifications_none,
-                      ),
-                    ),
-                  );
-                },
-              ),
+            IconButton(
+              tooltip: 'Notifikasi',
+              onPressed: () => unawaited(onOpenNotifications()),
+              icon: const Icon(Icons.notifications_none),
+            ),
           ],
         ),
       ),

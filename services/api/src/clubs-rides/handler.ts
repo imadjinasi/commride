@@ -7,6 +7,7 @@ import type { RiderRepository } from '../riders/rider-repository';
 import type { RideSosRepository } from '../ride-sos/repository';
 import type { RidePushNotifier } from '../push/notifier';
 import type { NotificationRepository } from '../notifications/repository';
+import type { CreateNotificationInput } from '../notifications/models';
 import { notifyRideRecapAvailableBestEffort } from '../ride-notifications';
 import type {
   ClubMembership,
@@ -251,21 +252,16 @@ async function inviteClubMember(
     inputResult.value.role,
   );
 
-  try {
-    await dependencies.pushNotifier?.notifyRider?.({
-      eventKey: `club-invite:${clubId}:${target.id}:${membership.role}`,
-      riderId: target.id,
-      kind: 'club_invitation',
-      title: 'Undangan Club',
-      body: 'Anda diundang bergabung ke Club di CommRide.',
-      data: {
-        type: 'club.invited',
-        clubId,
-      },
-    });
-  } catch {
-    // Invitation state is authoritative; push remains best effort.
-  }
+  await notifyInvitedRiderBestEffort(target.id, dependencies, {
+    eventKey: `club-invite:${clubId}:${target.id}`,
+    scope: 'account',
+    clubId,
+    kind: 'club_invite',
+    title: 'Undangan Club',
+    body: 'Anda diundang bergabung ke sebuah Club.',
+    data: { type: 'club.invite', clubId },
+    createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
+  });
 
   return jsonResponse({ membership }, 200, requestId);
 }
@@ -439,22 +435,17 @@ async function inviteRideMember(
     inputResult.value.role,
   );
 
-  try {
-    await dependencies.pushNotifier?.notifyRider?.({
-      eventKey: `ride-invite:${rideId}:${target.id}:${membership.role}`,
-      riderId: target.id,
-      kind: 'ride_invitation',
-      title: 'Undangan Ride',
-      body: `${ride.title}: Anda diundang bergabung ke Ride.`,
-      data: {
-        type: 'ride.invited',
-        rideId,
-        clubId: ride.clubId,
-      },
-    });
-  } catch {
-    // Invitation state is authoritative; push remains best effort.
-  }
+  await notifyInvitedRiderBestEffort(target.id, dependencies, {
+    eventKey: `ride-invite:${rideId}:${target.id}`,
+    scope: 'account',
+    clubId: ride.clubId,
+    rideId,
+    kind: 'ride_invite',
+    title: 'Undangan Ride',
+    body: `${ride.title}: Anda diundang untuk ikut Ride ini.`,
+    data: { type: 'ride.invite', clubId: ride.clubId, rideId },
+    createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
+  });
 
   return jsonResponse({ membership }, 200, requestId);
 }
@@ -755,6 +746,44 @@ async function persistNotificationBestEffort(
     await operation();
   } catch {
     // Notification history must not roll back authoritative Club/Ride state.
+  }
+}
+
+// The Account inbox row is the invitation's notification record and its
+// dedupe claim: push is only sent when a new row was stored, so a repeated
+// invite neither duplicates history nor re-sends the push.
+async function notifyInvitedRiderBestEffort(
+  riderId: string,
+  dependencies: ClubRideHandlerDependencies,
+  input: CreateNotificationInput,
+): Promise<void> {
+  const repository = dependencies.notificationRepository;
+  if (repository == null) {
+    return;
+  }
+
+  let recorded: boolean;
+  try {
+    recorded = await repository.createForRider(riderId, input);
+  } catch {
+    // Notification history must not roll back authoritative Club/Ride state.
+    return;
+  }
+  if (!recorded) {
+    return;
+  }
+
+  try {
+    await dependencies.pushNotifier?.notifyRider?.({
+      eventKey: input.eventKey,
+      riderId,
+      kind: input.kind,
+      title: input.title,
+      body: input.body,
+      data: input.data ?? {},
+    });
+  } catch {
+    // Invitation state is authoritative; push remains best effort.
   }
 }
 

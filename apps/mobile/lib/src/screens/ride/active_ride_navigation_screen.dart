@@ -129,7 +129,9 @@ class _ActiveRideNavigationScreenState
           PopupMenuButton<String>(
             tooltip: 'Aksi sekunder',
             onSelected: (String value) {
-              if (value == 'tracking') {
+              if (value == 'comms') {
+                unawaited(widget.onOpenComms());
+              } else if (value == 'tracking') {
                 unawaited(widget.onOpenTracking());
               } else if (value == 'sos-detail') {
                 unawaited(widget.onOpenSos());
@@ -137,6 +139,13 @@ class _ActiveRideNavigationScreenState
             },
             itemBuilder: (BuildContext context) =>
                 const <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'comms',
+                    child: ListTile(
+                      leading: Icon(Icons.forum_outlined),
+                      title: Text('Comms'),
+                    ),
+                  ),
                   PopupMenuItem<String>(
                     value: 'tracking',
                     child: ListTile(
@@ -308,13 +317,6 @@ class _ActiveRideNavigationScreenState
             ),
           ),
       ],
-    );
-  }
-
-  Future<void> _openQuickActions() {
-    return showRideQuickActionsSheet(
-      context,
-      onSend: widget.runtime.groupController.raiseQuickAction,
     );
   }
 

@@ -74,7 +74,9 @@ class MemoryNotificationRepository implements NotificationRepository {
   async createForRider(
     _riderId: string,
     _input: CreateNotificationInput,
-  ): Promise<void> {}
+  ): Promise<boolean> {
+    return true;
+  }
 
   async createForClubMembers(
     _clubId: string,

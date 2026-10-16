@@ -23,6 +23,8 @@ import type {
 } from '../src/riders/rider-profile';
 import type { RiderRepository } from '../src/riders/rider-repository';
 import type { RiderPushMessage } from '../src/push/models';
+import type { CreateNotificationInput } from '../src/notifications/models';
+import type { NotificationRepository } from '../src/notifications/repository';
 import { handleRequest } from '../src/router';
 
 const riderOne: RiderProfile = {
@@ -265,6 +267,39 @@ function request(
   });
 }
 
+class RecordingNotificationRepository implements NotificationRepository {
+  readonly accountItems: { riderId: string; input: CreateNotificationInput }[] =
+    [];
+
+  async createForRider(
+    riderId: string,
+    input: CreateNotificationInput,
+  ): Promise<boolean> {
+    if (
+      this.accountItems.some(
+        (item) =>
+          item.riderId === riderId && item.input.eventKey === input.eventKey,
+      )
+    ) {
+      return false;
+    }
+    this.accountItems.push({ riderId, input });
+    return true;
+  }
+
+  async createForClubMembers(): Promise<void> {}
+
+  async createForRideParticipants(): Promise<void> {}
+
+  async listForRider(): Promise<never[]> {
+    return [];
+  }
+
+  async markRead(): Promise<boolean> {
+    return false;
+  }
+}
+
 function dependencies(repository: MemoryClubRideRepository) {
   let nextId = 1;
 
@@ -327,11 +362,13 @@ describe('Club and Ride lifecycle API', () => {
     expect(response.status).toBe(403);
   });
 
-  it('sends actionable Club and Ride invitation metadata', async () => {
+  it('records invitations in the Account inbox and pushes each once', async () => {
     const repository = new MemoryClubRideRepository();
+    const notifications = new RecordingNotificationRepository();
     const directMessages: RiderPushMessage[] = [];
     const deps = {
       ...dependencies(repository),
+      notificationRepository: notifications,
       ridePushNotifier: {
         notify: async () => ({ delivered: 0, failed: 0 }),
         notifyRider: async (message: RiderPushMessage) => {
@@ -360,14 +397,30 @@ describe('Club and Ride lifecycle API', () => {
       deps,
     );
     expect(clubInvite.status).toBe(200);
+    expect(notifications.accountItems[0]).toMatchObject({
+      riderId: riderTwo.id,
+      input: { scope: 'account', kind: 'club_invite', clubId: club.id },
+    });
     expect(directMessages[0]).toMatchObject({
       riderId: riderTwo.id,
-      kind: 'club_invitation',
+      kind: 'club_invite',
       data: {
-        type: 'club.invited',
+        type: 'club.invite',
         clubId: club.id,
       },
     });
+
+    const repeatedClubInvite = await handleRequest(
+      request(`/v1/clubs/${club.id}/members/invite`, 'token-1', {
+        riderId: riderTwo.id,
+        role: 'member',
+      }),
+      {},
+      deps,
+    );
+    expect(repeatedClubInvite.status).toBe(200);
+    expect(notifications.accountItems).toHaveLength(1);
+    expect(directMessages).toHaveLength(1);
 
     const rideResponse = await handleRequest(
       request(`/v1/clubs/${club.id}/rides`, 'token-1', {
@@ -387,11 +440,15 @@ describe('Club and Ride lifecycle API', () => {
       deps,
     );
     expect(rideInvite.status).toBe(200);
+    expect(notifications.accountItems[1]).toMatchObject({
+      riderId: riderTwo.id,
+      input: { scope: 'account', kind: 'ride_invite', rideId: ride.id },
+    });
     expect(directMessages[1]).toMatchObject({
       riderId: riderTwo.id,
-      kind: 'ride_invitation',
+      kind: 'ride_invite',
       data: {
-        type: 'ride.invited',
+        type: 'ride.invite',
         rideId: ride.id,
         clubId: club.id,
       },

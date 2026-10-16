@@ -55,7 +55,6 @@ class TestRiderRepository implements RiderRepository {
 class MemoryPushRepository implements PushRepository {
   readonly tokens: RiderPushToken[] = [];
   readonly claimed = new Set<string>();
-  readonly directClaimed = new Set<string>();
 
   async registerToken(input: {
     readonly id: string;
@@ -97,19 +96,6 @@ class MemoryPushRepository implements PushRepository {
     riderId: string,
   ): Promise<readonly RiderPushToken[]> {
     return this.tokens.filter((item) => item.riderId === riderId);
-  }
-
-  async claimRiderEvent(input: {
-    readonly eventKey: string;
-    readonly riderId: string;
-    readonly kind: string;
-    readonly createdAt: string;
-  }): Promise<boolean> {
-    if (this.directClaimed.has(input.eventKey)) {
-      return false;
-    }
-    this.directClaimed.add(input.eventKey);
-    return true;
   }
 
   async claimEvent(input: {
@@ -257,7 +243,7 @@ describe('push notifications', () => {
     expect(result).toEqual({ delivered: 0, failed: 0 });
   });
 
-  it('targets and deduplicates direct Rider notifications', async () => {
+  it('targets direct Rider notifications to that Rider only', async () => {
     const repository = new MemoryPushRepository();
     await repository.registerToken({
       id: 'push-rider-1',
@@ -276,20 +262,18 @@ describe('push notifications', () => {
     const transport = new RecordingTransport();
     const notifier = new BestEffortRidePushNotifier(repository, transport);
 
-    const message = {
-      eventKey: 'club-invite:club-1:rider-1:member',
+    const result = await notifier.notifyRider({
+      eventKey: 'club-invite:club-1:rider-1',
       riderId: rider.id,
-      kind: 'club_invitation',
+      kind: 'club_invite',
       title: 'Undangan Club',
-      body: 'Buka Club untuk melihat undangan.',
-      data: { type: 'club.invited', clubId: 'club-1' },
-    };
+      body: 'Anda diundang bergabung ke sebuah Club.',
+      data: { type: 'club.invite', clubId: 'club-1' },
+    });
 
-    const first = await notifier.notifyRider(message);
-    const repeated = await notifier.notifyRider(message);
-
-    expect(first).toEqual({ delivered: 1, failed: 0 });
-    expect(repeated).toEqual({ delivered: 0, failed: 0 });
+    // Only the invited Rider's device is targeted; dedupe happens upstream
+    // through the persistent notification inbox.
+    expect(result).toEqual({ delivered: 1, failed: 0 });
     expect(transport.calls).toBe(1);
   });
 
