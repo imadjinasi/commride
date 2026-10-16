@@ -67,9 +67,12 @@ class GeolocatorRideLocationProvider implements RideLocationProvider {
 
   LocationSettings _settings() {
     if (defaultTargetPlatform == TargetPlatform.android) {
+      // No distance filter: a stopped Rider (red light, rest stop) still
+      // reports a real fix every 10 s and stays Live inside the server's
+      // 30 s window instead of turning stale while standing still.
       return AndroidSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 25,
+        distanceFilter: 0,
         intervalDuration: const Duration(seconds: 10),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'CommRide · Ride aktif',
@@ -84,7 +87,7 @@ class GeolocatorRideLocationProvider implements RideLocationProvider {
       return AppleSettings(
         accuracy: LocationAccuracy.high,
         activityType: ActivityType.automotiveNavigation,
-        distanceFilter: 25,
+        distanceFilter: 0,
         pauseLocationUpdatesAutomatically: false,
         showBackgroundLocationIndicator: true,
         allowBackgroundLocationUpdates: true,

@@ -67,6 +67,11 @@ def verify_android() -> None:
         raise SystemExit("Android minSdk 24 declaration missing.")
     if "MAPS_API_KEY" in content or "commRideMapsApiKey" in content:
         raise SystemExit("Obsolete Google Navigation Gradle wiring remains.")
+    activities = list((ROOT / "android/app/src/main/kotlin").rglob("MainActivity.kt"))
+    if len(activities) != 1 or "commride/media_keys" not in activities[0].read_text(
+        encoding="utf-8"
+    ):
+        raise SystemExit("Android media-key channel missing.")
     if gradle.name == "build.gradle.kts" and (
         "commRideKeystoreProperties" not in content
         or 'signingConfigs.getByName("release")' not in content

@@ -60,6 +60,64 @@ RELEASE_SIGNING_SELECTION = """signingConfig = if (commRideKeystoreProperties.is
             }"""
 
 
+MEDIA_KEYS_CHANNEL = "commride/media_keys"
+
+MEDIA_KEYS_ACTIVITY = """
+import android.media.AudioManager
+import android.view.KeyEvent
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+// Media keys let Riders control whatever music app is playing without the
+// notification-access permission that reading track details would need.
+class MainActivity : FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "commride/media_keys")
+            .setMethodCallHandler { call, result ->
+                val code = when (call.arguments as? String) {
+                    "previous" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                    "playPause" -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
+                    else -> null
+                }
+                if (call.method != "send" || code == null) {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+                result.success(null)
+            }
+    }
+}
+"""
+
+
+def configure_media_keys() -> None:
+    """Install the media-key channel in the generated Android MainActivity."""
+    activities = sorted(
+        (ROOT / "android/app/src/main/kotlin").rglob("MainActivity.kt")
+    )
+    if len(activities) != 1:
+        raise SystemExit("Expected exactly one Android MainActivity.kt.")
+    path = activities[0]
+    content = path.read_text(encoding="utf-8")
+    if MEDIA_KEYS_CHANNEL in content:
+        return
+    package = next(
+        (line for line in content.splitlines() if line.startswith("package ")),
+        None,
+    )
+    if package is None or "class MainActivity : FlutterActivity()" not in content:
+        raise SystemExit(
+            "Unexpected Android MainActivity template; refusing unsafe patch."
+        )
+    path.write_text(package + "\n" + MEDIA_KEYS_ACTIVITY, encoding="utf-8")
+
+
 def configure_release_signing(content: str) -> str:
     """Wire the Play upload key into Kotlin Gradle release builds."""
     if RELEASE_SIGNING_MARKER in content:
@@ -204,6 +262,8 @@ def configure_android() -> None:
 
     if not configured:
         raise SystemExit("Android app Gradle file missing.")
+
+    configure_media_keys()
 
 
 def configure_ios() -> None:

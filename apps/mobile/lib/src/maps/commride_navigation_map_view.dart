@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../active_ride/commride_navigation_engine.dart';
 import '../active_ride/live_group_models.dart';
 import '../config/app_config.dart';
+import '../models/club_ride.dart';
 import '../models/route_planner.dart';
 import 'map_style_scope.dart';
 
@@ -19,6 +20,8 @@ class CommRideNavigationMapView extends StatefulWidget {
     required this.presences,
     required this.incidents,
     required this.now,
+    this.selfRiderId,
+    this.showGroup = false,
     super.key,
   });
 
@@ -29,6 +32,13 @@ class CommRideNavigationMapView extends StatefulWidget {
   final List<LiveRiderPresence> presences;
   final List<TrafficIncident> incidents;
   final DateTime now;
+
+  /// The Rider using this phone; drawn as the navigation dot, not as a group
+  /// marker, so the same person never appears twice.
+  final String? selfRiderId;
+
+  /// Frame every Rider instead of following the current position.
+  final bool showGroup;
 
   @override
   State<CommRideNavigationMapView> createState() =>
@@ -43,6 +53,7 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
   static const String _ridersSource = 'commride-navigation-riders';
   static const String _ridersLayer = 'commride-navigation-rider-circles';
   static const String _ridersLabels = 'commride-navigation-rider-labels';
+  static const String _ridersInitials = 'commride-navigation-rider-initials';
   static const String _positionSource = 'commride-navigation-position';
   static const String _positionLayer = 'commride-navigation-position-circle';
   static const String _rejoinSource = 'commride-navigation-rejoin';
@@ -118,7 +129,9 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
             bearing: widget.snapshot?.routeBearingDegrees ?? 0,
           ),
           myLocationEnabled: false,
-          compassEnabled: true,
+          // Bearing already follows the route; the compass overlapped the
+          // status bar on edge-to-edge Android.
+          compassEnabled: false,
           onMapCreated: (MapLibreMapController controller) {
             _controller = controller;
           },
@@ -202,7 +215,11 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
       await controller
           .addGeoJsonSource(
             _ridersSource,
-            _ridersGeoJson(widget.presences, widget.now),
+            riderMarkersGeoJson(
+              widget.presences,
+              widget.now,
+              selfRiderId: widget.selfRiderId,
+            ),
           )
           .timeout(_timeout);
       await controller
@@ -211,9 +228,22 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
             _ridersLayer,
             const CircleLayerProperties(
               circleColor: <String>['get', 'color'],
-              circleRadius: 8,
+              circleRadius: 12,
               circleStrokeColor: '#FFFFFF',
-              circleStrokeWidth: 2,
+              circleStrokeWidth: 3,
+            ),
+          )
+          .timeout(_timeout);
+      await controller
+          .addSymbolLayer(
+            _ridersSource,
+            _ridersInitials,
+            const SymbolLayerProperties(
+              textField: <String>['get', 'initial'],
+              textSize: 12,
+              textColor: '#FFFFFF',
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
             ),
           )
           .timeout(_timeout);
@@ -223,12 +253,13 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
             _ridersLabels,
             const SymbolLayerProperties(
               textField: <String>['get', 'label'],
-              textSize: 11,
-              textOffset: <double>[0, 1.4],
+              textSize: 13,
+              textOffset: <double>[0, 1.5],
               textAnchor: 'top',
-              textColor: '#202020',
+              textColor: '#161616',
               textHaloColor: '#FFFFFF',
               textHaloWidth: 2,
+              textAllowOverlap: true,
             ),
           )
           .timeout(_timeout);
@@ -356,7 +387,11 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
         await controller
             .setGeoJsonSource(
               _ridersSource,
-              _ridersGeoJson(widget.presences, widget.now),
+              riderMarkersGeoJson(
+                widget.presences,
+                widget.now,
+                selfRiderId: widget.selfRiderId,
+              ),
             )
             .timeout(_timeout);
         await controller
@@ -382,7 +417,23 @@ class _CommRideNavigationMapViewState extends State<CommRideNavigationMapView> {
             .timeout(_timeout);
 
         final CommRideNavigationSnapshot? snapshot = widget.snapshot;
-        if (snapshot != null) {
+        final LatLngBounds? group = widget.showGroup
+            ? groupBounds(widget.presences, snapshot?.position)
+            : null;
+        if (group != null) {
+          // Leave room for the overlays above and the dock below.
+          await controller
+              .animateCamera(
+                CameraUpdate.newLatLngBounds(
+                  group,
+                  left: 48,
+                  top: 260,
+                  right: 48,
+                  bottom: 48,
+                ),
+              )
+              .timeout(_timeout);
+        } else if (snapshot != null) {
           await controller
               .animateCamera(
                 CameraUpdate.newCameraPosition(
@@ -529,13 +580,18 @@ Map<String, dynamic> _rejoinGeoJson(CommRideNavigationSnapshot? snapshot) {
   });
 }
 
-Map<String, dynamic> _ridersGeoJson(
+/// Group markers: fill colour is freshness (never shows stale as live), the
+/// letter inside is the operational role, and the label names the Rider and
+/// says when the position is not live.
+Map<String, dynamic> riderMarkersGeoJson(
   List<LiveRiderPresence> presences,
-  DateTime now,
-) {
+  DateTime now, {
+  String? selfRiderId,
+}) {
   return <String, dynamic>{
     'type': 'FeatureCollection',
     'features': presences
+        .where((LiveRiderPresence presence) => presence.riderId != selfRiderId)
         .map((LiveRiderPresence presence) {
           final LivePresenceFreshness freshness = presence.effectiveFreshness(
             now,
@@ -544,6 +600,11 @@ Map<String, dynamic> _ridersGeoJson(
             LivePresenceFreshness.live => '#2E7D32',
             LivePresenceFreshness.stale => '#F9A825',
             LivePresenceFreshness.offline => '#6A1B9A',
+          };
+          final String status = switch (freshness) {
+            LivePresenceFreshness.live => '',
+            LivePresenceFreshness.stale => '\nlama',
+            LivePresenceFreshness.offline => '\noffline',
           };
           return <String, dynamic>{
             'type': 'Feature',
@@ -554,14 +615,48 @@ Map<String, dynamic> _ridersGeoJson(
             },
             'properties': <String, dynamic>{
               'color': color,
-              'label':
-                  '${presence.displayName} · ${presence.role.label}\n'
-                  '${freshness.label}',
+              'initial': switch (presence.role) {
+                RideRole.leader => 'L',
+                RideRole.sweeper => 'S',
+                RideRole.navigator => 'N',
+                RideRole.member => '',
+              },
+              'label': '${presence.displayName}$status',
             },
           };
         })
         .toList(growable: false),
   };
+}
+
+/// Bounds that contain every Rider plus the current position, or null when
+/// there is nothing beyond a single point to frame.
+LatLngBounds? groupBounds(
+  List<LiveRiderPresence> presences,
+  GeoPoint? position,
+) {
+  final List<GeoPoint> points = <GeoPoint>[
+    ?position,
+    for (final LiveRiderPresence presence in presences)
+      GeoPoint(latitude: presence.latitude, longitude: presence.longitude),
+  ];
+  if (points.length < 2) {
+    return null;
+  }
+  double south = points.first.latitude;
+  double north = south;
+  double west = points.first.longitude;
+  double east = west;
+  for (final GeoPoint point in points) {
+    if (point.latitude < south) south = point.latitude;
+    if (point.latitude > north) north = point.latitude;
+    if (point.longitude < west) west = point.longitude;
+    if (point.longitude > east) east = point.longitude;
+  }
+  return LatLngBounds(
+    southwest: LatLng(south, west),
+    northeast: LatLng(north, east),
+  );
 }
 
 Map<String, dynamic> trafficIncidentPointGeoJson(

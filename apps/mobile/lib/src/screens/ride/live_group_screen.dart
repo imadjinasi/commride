@@ -40,7 +40,9 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
   @override
   void initState() {
     super.initState();
-    _showMap = widget.mapsEnabled;
+    // Positions already sit on the riding map; this screen leads with the
+    // log and each Rider's status, with the map one tap away.
+    _showMap = false;
     widget.controller.addListener(_onStateChanged);
     widget.controller.start();
 
@@ -66,13 +68,13 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
     final ActiveRideGroupCounts counts = state.counts(now);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Group')),
-      floatingActionButton: state.hasEnded
+      appBar: AppBar(title: const Text('Rombongan')),
+      bottomNavigationBar: state.hasEnded
           ? null
-          : FloatingActionButton.extended(
-              onPressed: _showQuickActions,
-              icon: const Icon(Icons.bolt_outlined),
-              label: const Text('Quick Actions'),
+          : _StatusBar(
+              onSend: (LiveQuickActionKind kind) =>
+                  _sendQuickAction(null, kind),
+              onAddNote: _showQuickActions,
             ),
       body: SafeArea(
         minimum: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -92,27 +94,31 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
               const SizedBox(height: 12),
               _SeparationCard(separation: state.separation!),
             ],
-            if (state.quickActions.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 18),
-              Text(
-                'Perlu perhatian',
-                style: Theme.of(context).textTheme.titleLarge,
+            const SizedBox(height: 18),
+            Text(
+              'Log rombongan',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            if (state.quickActions.isEmpty)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text('Belum ada status dari Rider di Ride ini.'),
+                ),
+              )
+            else
+              ..._newestFirst(state.quickActions).map(
+                (LiveQuickAction action) =>
+                    _QuickActionCard(action: action, now: now),
               ),
-              const SizedBox(height: 8),
-              ...state.quickActions
-                  .take(5)
-                  .map(
-                    (LiveQuickAction action) =>
-                        _QuickActionCard(action: action, now: now),
-                  ),
-            ],
             const SizedBox(height: 18),
             if (widget.mapsEnabled) ...<Widget>[
               Row(
                 children: <Widget>[
                   Expanded(
                     child: Text(
-                      'Live Group',
+                      'Status Rider',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
@@ -121,12 +127,12 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
                       ButtonSegment<bool>(
                         value: true,
                         icon: Icon(Icons.map_outlined),
-                        label: Text('Map'),
+                        label: Text('Peta'),
                       ),
                       ButtonSegment<bool>(
                         value: false,
                         icon: Icon(Icons.list_alt_outlined),
-                        label: Text('List'),
+                        label: Text('Daftar'),
                       ),
                     ],
                     selected: <bool>{_showMap},
@@ -140,7 +146,10 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
               ),
               const SizedBox(height: 8),
             ] else ...<Widget>[
-              Text('Riders', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Status Rider',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 8),
             ],
             if (state.presences.isEmpty)
@@ -170,7 +179,7 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
                 ),
               )
             else
-              ...state.presences.map(
+              ..._attentionFirst(state.presences, now).map(
                 (LiveRiderPresence presence) =>
                     _PresenceCard(presence: presence, now: now),
               ),
@@ -178,6 +187,30 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
         ),
       ),
     );
+  }
+
+  List<LiveQuickAction> _newestFirst(List<LiveQuickAction> actions) {
+    return actions.toList()..sort(
+      (LiveQuickAction a, LiveQuickAction b) =>
+          b.raisedAt.compareTo(a.raisedAt),
+    );
+  }
+
+  /// Offline, then stale, then live: the Riders who need a look come first.
+  List<LiveRiderPresence> _attentionFirst(
+    List<LiveRiderPresence> presences,
+    DateTime now,
+  ) {
+    int rank(LiveRiderPresence presence) =>
+        switch (presence.effectiveFreshness(now)) {
+          LivePresenceFreshness.offline => 0,
+          LivePresenceFreshness.stale => 1,
+          LivePresenceFreshness.live => 2,
+        };
+    return presences.toList()..sort((LiveRiderPresence a, LiveRiderPresence b) {
+      final int byRank = rank(a).compareTo(rank(b));
+      return byRank != 0 ? byRank : a.displayName.compareTo(b.displayName);
+    });
   }
 
   Future<void> _showQuickActions() async {
@@ -193,8 +226,10 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
     );
   }
 
+  /// [sheetContext] is the note sheet to close after sending; null when the
+  /// status comes straight from the bottom bar.
   Future<void> _sendQuickAction(
-    BuildContext sheetContext,
+    BuildContext? sheetContext,
     LiveQuickActionKind kind, {
     String? reason,
   }) async {
@@ -203,7 +238,9 @@ class _LiveGroupScreenState extends State<LiveGroupScreen> {
       if (!mounted) {
         return;
       }
-      if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
+      if (sheetContext != null &&
+          sheetContext.mounted &&
+          Navigator.of(sheetContext).canPop()) {
         Navigator.of(sheetContext).pop();
       }
       ScaffoldMessenger.of(
@@ -248,7 +285,7 @@ class _QuickActionsSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Quick Actions',
+              'Status + keterangan',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 4),
@@ -655,4 +692,65 @@ String _formatAge(Duration duration) {
     return '${age.inMinutes} mnt';
   }
   return '${age.inHours} jam';
+}
+
+/// Same one-tap statuses as the riding dock; long-press adds a note.
+class _StatusBar extends StatelessWidget {
+  const _StatusBar({required this.onSend, required this.onAddNote});
+
+  final Future<void> Function(LiveQuickActionKind kind) onSend;
+  final Future<void> Function() onAddNote;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 8,
+      color: Theme.of(context).colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.all(8),
+        child: SizedBox(
+          height: 72,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (final LiveQuickActionKind kind
+                  in LiveQuickActionKind.values) ...<Widget>[
+                if (kind != LiveQuickActionKind.values.first)
+                  const SizedBox(width: 6),
+                Expanded(
+                  child: Material(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => unawaited(onSend(kind)),
+                      onLongPress: () => unawaited(onAddNote()),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(_quickActionIcon(kind), size: 26),
+                          const SizedBox(height: 4),
+                          Text(
+                            switch (kind) {
+                              LiveQuickActionKind.stopping => 'Berhenti',
+                              LiveQuickActionKind.leftBehind => 'Tertinggal',
+                              LiveQuickActionKind.needHelp => 'Bantuan',
+                            },
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

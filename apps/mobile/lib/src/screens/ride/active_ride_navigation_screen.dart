@@ -16,6 +16,7 @@ import '../../api/route_planner_api.dart';
 import '../../maps/commride_navigation_map_view.dart';
 import '../../models/club_ride.dart';
 import '../../models/ride_sos.dart';
+import '../../platform/media_keys.dart';
 import '../../models/route_planner.dart';
 import '../../theme/commride_theme.dart';
 import '../../widgets/active_ride_quick_actions.dart';
@@ -67,6 +68,7 @@ class _ActiveRideNavigationScreenState
   bool _routeRevisionRefreshing = false;
   bool _rerouteSearching = false;
   bool _sendingQuickAction = false;
+  bool _showGroup = false;
   bool _trafficUnavailable = false;
   bool _trafficRefreshDegraded = false;
   DateTime? _trafficUpdatedAt;
@@ -167,6 +169,12 @@ class _ActiveRideNavigationScreenState
                           onOpenGroup: widget.onOpenLiveGroup,
                           menu: _buildMenu(),
                         ),
+                        if (_prepared != null) ...<Widget>[
+                          const SizedBox(height: CommRideSpacing.xs),
+                          _RidingMediaRow(
+                            voiceIntercomEnabled: widget.voiceIntercomEnabled,
+                          ),
+                        ],
                         if (_attention(groupState, sosState, now, connected)
                             case final _Attention attention) ...<Widget>[
                           const SizedBox(height: CommRideSpacing.xs),
@@ -196,6 +204,25 @@ class _ActiveRideNavigationScreenState
                     ),
                   ),
                 ),
+                if (_prepared != null)
+                  Positioned(
+                    right: 12,
+                    bottom: _error == null ? 12 : 84,
+                    child: _RoundSurface(
+                      child: IconButton(
+                        tooltip: _showGroup
+                            ? 'Ikuti posisi saya'
+                            : 'Lihat rombongan',
+                        iconSize: 28,
+                        padding: const EdgeInsets.all(12),
+                        onPressed: () =>
+                            setState(() => _showGroup = !_showGroup),
+                        icon: Icon(
+                          _showGroup ? Icons.navigation : Icons.groups,
+                        ),
+                      ),
+                    ),
+                  ),
                 if (_routeRevisionRefreshing ||
                     _rerouteSearching ||
                     _recoveryRouteLoading)
@@ -208,7 +235,7 @@ class _ActiveRideNavigationScreenState
                 if (_prepared != null && _error != null)
                   Positioned(
                     left: 12,
-                    right: 12,
+                    right: 76,
                     bottom: 12,
                     child: Material(
                       elevation: 3,
@@ -481,6 +508,8 @@ class _ActiveRideNavigationScreenState
       presences: groupState.presences,
       incidents: _trafficIncidents,
       now: DateTime.now(),
+      selfRiderId: widget.membership.riderId,
+      showGroup: _showGroup,
     );
   }
 
@@ -1718,20 +1747,6 @@ class _RidingDock extends StatelessWidget {
                   ],
                 ),
               ),
-            if (voiceIntercomEnabled)
-              Padding(
-                padding: const EdgeInsets.only(bottom: CommRideSpacing.xxs),
-                child: Row(
-                  children: <Widget>[
-                    const Icon(Icons.headset_mic_outlined, size: 18),
-                    const SizedBox(width: CommRideSpacing.xs),
-                    Text(
-                      'Interkom belum terhubung',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ],
-                ),
-              ),
             SizedBox(
               height: height,
               child: Row(
@@ -1821,6 +1836,110 @@ class _QuickStatusButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Voice and music within reach at the top of the map. Interkom shows its
+/// real state: until a voice provider is verified it is visibly unavailable.
+class _RidingMediaRow extends StatelessWidget {
+  const _RidingMediaRow({required this.voiceIntercomEnabled});
+
+  final bool voiceIntercomEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Material(
+            elevation: 3,
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(CommRideRadii.lg),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.headset_mic_outlined,
+                      color: voiceIntercomEnabled ? null : colors.outline,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        voiceIntercomEnabled
+                            ? 'Interkom belum terhubung'
+                            : 'Interkom segera',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: voiceIntercomEnabled ? null : colors.outline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (MediaKeys.supported) ...<Widget>[
+          const SizedBox(width: CommRideSpacing.xs),
+          Material(
+            elevation: 3,
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(CommRideRadii.lg),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const <Widget>[
+                _MediaButton(
+                  icon: Icons.skip_previous,
+                  tooltip: 'Lagu sebelumnya',
+                  mediaKey: MediaKey.previous,
+                ),
+                _MediaButton(
+                  icon: Icons.play_arrow,
+                  tooltip: 'Putar / jeda musik',
+                  mediaKey: MediaKey.playPause,
+                ),
+                _MediaButton(
+                  icon: Icons.skip_next,
+                  tooltip: 'Lagu berikutnya',
+                  mediaKey: MediaKey.next,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MediaButton extends StatelessWidget {
+  const _MediaButton({
+    required this.icon,
+    required this.tooltip,
+    required this.mediaKey,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final MediaKey mediaKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      iconSize: 26,
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      onPressed: () => unawaited(MediaKeys.send(mediaKey)),
+      icon: Icon(icon),
     );
   }
 }
