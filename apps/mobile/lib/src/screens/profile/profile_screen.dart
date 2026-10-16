@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../api/account_api.dart';
 import '../../api/vehicle_api.dart';
 import '../../auth/auth_gateway.dart';
 import '../../models/rider_profile.dart';
 import '../../models/vehicle_profile.dart';
 import '../../push/ride_push_controller.dart';
 import '../../push/ride_push_messaging.dart';
+import 'delete_account_screen.dart';
 import 'vehicle_editor_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,6 +17,8 @@ class ProfileScreen extends StatefulWidget {
     required this.vehicleApi,
     required this.authGateway,
     this.accountEmail,
+    this.accountDeletionApi,
+    this.clubOwnershipApi,
     this.ridePushController,
     super.key,
   });
@@ -23,6 +27,8 @@ class ProfileScreen extends StatefulWidget {
   final VehicleApi vehicleApi;
   final AuthGateway authGateway;
   final String? accountEmail;
+  final AccountDeletionApi? accountDeletionApi;
+  final ClubOwnershipApi? clubOwnershipApi;
   final RidePushController? ridePushController;
 
   @override
@@ -202,10 +208,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.logout),
                 label: const Text('Keluar'),
               ),
+              if (widget.accountDeletionApi != null) ...<Widget>[
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _openDeleteAccount,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  icon: const Icon(Icons.delete_forever_outlined),
+                  label: const Text('Hapus akun'),
+                ),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _openDeleteAccount() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => DeleteAccountScreen(
+          riderId: widget.riderProfile.id,
+          accountDeletionApi: widget.accountDeletionApi!,
+          clubOwnershipApi: widget.clubOwnershipApi,
+          authGateway: widget.authGateway,
+        ),
+      ),
     );
   }
 

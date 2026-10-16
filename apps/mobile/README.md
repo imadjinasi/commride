@@ -87,6 +87,10 @@ Authentication flow:
    email that already has an account returns the Rider to Sign In with that
    email kept, pointing to Masuk or Lupa kata sandi instead of a new account.
    Profile shows "Masuk sebagai <email>" so the active account is visible.
+   Profile → Hapus akun previews what is deleted and kept, lets a sole Club
+   owner transfer ownership first, re-confirms the password, calls
+   `DELETE /v1/me`, then deletes the Firebase login
+   ([account deletion](../../docs/account-deletion.md)).
 2. Signed-in users call `GET /v1/me` with a Firebase ID token.
 3. `404 rider_profile_not_found` enters profile onboarding.
 4. `PUT /v1/me` creates/updates only the authenticated Rider's profile.

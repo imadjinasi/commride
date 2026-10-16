@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../active_ride/active_ride_runtime.dart';
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/account_api.dart';
 import '../api/notification_api.dart';
 import '../api/push_token_api.dart';
 import '../api/ride_briefing_api.dart';
@@ -43,6 +44,8 @@ class AppShell extends StatefulWidget {
     required this.rideSosApi,
     this.rideRecapApi,
     this.notificationApi,
+    this.accountDeletionApi,
+    this.clubOwnershipApi,
     required this.authGateway,
     this.accountEmail,
     this.pushTokenApi,
@@ -62,6 +65,8 @@ class AppShell extends StatefulWidget {
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
   final NotificationApi? notificationApi;
+  final AccountDeletionApi? accountDeletionApi;
+  final ClubOwnershipApi? clubOwnershipApi;
   final AuthGateway authGateway;
 
   /// Email of the signed-in account, shown on Profile so the Rider can see
@@ -277,6 +282,8 @@ class _AppShellState extends State<AppShell> {
       MaterialPageRoute<void>(
         builder: (BuildContext context) => ClubDetailScreen(
           item: item,
+          notificationApi: widget.notificationApi,
+          clubOwnershipApi: widget.clubOwnershipApi,
           clubRideApi: widget.clubRideApi,
           checkpointApi: widget.checkpointApi,
           routePlannerApi: widget.routePlannerApi,
@@ -325,6 +332,7 @@ class _AppShellState extends State<AppShell> {
         rideSosApi: widget.rideSosApi,
         rideRecapApi: widget.rideRecapApi,
         notificationApi: widget.notificationApi,
+        clubOwnershipApi: widget.clubOwnershipApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
         navigationEnabled: widget.config.navigationEnabled,
@@ -335,6 +343,8 @@ class _AppShellState extends State<AppShell> {
         vehicleApi: widget.vehicleApi,
         authGateway: widget.authGateway,
         accountEmail: widget.accountEmail,
+        accountDeletionApi: widget.accountDeletionApi,
+        clubOwnershipApi: widget.clubOwnershipApi,
         ridePushController: _ridePushController,
       ),
     ];
