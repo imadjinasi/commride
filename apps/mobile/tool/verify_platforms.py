@@ -29,6 +29,9 @@ def verify_android() -> None:
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.BLUETOOTH_CONNECT",
     }
     if required - permissions:
         raise SystemExit(f"Missing Android permissions: {sorted(required - permissions)}")
@@ -72,6 +75,35 @@ def verify_android() -> None:
         encoding="utf-8"
     ):
         raise SystemExit("Android media-key channel missing.")
+    bridge = activities[0].with_name("CommRideIntercom.kt")
+    if (
+        "CommRideIntercom(this" not in activities[0].read_text(encoding="utf-8")
+        or not bridge.exists()
+        or '"commride/intercom"' not in bridge.read_text(encoding="utf-8")
+    ):
+        raise SystemExit("Android intercom bridge missing.")
+    services = {
+        node.get(android_attr("name")): node.get(android_attr("foregroundServiceType"))
+        for node in application.findall("service")
+    }
+    if services.get(".IntercomService") != "microphone":
+        raise SystemExit("Intercom microphone foreground service missing.")
+    tools_node = "{http://schemas.android.com/tools}node"
+    removed = {
+        node.get(android_attr("name"))
+        for node in manifest.findall("uses-permission")
+        if node.get(tools_node) == "remove"
+    }
+    if "android.permission.CAMERA" not in removed:
+        raise SystemExit("Intercom must not request the camera permission.")
+    if (
+        "com.cloudflare.realtimekit:core:" not in content
+        or "desugar_jdk_libs:" not in content
+        or not re.search(r"compileSdk\s*=?\s*37\b", content)
+    ):
+        raise SystemExit(
+            "Intercom RealtimeKit dependency, desugaring or compileSdk 37 missing."
+        )
     if gradle.name == "build.gradle.kts" and (
         "commRideKeystoreProperties" not in content
         or 'signingConfigs.getByName("release")' not in content

@@ -109,7 +109,7 @@ Supported Dart defines:
 - `COMMRIDE_MAPS_ENABLED=true|false`
 - `COMMRIDE_MAP_STYLE_URL`: HTTPS Geoapify style URL with a dedicated client map key
 - `COMMRIDE_NAVIGATION_ENABLED=true|false`: gates embedded CommRide navigation
-- `COMMRIDE_VOICE_INTERCOM_ENABLED=true|false`: reserved for a verified voice media transport; keep false until one exists
+- `COMMRIDE_VOICE_INTERCOM_ENABLED=true|false`: Ride voice intercom (Cloudflare RealtimeKit, Android only); keep false until the Worker has RealtimeKit credentials and `docs/deployment/voice-intercom-device-evidence.md` records a Device PASS
 
 Copy `pilot-defines.example.json` to ignored `pilot-defines.local.json`. Use a local
 editor to set the actual Worker URL and client map style, rather than pasting keys

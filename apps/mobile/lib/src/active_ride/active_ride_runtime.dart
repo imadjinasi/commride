@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../api/http_intercom_api.dart';
 import '../auth/auth_gateway.dart';
 import '../models/club_ride.dart';
 import 'geolocator_ride_location_provider.dart';
@@ -8,6 +9,8 @@ import 'live_group_controller.dart';
 import 'location_provider.dart';
 import 'location_session_controller.dart';
 import 'realtime_client.dart';
+import 'realtimekit_voice_transport.dart';
+import 'voice_intercom.dart';
 
 class ActiveRideRuntime {
   ActiveRideRuntime({
@@ -16,6 +19,7 @@ class ActiveRideRuntime {
     required this.locationProvider,
     required this.locationSession,
     required this.groupController,
+    this.voiceTransportFactory,
   });
 
   final String rideId;
@@ -23,6 +27,9 @@ class ActiveRideRuntime {
   final RideLocationProvider locationProvider;
   final RideLocationSessionController locationSession;
   final ActiveRideGroupController groupController;
+
+  /// Builds the Ride voice transport; null where this platform has none.
+  final RideVoiceTransport Function()? voiceTransportFactory;
 
   Future<void> close({bool rideEnded = false}) async {
     if (rideEnded) {
@@ -112,6 +119,14 @@ class ActiveRideRuntimeManager {
       locationProvider: locationProvider,
       locationSession: locationSession,
       groupController: groupController,
+      voiceTransportFactory: RealtimeKitVoiceTransport.platformSupported
+          ? () => RealtimeKitVoiceTransport(
+              api: HttpIntercomApi(
+                apiBaseUrl: _apiBaseUrl,
+                authGateway: _authGateway,
+              ),
+            )
+          : null,
     );
 
     try {

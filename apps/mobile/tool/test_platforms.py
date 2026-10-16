@@ -23,6 +23,11 @@ class PlatformTests(unittest.TestCase):
 </manifest>''')
         self.write("android/app/build.gradle.kts", '''android {
     namespace = "io.github.imadjinasi.commride_mobile"
+    compileSdk = flutter.compileSdkVersion
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
     defaultConfig {
         applicationId = "io.github.imadjinasi.commride_mobile"
         minSdk = flutter.minSdkVersion
@@ -85,7 +90,7 @@ func application() {
         gradle = (self.root / "android/app/build.gradle.kts").read_text()
         self.assertNotIn("MAPS_API_KEY", gradle)
         self.assertNotIn("commRideMapsApiKey", gradle)
-        self.assertNotIn("coreLibraryDesugaring", gradle)
+        self.assertNotIn("desugar_jdk_libs_nio", gradle)
         self.assertEqual(gradle.count("commRideKeystoreProperties = "), 1)
         self.assertIn('signingConfigs.getByName("release")', gradle)
         self.assertIn('rootProject.file("key.properties")', gradle)
@@ -100,6 +105,21 @@ func application() {
         self.assertEqual(activity.count('"commride/media_keys"'), 1)
         self.assertIn("KEYCODE_MEDIA_PLAY_PAUSE", activity)
         self.assertIn("isMusicActive", activity)
+        self.assertEqual(activity.count("CommRideIntercom(this"), 1)
+        bridge = next(
+            (self.root / "android/app/src/main/kotlin").rglob("CommRideIntercom.kt")
+        ).read_text()
+        self.assertTrue(
+            bridge.startswith("package io.github.imadjinasi.commride_mobile\n")
+        )
+        self.assertIn('"commride/intercom"', bridge)
+        self.assertIn('android:foregroundServiceType="microphone"', manifest)
+        self.assertIn("android.permission.RECORD_AUDIO", manifest)
+        self.assertEqual(manifest.count("ScreenCaptureService"), 1)
+        self.assertEqual(gradle.count("com.cloudflare.realtimekit:core:"), 1)
+        self.assertIn("compileSdk = 37", gradle)
+        self.assertEqual(gradle.count("isCoreLibraryDesugaringEnabled = true"), 1)
+        self.assertIn('coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:', gradle)
 
     def test_wrong_orientation_policy_is_rejected(self):
         configure.main()

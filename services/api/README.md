@@ -49,6 +49,23 @@ Additional capabilities:
 - `FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL` and `FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY`:
   FCM deployment secrets;
 - `LOCATION_SAMPLE_RETENTION_DAYS`: bounded retention configuration.
+- `REALTIMEKIT_ACCOUNT_ID`, `REALTIMEKIT_APP_ID` and secret
+  `REALTIMEKIT_API_TOKEN` (Realtime Admin permission): Ride voice intercom.
+  Optional `REALTIMEKIT_RIDER_PRESET` / `REALTIMEKIT_LEADER_PRESET` default to
+  `commride_rider` / `commride_leader`; both presets must exist in the
+  RealtimeKit app (audio only, no video; the leader preset additionally has the
+  host permission to disable participant audio). Without these the token
+  endpoint answers `503 intercom_not_configured`.
+
+## Ride intercom
+
+`POST /v1/rides/{rideId}/intercom/token` returns
+`{ intercom: { provider, authToken, baseDomain, role, canModerate } }` for an
+authenticated Rider with a participating membership in an Active Ride. The
+first join creates one RealtimeKit meeting per Ride (`ride_intercom_rooms`);
+each join adds a participant with the Rider preset, or the leader preset for
+the Ride Leader. No audio passes through or is stored by the Worker. See
+[the decision record](../../docs/voice-intercom-decision-2026-10-16.md).
 
 ID-token verification alone does not require a Firebase service-account private
 key. The verifier uses Firebase's published signing certificates and configured

@@ -11,6 +11,7 @@ import '../../active_ride/live_group_models.dart';
 import '../../active_ride/ride_sos_controller.dart';
 import '../../active_ride/location_provider.dart';
 import '../../active_ride/realtime_client.dart';
+import '../../active_ride/voice_intercom.dart';
 import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../maps/commride_navigation_map_view.dart';
@@ -22,6 +23,7 @@ import '../../theme/commride_theme.dart';
 import '../../widgets/active_ride_quick_actions.dart';
 import '../../widgets/sos_hold_button.dart';
 import '../../widgets/location_disclosure_dialog.dart';
+import '../../widgets/ride_intercom_bar.dart';
 import 'route_planner_screen.dart';
 
 class ActiveRideNavigationScreen extends StatefulWidget {
@@ -82,6 +84,7 @@ class _ActiveRideNavigationScreenState
   String? _error;
   String? _guidanceNotice;
   late final RideSosController _sosController;
+  RideVoiceController? _voice;
 
   bool get _canManageRoute =>
       widget.membership.role == RideRole.leader ||
@@ -103,12 +106,27 @@ class _ActiveRideNavigationScreenState
     _realtimeSubscription = widget.runtime.realtimeClient.events.listen(
       _onRealtimeEvent,
     );
+    final RideVoiceTransport Function()? voiceTransport =
+        widget.runtime.voiceTransportFactory;
+    if (widget.voiceIntercomEnabled && voiceTransport != null) {
+      _voice = RideVoiceController(
+        rideId: widget.ride.id,
+        transport: voiceTransport(),
+        canModerate: widget.membership.role == RideRole.leader,
+      )..addListener(_onVoiceChanged);
+    }
+  }
+
+  void _onVoiceChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _sosController.removeListener(_onSosChanged);
     _sosController.dispose();
+    _voice?.removeListener(_onVoiceChanged);
+    _voice?.dispose();
     widget.runtime.groupController.removeListener(_onGroupChanged);
     widget.runtime.locationSession.removeListener(_onLocationChanged);
     _trafficRefreshTimer?.cancel();
@@ -176,8 +194,9 @@ class _ActiveRideNavigationScreenState
                         ),
                         if (_prepared != null) ...<Widget>[
                           const SizedBox(height: CommRideSpacing.xs),
-                          _IntercomBar(
+                          RideIntercomBar(
                             voiceIntercomEnabled: widget.voiceIntercomEnabled,
+                            controller: _voice,
                           ),
                         ],
                         if (_attention(groupState, sosState, now, connected)
@@ -552,6 +571,8 @@ class _ActiveRideNavigationScreenState
         _prepared = _PreparedNavigation(plan: plan, engine: engine);
         // A mounted phone must not dim mid-ride while navigation is shown.
         _keepScreenOn(true);
+        // Guidance started: join the Ride intercom listening only.
+        unawaited(Future<void>.microtask(() => _voice?.join()));
         _preparing = false;
         _guidanceNotice = plan.route.maneuvers.isEmpty
             ? 'RoutePlan lama belum memiliki instruksi belok. '
@@ -684,6 +705,8 @@ class _ActiveRideNavigationScreenState
         _prepared = _PreparedNavigation(plan: plan, engine: engine);
         // A mounted phone must not dim mid-ride while navigation is shown.
         _keepScreenOn(true);
+        // Guidance started: join the Ride intercom listening only.
+        unawaited(Future<void>.microtask(() => _voice?.join()));
         _snapshot = null;
         _guidanceNotice = plan.route.maneuvers.isEmpty
             ? 'RoutePlan terbaru belum memiliki instruksi belok.'
@@ -1923,48 +1946,6 @@ class _MusicBarState extends State<_MusicBar> {
           const Spacer(),
           const SizedBox(width: 34),
         ],
-      ),
-    );
-  }
-}
-
-/// Interkom on its own row below the group summary. It shows its real
-/// state: until a voice provider is verified it is visibly unavailable.
-class _IntercomBar extends StatelessWidget {
-  const _IntercomBar({required this.voiceIntercomEnabled});
-
-  final bool voiceIntercomEnabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
-    final Color? tone = voiceIntercomEnabled ? null : colors.outline;
-
-    return Material(
-      elevation: 3,
-      color: colors.surface,
-      borderRadius: BorderRadius.circular(CommRideRadii.lg),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.headset_mic_outlined, color: tone),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  voiceIntercomEnabled
-                      ? 'Interkom belum terhubung'
-                      : 'Interkom segera tersedia',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontWeight: FontWeight.w700, color: tone),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

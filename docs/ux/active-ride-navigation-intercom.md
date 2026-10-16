@@ -68,9 +68,14 @@ The Rider participates like a group call. Mic On is persistent until the Rider
 turns it off. Voice activity/noise suppression should avoid transmitting
 constant non-speech noise where the media provider supports it.
 
-### Push to Talk — optional
-The Rider holds or uses a dedicated mapped control only while speaking. This is
-useful for large/noisy Rides but is never silently imposed.
+### Push to Talk — optional ("Tap untuk bicara")
+The Rider taps the mic to open one speaking turn and taps again to close it; a
+turn closes by itself after 30 seconds. A dedicated mapped control may do the
+same later. Useful for large/noisy Rides but never silently imposed.
+
+Joining starts listening only; the microphone opens with the Rider's own tap.
+Switching mode always closes the microphone. Implementation decisions:
+`docs/voice-intercom-decision-2026-10-16.md`.
 
 ### Listen Only
 The Rider receives Ride voice but does not transmit.
@@ -80,7 +85,12 @@ The Rider receives Ride voice but does not transmit.
 Local mute affects only what that Rider hears.
 
 Leader moderator-mute can stop a participant from transmitting to the group.
-Leader cannot remotely unmute or enable another Rider's microphone.
+Leader cannot remotely unmute or enable another Rider's microphone; the muted
+Rider sees that the Leader muted them and may turn the mic on again with their
+own tap.
+
+The pilot provider (Cloudflare RealtimeKit on Android) does not expose local
+mute of a single Rider, so that control is hidden until a provider supports it.
 
 Mic state must remain visible. Joining an Active Ride does not authorize hidden
 microphone activation.

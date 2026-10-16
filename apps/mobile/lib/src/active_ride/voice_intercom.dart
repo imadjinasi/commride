@@ -3,20 +3,37 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 enum RideVoiceMode {
+  /// Open mic: once switched on the microphone stays on until turned off.
   groupIntercom,
+
+  /// Tap to talk: each tap opens the microphone for one bounded turn.
   pushToTalk,
   listenOnly;
 
   String get label {
     return switch (this) {
-      RideVoiceMode.groupIntercom => 'Group Intercom',
-      RideVoiceMode.pushToTalk => 'Push to Talk',
-      RideVoiceMode.listenOnly => 'Listen Only',
+      RideVoiceMode.groupIntercom => 'Mic aktif terus',
+      RideVoiceMode.pushToTalk => 'Tap untuk bicara',
+      RideVoiceMode.listenOnly => 'Dengar saja',
     };
   }
 }
 
 enum RideVoiceConnectionPhase { disconnected, connecting, connected, degraded }
+
+class RideVoiceParticipant {
+  const RideVoiceParticipant({
+    required this.riderId,
+    required this.name,
+    required this.audioEnabled,
+  });
+
+  final String riderId;
+  final String name;
+
+  /// Whether this Rider's microphone is currently transmitting to the room.
+  final bool audioEnabled;
+}
 
 sealed class RideVoiceEvent {
   const RideVoiceEvent();
@@ -40,8 +57,30 @@ class RideVoiceTransportDegraded extends RideVoiceEvent {
   final String message;
 }
 
+/// The media connection recovered after a degraded period.
+class RideVoiceTransportRecovered extends RideVoiceEvent {
+  const RideVoiceTransportRecovered();
+}
+
+/// The room closed underneath the Rider (Ride ended, removed, fatal error).
+class RideVoiceTransportClosed extends RideVoiceEvent {
+  const RideVoiceTransportClosed(this.message);
+
+  final String message;
+}
+
+class RideVoiceParticipantsChanged extends RideVoiceEvent {
+  const RideVoiceParticipantsChanged(this.participants);
+
+  final List<RideVoiceParticipant> participants;
+}
+
 abstract interface class RideVoiceTransport {
   Stream<RideVoiceEvent> get events;
+
+  /// Whether one Rider can be silenced only for this listener. Providers
+  /// that cannot do this keep the control hidden instead of faking it.
+  bool get supportsLocalMute;
 
   Future<void> connect({
     required String rideId,
@@ -71,6 +110,7 @@ class RideVoiceState {
     required this.pushToTalkActive,
     required this.locallyMutedRiderIds,
     required this.activeSpeakerRiderIds,
+    required this.participants,
     required this.message,
   });
 
@@ -82,26 +122,36 @@ class RideVoiceState {
       pushToTalkActive = false,
       locallyMutedRiderIds = const <String>{},
       activeSpeakerRiderIds = const <String>{},
+      participants = const <RideVoiceParticipant>[],
       message = null;
 
   final RideVoiceConnectionPhase connectionPhase;
   final RideVoiceMode mode;
 
-  /// True only after the Rider has explicitly joined/enabled their microphone.
+  /// True only after the Rider has explicitly enabled their microphone.
   final bool microphoneEnabled;
 
-  /// Server/media moderation may disable transmit. It never grants remote unmute.
+  /// The Leader silenced this Rider. It never turns a microphone back on;
+  /// only the Rider's own tap does.
   final bool moderatorMuted;
   final bool pushToTalkActive;
   final Set<String> locallyMutedRiderIds;
   final Set<String> activeSpeakerRiderIds;
+  final List<RideVoiceParticipant> participants;
   final String? message;
+
+  bool get connected =>
+      connectionPhase == RideVoiceConnectionPhase.connected ||
+      connectionPhase == RideVoiceConnectionPhase.degraded;
 
   bool get canTransmit =>
       connectionPhase == RideVoiceConnectionPhase.connected &&
-      mode != RideVoiceMode.listenOnly &&
-      microphoneEnabled &&
-      !moderatorMuted;
+      !moderatorMuted &&
+      switch (mode) {
+        RideVoiceMode.groupIntercom => microphoneEnabled,
+        RideVoiceMode.pushToTalk => pushToTalkActive,
+        RideVoiceMode.listenOnly => false,
+      };
 
   RideVoiceState copyWith({
     RideVoiceConnectionPhase? connectionPhase,
@@ -111,6 +161,7 @@ class RideVoiceState {
     bool? pushToTalkActive,
     Set<String>? locallyMutedRiderIds,
     Set<String>? activeSpeakerRiderIds,
+    List<RideVoiceParticipant>? participants,
     String? message,
     bool clearMessage = false,
   }) {
@@ -123,6 +174,7 @@ class RideVoiceState {
       locallyMutedRiderIds: locallyMutedRiderIds ?? this.locallyMutedRiderIds,
       activeSpeakerRiderIds:
           activeSpeakerRiderIds ?? this.activeSpeakerRiderIds,
+      participants: participants ?? this.participants,
       message: clearMessage ? null : (message ?? this.message),
     );
   }
@@ -133,6 +185,8 @@ class RideVoiceController extends ChangeNotifier {
     required String rideId,
     required RideVoiceTransport transport,
     required bool canModerate,
+    this.pushToTalkLimit = const Duration(seconds: 30),
+    this.speakerHold = const Duration(seconds: 3),
   }) : _rideId = rideId,
        _transport = transport,
        _canModerate = canModerate {
@@ -145,15 +199,26 @@ class RideVoiceController extends ChangeNotifier {
   final RideVoiceTransport _transport;
   final bool _canModerate;
 
+  /// A tap-to-talk turn closes by itself so a forgotten tap never leaves the
+  /// microphone open for the rest of the Ride.
+  final Duration pushToTalkLimit;
+
+  /// How long a speaker stays shown after the provider's last speech signal.
+  final Duration speakerHold;
+
   RideVoiceState _state = const RideVoiceState.initial();
   StreamSubscription<RideVoiceEvent>? _subscription;
+  Timer? _pushToTalkTimer;
+  Timer? _speakerTimer;
   bool _disposed = false;
 
   RideVoiceState get state => _state;
+  bool get canModerate => _canModerate;
+  bool get supportsLocalMute => _transport.supportsLocalMute;
 
-  /// Joining voice is explicit. Once joined, Group Intercom is the default and
-  /// the local microphone starts enabled unless the Rider chooses otherwise.
-  Future<void> join({bool microphoneEnabled = true}) async {
+  /// Joining is explicit and starts listening only: the microphone turns on
+  /// with the Rider's own tap, never as a side effect of joining.
+  Future<void> join({bool microphoneEnabled = false}) async {
     if (_disposed ||
         _state.connectionPhase == RideVoiceConnectionPhase.connected ||
         _state.connectionPhase == RideVoiceConnectionPhase.connecting) {
@@ -164,9 +229,9 @@ class RideVoiceController extends ChangeNotifier {
     _setState(
       _state.copyWith(
         connectionPhase: RideVoiceConnectionPhase.connecting,
-        mode: RideVoiceMode.groupIntercom,
         microphoneEnabled: microphoneEnabled,
         pushToTalkActive: false,
+        moderatorMuted: false,
         clearMessage: true,
       ),
     );
@@ -174,7 +239,7 @@ class RideVoiceController extends ChangeNotifier {
     try {
       await _transport.connect(
         rideId: _rideId,
-        mode: RideVoiceMode.groupIntercom,
+        mode: _state.mode,
         microphoneEnabled: microphoneEnabled,
       );
       _setState(
@@ -188,7 +253,7 @@ class RideVoiceController extends ChangeNotifier {
         _state.copyWith(
           connectionPhase: RideVoiceConnectionPhase.disconnected,
           microphoneEnabled: false,
-          message: 'Interkom Ride belum dapat dihubungkan.',
+          message: 'Interkom belum tersambung.',
         ),
       );
     }
@@ -196,33 +261,35 @@ class RideVoiceController extends ChangeNotifier {
 
   Future<void> leave() async {
     if (_disposed) return;
+    _pushToTalkTimer?.cancel();
+    _speakerTimer?.cancel();
     try {
       await _transport.disconnect();
     } finally {
-      _setState(const RideVoiceState.initial());
+      _setState(const RideVoiceState.initial().copyWith(mode: _state.mode));
     }
   }
 
+  /// Switching mode always closes the microphone; the Rider opens it again
+  /// deliberately in the new mode.
   Future<void> setMode(RideVoiceMode mode) async {
-    if (_disposed ||
-        _state.connectionPhase != RideVoiceConnectionPhase.connected) {
+    if (_disposed || mode == _state.mode) {
+      return;
+    }
+    if (!_state.connected) {
+      _setState(_state.copyWith(mode: mode));
       return;
     }
 
-    if (mode == RideVoiceMode.listenOnly && _state.microphoneEnabled) {
+    _pushToTalkTimer?.cancel();
+    if (_state.microphoneEnabled || _state.pushToTalkActive) {
       await _transport.setMicrophoneEnabled(false);
     }
-    if (_state.pushToTalkActive) {
-      await _transport.setPushToTalkActive(false);
-    }
-
     await _transport.setMode(mode);
     _setState(
       _state.copyWith(
         mode: mode,
-        microphoneEnabled: mode == RideVoiceMode.listenOnly
-            ? false
-            : _state.microphoneEnabled,
+        microphoneEnabled: false,
         pushToTalkActive: false,
         clearMessage: true,
       ),
@@ -230,20 +297,29 @@ class RideVoiceController extends ChangeNotifier {
   }
 
   Future<void> setMicrophoneEnabled(bool enabled) async {
-    if (_disposed ||
-        _state.connectionPhase != RideVoiceConnectionPhase.connected) {
+    if (_disposed || !_state.connected) {
       return;
     }
-    if (enabled &&
-        (_state.mode == RideVoiceMode.listenOnly || _state.moderatorMuted)) {
+    if (enabled && _state.mode != RideVoiceMode.groupIntercom) {
       return;
     }
 
-    await _transport.setMicrophoneEnabled(enabled);
+    try {
+      await _transport.setMicrophoneEnabled(enabled);
+    } catch (_) {
+      _setState(
+        _state.copyWith(
+          microphoneEnabled: false,
+          message: enabled ? 'Mikrofon belum bisa dinyalakan.' : null,
+        ),
+      );
+      return;
+    }
     _setState(
       _state.copyWith(
         microphoneEnabled: enabled,
-        pushToTalkActive: enabled ? _state.pushToTalkActive : false,
+        // The Rider's own tap is the only way back after a Leader mute.
+        moderatorMuted: enabled ? false : _state.moderatorMuted,
         clearMessage: true,
       ),
     );
@@ -252,20 +328,48 @@ class RideVoiceController extends ChangeNotifier {
   Future<void> toggleMicrophone() =>
       setMicrophoneEnabled(!_state.microphoneEnabled);
 
+  /// Tap to talk: opens the microphone for one turn of at most
+  /// [pushToTalkLimit]; a second tap closes it earlier.
   Future<void> setPushToTalkActive(bool active) async {
     if (_disposed ||
-        _state.connectionPhase != RideVoiceConnectionPhase.connected ||
+        !_state.connected ||
         _state.mode != RideVoiceMode.pushToTalk ||
-        _state.moderatorMuted) {
+        active == _state.pushToTalkActive) {
       return;
     }
 
-    await _transport.setPushToTalkActive(active);
-    _setState(_state.copyWith(pushToTalkActive: active, clearMessage: true));
+    _pushToTalkTimer?.cancel();
+    try {
+      await _transport.setPushToTalkActive(active);
+    } catch (_) {
+      _setState(
+        _state.copyWith(
+          pushToTalkActive: false,
+          message: active ? 'Mikrofon belum bisa dinyalakan.' : null,
+        ),
+      );
+      return;
+    }
+    if (active) {
+      _pushToTalkTimer = Timer(
+        pushToTalkLimit,
+        () => unawaited(setPushToTalkActive(false)),
+      );
+    }
+    _setState(
+      _state.copyWith(
+        pushToTalkActive: active,
+        moderatorMuted: active ? false : _state.moderatorMuted,
+        clearMessage: true,
+      ),
+    );
   }
 
+  Future<void> togglePushToTalk() =>
+      setPushToTalkActive(!_state.pushToTalkActive);
+
   Future<void> setLocalMute(String riderId, bool muted) async {
-    if (_disposed || riderId.trim().isEmpty) return;
+    if (_disposed || riderId.trim().isEmpty || !supportsLocalMute) return;
 
     await _transport.setParticipantAudioEnabled(riderId, !muted);
     final Set<String> next = <String>{..._state.locallyMutedRiderIds};
@@ -282,6 +386,8 @@ class RideVoiceController extends ChangeNotifier {
     );
   }
 
+  /// Leader only: stops a Rider transmitting to everyone. It can never turn
+  /// anyone's microphone on.
   Future<void> moderatorMute(String riderId) async {
     if (_disposed || !_canModerate || riderId.trim().isEmpty) {
       return;
@@ -294,12 +400,19 @@ class RideVoiceController extends ChangeNotifier {
 
     switch (event) {
       case RideVoiceActiveSpeakersChanged():
+        _speakerTimer?.cancel();
+        if (event.riderIds.isNotEmpty) {
+          _speakerTimer = Timer(speakerHold, () {
+            _setState(_state.copyWith(activeSpeakerRiderIds: const <String>{}));
+          });
+        }
         _setState(
           _state.copyWith(
             activeSpeakerRiderIds: Set<String>.unmodifiable(event.riderIds),
           ),
         );
       case RideVoiceModeratorMutedChanged():
+        if (event.muted) _pushToTalkTimer?.cancel();
         _setState(
           _state.copyWith(
             moderatorMuted: event.muted,
@@ -314,6 +427,32 @@ class RideVoiceController extends ChangeNotifier {
             message: event.message,
           ),
         );
+      case RideVoiceTransportRecovered():
+        if (_state.connectionPhase == RideVoiceConnectionPhase.degraded) {
+          _setState(
+            _state.copyWith(
+              connectionPhase: RideVoiceConnectionPhase.connected,
+              clearMessage: true,
+            ),
+          );
+        }
+      case RideVoiceTransportClosed():
+        _pushToTalkTimer?.cancel();
+        _speakerTimer?.cancel();
+        _setState(
+          const RideVoiceState.initial().copyWith(
+            mode: _state.mode,
+            message: event.message,
+          ),
+        );
+      case RideVoiceParticipantsChanged():
+        _setState(
+          _state.copyWith(
+            participants: List<RideVoiceParticipant>.unmodifiable(
+              event.participants,
+            ),
+          ),
+        );
     }
   }
 
@@ -326,6 +465,8 @@ class RideVoiceController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _pushToTalkTimer?.cancel();
+    _speakerTimer?.cancel();
     unawaited(_subscription?.cancel());
     unawaited(_transport.disconnect());
     super.dispose();
