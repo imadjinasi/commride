@@ -83,6 +83,10 @@ func application() {
         self.assertEqual(gradle.count("commRideKeystoreProperties = "), 1)
         self.assertIn('signingConfigs.getByName("release")', gradle)
         self.assertIn('rootProject.file("key.properties")', gradle)
+        self.assertTrue(
+            gradle.startswith("import java.util.Properties as CommRideProperties\n")
+        )
+        self.assertNotIn("java.util.Properties()", gradle)
 
     def test_wrong_orientation_policy_is_rejected(self):
         configure.main()

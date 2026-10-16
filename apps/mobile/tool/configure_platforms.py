@@ -24,10 +24,14 @@ def android_attr(name: str) -> str:
 
 RELEASE_SIGNING_MARKER = "commRideKeystoreProperties"
 
+# Gradle's Kotlin DSL shadows the `java` package with the Java extension, so
+# the class is imported under an alias instead of written fully qualified.
+RELEASE_SIGNING_IMPORT = "import java.util.Properties as CommRideProperties\n"
+
 RELEASE_SIGNING_HEADER = """// Release signing reads android/key.properties, which stays local and
 // untracked. Without it, release builds fall back to the debug key so CI can
 // still build; such a build must never be uploaded to Google Play.
-val commRideKeystoreProperties = java.util.Properties().apply {
+val commRideKeystoreProperties = CommRideProperties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) {
         file.inputStream().use { load(it) }
@@ -69,6 +73,7 @@ def configure_release_signing(content: str) -> str:
             "Unexpected Android release build template; "
             "refusing unsafe signing patch."
         )
+    content = RELEASE_SIGNING_IMPORT + content
     content = content.replace("android {", RELEASE_SIGNING_HEADER + "android {", 1)
     content = content.replace(
         "    buildTypes {", RELEASE_SIGNING_CONFIG + "    buildTypes {", 1
