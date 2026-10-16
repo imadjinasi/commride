@@ -160,9 +160,20 @@ class FakeClubRideApi implements ClubRideApi {
 
 class FakeRoutePlannerApi implements RoutePlannerApi {
   @override
+  Future<ResolvedPlace> reverseGeocode(GeoPoint location) async {
+    return ResolvedPlace(
+      reference: 'point',
+      formattedAddress: 'Titik di peta',
+      location: location,
+    );
+  }
+
+  @override
   Future<List<PlaceSuggestion>> autocomplete({
     required String input,
     required String sessionToken,
+    GeoPoint? near,
+    PlaceSearchArea? area,
   }) async {
     return const <PlaceSuggestion>[];
   }

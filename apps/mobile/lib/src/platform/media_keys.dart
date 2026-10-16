@@ -12,6 +12,20 @@ abstract final class MediaKeys {
   static bool get supported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  /// Whether any app is playing audio right now (no track details).
+  static Future<bool> isMusicActive() async {
+    if (!supported) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>('isMusicActive') ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   static Future<void> send(MediaKey key) async {
     if (!supported) {
       return;

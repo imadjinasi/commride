@@ -99,6 +99,7 @@ func application() {
         self.assertTrue(activity.startswith("package io.github.imadjinasi.commride_mobile\n"))
         self.assertEqual(activity.count('"commride/media_keys"'), 1)
         self.assertIn("KEYCODE_MEDIA_PLAY_PAUSE", activity)
+        self.assertIn("isMusicActive", activity)
 
     def test_wrong_orientation_policy_is_rejected(self):
         configure.main()

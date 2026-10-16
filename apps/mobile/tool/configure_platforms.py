@@ -76,6 +76,12 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "commride/media_keys")
             .setMethodCallHandler { call, result ->
+                val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+                if (call.method == "isMusicActive") {
+                    // Whether any app is playing audio; needs no permission.
+                    result.success(audio.isMusicActive)
+                    return@setMethodCallHandler
+                }
                 val code = when (call.arguments as? String) {
                     "previous" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
                     "playPause" -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
@@ -86,7 +92,6 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
-                val audio = getSystemService(AUDIO_SERVICE) as AudioManager
                 audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
                 audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
                 result.success(null)
@@ -105,13 +110,17 @@ def configure_media_keys() -> None:
         raise SystemExit("Expected exactly one Android MainActivity.kt.")
     path = activities[0]
     content = path.read_text(encoding="utf-8")
-    if MEDIA_KEYS_CHANNEL in content:
-        return
     package = next(
         (line for line in content.splitlines() if line.startswith("package ")),
         None,
     )
-    if package is None or "class MainActivity : FlutterActivity()" not in content:
+    if package is not None and content == package + "\n" + MEDIA_KEYS_ACTIVITY:
+        return
+    # Regenerate either the Flutter template or an earlier CommRide version.
+    if package is None or (
+        "class MainActivity : FlutterActivity()" not in content
+        and MEDIA_KEYS_CHANNEL not in content
+    ):
         raise SystemExit(
             "Unexpected Android MainActivity template; refusing unsafe patch."
         )

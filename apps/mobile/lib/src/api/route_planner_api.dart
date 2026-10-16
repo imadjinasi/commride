@@ -1,10 +1,17 @@
 import '../models/route_planner.dart';
 
 abstract interface class RoutePlannerApi {
+  /// [near] ranks places close to the map center first; [area] limits
+  /// results to the visible map ("cari di area ini").
   Future<List<PlaceSuggestion>> autocomplete({
     required String input,
     required String sessionToken,
+    GeoPoint? near,
+    PlaceSearchArea? area,
   });
+
+  /// Describes a point picked on the map; the place keeps that exact point.
+  Future<ResolvedPlace> reverseGeocode(GeoPoint location);
 
   Future<ResolvedPlace> resolvePlace({
     required String reference,

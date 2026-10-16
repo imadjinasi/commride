@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../api/route_planner_api.dart';
 import '../../maps/route_plan_map_view.dart';
 import '../../models/route_planner.dart';
+import 'location_picker_screen.dart';
 
 enum RoutePlannerInitialAction { none, addStop, searchAlongRoute }
 
@@ -412,13 +413,27 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
     });
   }
 
-  Future<void> _chooseEndpoint({required bool isOrigin}) async {
-    final ResolvedPlace? place = await showDialog<ResolvedPlace>(
-      context: context,
-      builder: (BuildContext context) => _PlaceSearchDialog(
-        routePlannerApi: widget.routePlannerApi,
-        title: isOrigin ? 'Cari titik awal' : 'Cari tujuan',
+  Future<ResolvedPlace?> _pickLocation({
+    required String title,
+    GeoPoint? near,
+  }) {
+    return Navigator.of(context).push<ResolvedPlace>(
+      MaterialPageRoute<ResolvedPlace>(
+        builder: (BuildContext context) => LocationPickerScreen(
+          routePlannerApi: widget.routePlannerApi,
+          title: title,
+          initialCenter: near,
+        ),
       ),
+    );
+  }
+
+  Future<void> _chooseEndpoint({required bool isOrigin}) async {
+    final ResolvedPlace? place = await _pickLocation(
+      title: isOrigin ? 'Titik awal' : 'Tujuan',
+      near: isOrigin
+          ? _origin?.location
+          : _destination?.location ?? _origin?.location,
     );
 
     if (place == null || !mounted) {
@@ -498,12 +513,9 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   }
 
   Future<void> _addStop() async {
-    final ResolvedPlace? place = await showDialog<ResolvedPlace>(
-      context: context,
-      builder: (BuildContext context) => _PlaceSearchDialog(
-        routePlannerApi: widget.routePlannerApi,
-        title: 'Tambah Stop',
-      ),
+    final ResolvedPlace? place = await _pickLocation(
+      title: 'Tambah Stop',
+      near: _origin?.location,
     );
 
     if (place == null) {
@@ -872,157 +884,6 @@ class _RouteSummaryCard extends StatelessWidget {
   }
 }
 
-class _PlaceSearchDialog extends StatefulWidget {
-  const _PlaceSearchDialog({
-    required this.routePlannerApi,
-    required this.title,
-  });
-
-  final RoutePlannerApi routePlannerApi;
-  final String title;
-
-  @override
-  State<_PlaceSearchDialog> createState() => _PlaceSearchDialogState();
-}
-
-class _PlaceSearchDialogState extends State<_PlaceSearchDialog> {
-  final TextEditingController _controller = TextEditingController();
-  final String _sessionToken = _newSessionToken();
-  List<PlaceSuggestion> _suggestions = <PlaceSuggestion>[];
-  bool _working = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
-        width: 520,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _search(),
-              decoration: const InputDecoration(
-                labelText: 'Cari kota, alamat, atau tempat',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _working ? null : _search,
-                child: Text(_working ? 'Mencari…' : 'Cari'),
-              ),
-            ),
-            if (_error != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            if (_suggestions.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: _suggestions
-                      .map(
-                        (PlaceSuggestion suggestion) => ListTile(
-                          title: Text(suggestion.text),
-                          onTap: _working ? null : () => _select(suggestion),
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: _working ? null : () => Navigator.of(context).pop(),
-          child: const Text('Batal'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _search() async {
-    final String query = _controller.text.trim();
-    if (query.length < 2) {
-      setState(() {
-        _error = 'Masukkan minimal 2 karakter.';
-      });
-      return;
-    }
-
-    setState(() {
-      _working = true;
-      _error = null;
-    });
-
-    try {
-      final List<PlaceSuggestion> suggestions = await widget.routePlannerApi
-          .autocomplete(input: query, sessionToken: _sessionToken);
-      if (mounted) {
-        setState(() {
-          _suggestions = suggestions;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'Pencarian tempat belum dapat diselesaikan.';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _working = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _select(PlaceSuggestion suggestion) async {
-    setState(() {
-      _working = true;
-      _error = null;
-    });
-
-    try {
-      final ResolvedPlace place = await widget.routePlannerApi.resolvePlace(
-        reference: suggestion.reference,
-        sessionToken: _sessionToken,
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop(place);
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'Detail tempat belum dapat dimuat.';
-          _working = false;
-        });
-      }
-    }
-  }
-}
-
 class _AlongRouteQuery {
   const _AlongRouteQuery({required this.query, required this.stopType});
 
@@ -1282,14 +1143,6 @@ class _CheckpointDialogState extends State<_CheckpointDialog> {
       ),
     );
   }
-}
-
-String _newSessionToken() {
-  final Random random = Random.secure();
-  final List<int> bytes = List<int>.generate(16, (_) => random.nextInt(256));
-  return bytes
-      .map((int value) => value.toRadixString(16).padLeft(2, '0'))
-      .join();
 }
 
 String _formatDistance(int meters) {

@@ -159,6 +159,11 @@ class _ActiveRideNavigationScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
+                        if (_prepared != null &&
+                            MediaKeys.supported) ...<Widget>[
+                          const _MusicBar(),
+                          const SizedBox(height: CommRideSpacing.xs),
+                        ],
                         _RidingTopBar(
                           title: widget.ride.title,
                           live: counts.live,
@@ -171,7 +176,7 @@ class _ActiveRideNavigationScreenState
                         ),
                         if (_prepared != null) ...<Widget>[
                           const SizedBox(height: CommRideSpacing.xs),
-                          _RidingMediaRow(
+                          _IntercomBar(
                             voiceIntercomEnabled: widget.voiceIntercomEnabled,
                           ),
                         ],
@@ -1840,106 +1845,127 @@ class _QuickStatusButton extends StatelessWidget {
   }
 }
 
-/// Voice and music within reach at the top of the map. Interkom shows its
-/// real state: until a voice provider is verified it is visibly unavailable.
-class _RidingMediaRow extends StatelessWidget {
-  const _RidingMediaRow({required this.voiceIntercomEnabled});
+/// Music controls on their own row at the very top. The play button follows
+/// whether any app is playing, checked every few seconds and after a tap.
+class _MusicBar extends StatefulWidget {
+  const _MusicBar();
+
+  @override
+  State<_MusicBar> createState() => _MusicBarState();
+}
+
+class _MusicBarState extends State<_MusicBar> {
+  Timer? _poll;
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refresh());
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final bool playing = await MediaKeys.isMusicActive();
+    if (mounted && playing != _playing) {
+      setState(() => _playing = playing);
+    }
+  }
+
+  Future<void> _press(MediaKey key) async {
+    if (key == MediaKey.playPause) {
+      // Show the expected state at once; the next check corrects it.
+      setState(() => _playing = !_playing);
+    }
+    await MediaKeys.send(key);
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 3,
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(CommRideRadii.lg),
+      child: Row(
+        children: <Widget>[
+          const SizedBox(width: 14),
+          const Icon(Icons.music_note_outlined, size: 20),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Lagu sebelumnya',
+            iconSize: 28,
+            constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+            onPressed: () => unawaited(_press(MediaKey.previous)),
+            icon: const Icon(Icons.skip_previous),
+          ),
+          IconButton(
+            tooltip: _playing ? 'Jeda musik' : 'Putar musik',
+            iconSize: 32,
+            constraints: const BoxConstraints(minWidth: 64, minHeight: 48),
+            onPressed: () => unawaited(_press(MediaKey.playPause)),
+            icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+          ),
+          IconButton(
+            tooltip: 'Lagu berikutnya',
+            iconSize: 28,
+            constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+            onPressed: () => unawaited(_press(MediaKey.next)),
+            icon: const Icon(Icons.skip_next),
+          ),
+          const Spacer(),
+          const SizedBox(width: 34),
+        ],
+      ),
+    );
+  }
+}
+
+/// Interkom on its own row below the group summary. It shows its real
+/// state: until a voice provider is verified it is visibly unavailable.
+class _IntercomBar extends StatelessWidget {
+  const _IntercomBar({required this.voiceIntercomEnabled});
 
   final bool voiceIntercomEnabled;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme colors = Theme.of(context).colorScheme;
+    final Color? tone = voiceIntercomEnabled ? null : colors.outline;
 
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Material(
-            elevation: 3,
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(CommRideRadii.lg),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: <Widget>[
-                    Icon(
-                      Icons.headset_mic_outlined,
-                      color: voiceIntercomEnabled ? null : colors.outline,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        voiceIntercomEnabled
-                            ? 'Interkom belum terhubung'
-                            : 'Interkom segera',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: voiceIntercomEnabled ? null : colors.outline,
-                        ),
-                      ),
-                    ),
-                  ],
+    return Material(
+      elevation: 3,
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(CommRideRadii.lg),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.headset_mic_outlined, color: tone),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  voiceIntercomEnabled
+                      ? 'Interkom belum terhubung'
+                      : 'Interkom segera tersedia',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w700, color: tone),
                 ),
               ),
-            ),
+            ],
           ),
         ),
-        if (MediaKeys.supported) ...<Widget>[
-          const SizedBox(width: CommRideSpacing.xs),
-          Material(
-            elevation: 3,
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(CommRideRadii.lg),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const <Widget>[
-                _MediaButton(
-                  icon: Icons.skip_previous,
-                  tooltip: 'Lagu sebelumnya',
-                  mediaKey: MediaKey.previous,
-                ),
-                _MediaButton(
-                  icon: Icons.play_arrow,
-                  tooltip: 'Putar / jeda musik',
-                  mediaKey: MediaKey.playPause,
-                ),
-                _MediaButton(
-                  icon: Icons.skip_next,
-                  tooltip: 'Lagu berikutnya',
-                  mediaKey: MediaKey.next,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _MediaButton extends StatelessWidget {
-  const _MediaButton({
-    required this.icon,
-    required this.tooltip,
-    required this.mediaKey,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final MediaKey mediaKey;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      iconSize: 26,
-      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-      onPressed: () => unawaited(MediaKeys.send(mediaKey)),
-      icon: Icon(icon),
+      ),
     );
   }
 }
