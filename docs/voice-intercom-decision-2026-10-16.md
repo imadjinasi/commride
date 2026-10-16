@@ -24,47 +24,47 @@ Figures are from public price pages read on 16 October 2026 and must be
 re-checked before any paid plan is enabled. Audio-only, everyone hears
 everyone, one Ride-hour = Riders × 60 participant-minutes.
 
-| | Cloudflare RealtimeKit | LiveKit Cloud | Cloudflare Realtime SFU (raw) |
+| | LiveKit Cloud | Cloudflare RealtimeKit | Cloudflare Realtime SFU (raw) |
 |---|---|---|---|
-| What it is | Managed rooms + SDKs on Cloudflare Realtime | Managed rooms + SDKs (open-source server) | Bare WebRTC SFU; we build rooms/signalling |
-| Flutter SDK | **Discontinued 7 Aug 2026**; native Android SDK `com.cloudflare.realtimekit:core` 3.2.0 is maintained | `livekit_client` 2.13.x, widely used | none — `flutter_webrtc` + our own protocol |
-| Price | $0.0005 / audio participant-minute, no free allowance, no monthly fee | Build: free, 5,000 participant-min/month; Ship: $50/month incl. 150,000 min, then ~$0.0005/min | $0.05/GB egress after 1 TB/month free |
-| 5 Riders · 1 h | ≈ $0.15 | free inside allowance / ≈ $0.15 over | ≈ $0 |
-| 10 Riders · 1 h | ≈ $0.30 | free inside allowance / ≈ $0.30 over | ≈ $0 |
-| 15 Riders · 1 h | ≈ $0.45 | free inside allowance / ≈ $0.45 over | ≈ $0 |
-| Join token | Worker calls Cloudflare API (meeting + participant) | Worker signs a JWT locally | Worker calls Realtime API per session/track |
-| Per-listener mute of one Rider | **Not exposed** by the Android SDK | Supported | Ours to build |
+| Flutter SDK | `livekit_client` 2.13.x, maintained, widely used | **Discontinued 7 Aug 2026** (native Android SDK only) | none — `flutter_webrtc` + our own protocol |
+| Free allowance | **Build plan $0: 5,000 participant-minutes, 50 GB downstream, 100 concurrent connections per month** | none | 1 TB egress/month |
+| Paid | Ship $50/month: 150,000 min + 250 GB, then $0.0005/min and $0.12/GB | $0.0005 / audio participant-minute | $0.05/GB after the free TB |
+| 10 Riders · 1 h | 600 min (free inside Build) | ≈ $0.30 | ≈ $0 |
+| Join token | Worker signs a JWT locally | Worker calls Cloudflare API per join | Worker calls Realtime API per track |
+| Per-listener mute of one Rider | Supported | Not exposed | Ours to build |
+| Exit path | Server is Apache-2.0; can self-host later | Proprietary | Proprietary |
 
-Common to all: Opus speech, WebRTC echo cancellation, noise suppression and
-auto gain on the device. Expected Rider data use is roughly 10–30 MB per
-Ride-hour depending on how much the group talks (not yet measured). Expected
-mouth-to-ear latency on Indonesian 4G is a few hundred milliseconds (Cloudflare
-has a Jakarta PoP) — unverified until a field test.
+What the free Build plan covers: 5,000 minutes ≈ 8 Ride-hours with 10 Riders,
+≈ 5.5 Ride-hours with 15 Riders, ≈ 16 Ride-hours with 5 Riders per month. The
+pricing page does not say whether Build stops or bills past the allowance;
+treat the allowance as a hard ceiling and check the LiveKit Cloud dashboard
+usage before larger Rides.
+
+Common to all: Opus speech with DTX (silence costs almost no data), WebRTC
+echo cancellation, noise suppression and auto gain on the device. Expected
+Rider data use is roughly 10–30 MB per Ride-hour depending on how much the
+group talks (not yet measured). Latency on Indonesian 4G is unverified until a
+field test (LiveKit Cloud routes to its nearest region, Singapore).
 
 ## Decision
 
-**Cloudflare RealtimeKit**, chosen by the product owner for one Cloudflare
-account and per-minute billing without a monthly fee. Because the Flutter SDK
-was discontinued, CommRide ships its own small Android bridge
-(`apps/mobile/tool/android/CommRideIntercom.kt`, installed by
-`tool/configure_platforms.py`) over the maintained native Android SDK.
+**LiveKit Cloud, Build (free) plan for the pilot.** The product owner first
+chose Cloudflare RealtimeKit, then switched after its Flutter SDK turned out to
+be discontinued and it has no free allowance ("Ganti ke LiveKit Cloud yang ada
+kuota gratis untuk masa pilot.").
 
-Consequences accepted with this choice:
-
-- **Android only for now.** iOS shows "Interkom belum tersedia di HP ini" until
-  an iOS bridge over the native iOS SDK is built and verified.
-- **No "mute one Rider only for me".** The Android SDK has no per-listener
-  volume for a single participant, so the control stays hidden rather than
-  faked. Leader mute (for everyone) is supported.
-- The SDK requires `compileSdk 37` and core-library desugaring; it adds roughly
-  the size of a WebRTC build to the APK. `targetSdk` and `minSdk 24` are
-  unchanged.
-- The SDK manifest also asks for camera, storage and screen sharing; CommRide
-  removes those from the merged manifest (`tools:node="remove"`).
-
-LiveKit stays the documented fallback if RealtimeKit's Android SDK or pricing
-stops fitting; the Dart side talks to a `RideVoiceTransport` interface, so a
-provider swap replaces the transport and the Worker adapter only.
+- The app uses the maintained `livekit_client` Flutter SDK
+  (`lib/src/active_ride/livekit_voice_transport.dart`) behind the
+  `RideVoiceTransport` interface. Android first; iOS needs its own background
+  audio declarations and device check before it is enabled.
+- The Worker signs join tokens locally (HS256, `jose`) with
+  `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` and performs Leader mute through
+  LiveKit's RoomService API. No provider call happens on join, and no client
+  ever holds room-admin rights.
+- One LiveKit room per Ride, named `commride-ride-<rideId>`, created by LiveKit
+  on the first join. No D1 table is needed.
+- Moving off Build (paid Ship plan or self-hosting the open-source server)
+  changes Worker configuration only.
 
 ## Talk modes and controls
 
@@ -73,55 +73,56 @@ Riders cannot tap the screen while riding.
 - **Join:** when guidance starts, the Rider joins the Ride room **listening**.
   The microphone turns on only after the Rider taps it.
 - **Mic aktif terus (default):** after the tap the mic stays on until the Rider
-  turns it off. WebRTC noise suppression keeps non-speech traffic low.
+  turns it off.
 - **Tap untuk bicara:** tap the mic, speak, tap again. A turn closes by itself
   after 30 seconds so a forgotten tap never leaves the mic open.
 - **Dengar saja:** never transmits.
 - Switching mode always closes the mic; the Rider opens it again deliberately.
-- **Leader mute:** only the Ride Leader (RealtimeKit preset with host permission
-  to disable participant audio) can mute a Rider for everyone. It never turns
-  anyone's mic on. The muted Rider sees "Mic dimatikan Ketua" and can turn the
-  mic on again with their own tap.
+- **Bisukan untuk saya:** any Rider can silence one other Rider for themselves
+  only (the audio is not received at all, which also saves data).
+- **Leader mute:** only the Ride Leader can mute a Rider for everyone
+  (`POST /v1/rides/{rideId}/intercom/mute`). It never turns anyone's mic on.
+  The muted Rider sees "Mic dimatikan Ketua" and can turn the mic on again
+  with their own tap.
 - The Interkom row stays one 48 dp row: state or "<name> bicara", a settings
-  button (mode, Riders in the room, Leader mute, leave) and one large mic
-  button.
+  button (mode, Riders in the room, mutes, leave) and one large mic button.
 
 ## Android realities
 
-- **Foreground service, type `microphone`** (`IntercomService`) starts only
-  after the Rider's mic tap succeeds (permission granted, app visible), so the
-  mic keeps working with the screen locked. Google Play needs a
-  `FOREGROUND_SERVICE_MICROPHONE` declaration with a short video before
-  release. The location service keeps its own `location` type.
+- **Foreground service, type `microphone`** (`IntercomService`, installed by
+  `tool/configure_platforms.py`) starts only after the Rider's mic tap
+  succeeds, so the mic keeps working with the screen locked. Google Play needs
+  a `FOREGROUND_SERVICE_MICROPHONE` declaration with a short video before
+  release. The location service keeps its own `location` type. The camera
+  permission declared by WebRTC is removed from the merged manifest.
 - **Bluetooth helmet headsets.** Classic Bluetooth headsets switch to the call
   profile (HFP/SCO) while the mic is in use: voice works, but music in the
   headset becomes mono "phone call" quality while the intercom is connected.
-  This is a Bluetooth limitation. LE Audio headsets can avoid it but are rare.
-  Must be checked per headset on device.
-- **Music.** The intercom uses communication audio mode; music keeps playing
-  and the music row keeps working (media keys are not repurposed). Android may
-  lower music while someone speaks. Must be checked on device.
+  This is a Bluetooth limitation. Android 12+ may also need the Nearby devices
+  (`BLUETOOTH_CONNECT`) permission for headset routing — check on device.
+- **Music.** WebRTC uses communication audio mode; music keeps playing and the
+  music row keeps working (media keys are not repurposed). Android may lower
+  music while someone speaks. Must be checked on device.
 - **Leaving.** Leaving the riding screen, ending the Ride or "Keluar interkom"
   leaves the room and stops the service.
 
 ## Security and data
 
-- `REALTIMEKIT_ACCOUNT_ID`, `REALTIMEKIT_APP_ID` and secret
-  `REALTIMEKIT_API_TOKEN` live only in the Worker. Presets
-  `commride_rider` / `commride_leader` (names configurable) must exist in the
-  RealtimeKit app, audio only.
-- `POST /v1/rides/{rideId}/intercom/token` returns a join token only for an
-  authenticated Rider with a participating membership in an Active Ride. One
-  RealtimeKit meeting per Ride is stored in `ride_intercom_rooms` (migration
-  0012). The Rider's callsign (or display name) and Rider id are sent to
-  Cloudflare as the participant name and custom id.
-- CommRide records and stores no audio. RealtimeKit recording stays off.
+- `LIVEKIT_URL` (non-secret) and secrets `LIVEKIT_API_KEY`,
+  `LIVEKIT_API_SECRET` live only in the Worker.
+- `POST /v1/rides/{rideId}/intercom/token` returns a 6-hour join token only
+  for an authenticated Rider with a participating membership in an Active
+  Ride. The token allows joining that Ride's room, listening and publishing a
+  microphone — no camera, screen share, data messages or admin rights.
+- The Rider's callsign (or display name) and Rider id are sent to LiveKit as
+  the participant name and identity.
+- CommRide records and stores no audio. LiveKit recording/egress stays off.
 
 ## Gates
 
-Repository PASS (tests, build) ≠ Provider PASS (real meeting with real
+Repository PASS (tests, build) ≠ Provider PASS (real room with real
 credentials) ≠ Device PASS (two phones in one Ride, lock screen, Bluetooth,
 music) ≠ Field convoy PASS. The client stays behind
 `COMMRIDE_VOICE_INTERCOM_ENABLED=false` and the Worker answers
-`503 intercom_not_configured` until secrets exist. Device evidence goes in
-`docs/deployment/voice-intercom-device-evidence.md`.
+`503 intercom_not_configured` until secrets exist. Setup steps and device
+evidence: `docs/deployment/voice-intercom-device-evidence.md`.

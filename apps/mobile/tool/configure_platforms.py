@@ -28,32 +28,19 @@ def tools_attr(name: str) -> str:
     return f"{{{TOOLS_NS}}}{name}"
 
 
-# Ride voice intercom: Cloudflare RealtimeKit through CommRide's own bridge
-# (tool/android/CommRideIntercom.kt). See docs/voice-intercom-decision-2026-10-16.md.
-INTERCOM_SOURCE = Path(__file__).resolve().parent / "android/CommRideIntercom.kt"
-INTERCOM_DEPENDENCY = "com.cloudflare.realtimekit:core:3.2.0"
-# RealtimeKit's AAR metadata requires compileSdk 37 and core library
-# desugaring. compileSdk only selects the API stubs compiled against; it does
-# not change targetSdk or minSdk.
-INTERCOM_COMPILE_SDK = "37"
-INTERCOM_DESUGAR_DEPENDENCY = "com.android.tools:desugar_jdk_libs:2.1.5"
+# Ride voice intercom: LiveKit runs in Dart (livekit_client); Android only
+# needs the microphone foreground service in tool/android/IntercomService.kt.
+# See docs/voice-intercom-decision-2026-10-16.md.
+INTERCOM_SOURCE = Path(__file__).resolve().parent / "android/IntercomService.kt"
 INTERCOM_PERMISSIONS = (
     "android.permission.RECORD_AUDIO",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.FOREGROUND_SERVICE_MICROPHONE",
     "android.permission.BLUETOOTH_CONNECT",
 )
-# The SDK also declares camera, storage and screen sharing; CommRide voice
-# uses none of them, so the merged manifest drops them.
-INTERCOM_REMOVED_PERMISSIONS = (
-    "android.permission.CAMERA",
-    "android.permission.READ_EXTERNAL_STORAGE",
-    "android.permission.WRITE_EXTERNAL_STORAGE",
-)
-INTERCOM_REMOVED_COMPONENTS = (
-    ("service", "com.cloudflare.realtimekit.media.ScreenCaptureService"),
-    ("activity", "com.cloudflare.realtimekit.media.ScreenCaptureActivity"),
-)
+# WebRTC plugins also declare the camera; Ride voice never uses it, so the
+# merged manifest drops it.
+INTERCOM_REMOVED_PERMISSIONS = ("android.permission.CAMERA",)
 
 
 RELEASE_SIGNING_MARKER = "commRideKeystoreProperties"
@@ -108,7 +95,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        CommRideIntercom(this, flutterEngine.dartExecutor.binaryMessenger)
+        IntercomService.register(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "commride/media_keys")
             .setMethodCallHandler { call, result ->
                 val audio = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -163,14 +150,15 @@ def configure_media_keys() -> None:
 
 
 def configure_intercom_source() -> None:
-    """Place the intercom bridge next to MainActivity in the app package."""
+    """Place the intercom service next to MainActivity in the app package."""
     activity = next((ROOT / "android/app/src/main/kotlin").rglob("MainActivity.kt"))
     package = next(
         line
         for line in activity.read_text(encoding="utf-8").splitlines()
         if line.startswith("package ")
     )
-    target = activity.with_name("CommRideIntercom.kt")
+    activity.with_name("CommRideIntercom.kt").unlink(missing_ok=True)
+    target = activity.with_name("IntercomService.kt")
     target.write_text(
         package + "\n\n" + INTERCOM_SOURCE.read_text(encoding="utf-8"),
         encoding="utf-8",
@@ -198,14 +186,6 @@ def configure_intercom_manifest(manifest: ET.Element) -> None:
     application = manifest.find("application")
     if application is None:
         raise SystemExit("Android application element missing.")
-    for tag, name in INTERCOM_REMOVED_COMPONENTS:
-        if not any(
-            node.get(android_attr("name")) == name
-            for node in application.findall(tag)
-        ):
-            node = ET.SubElement(application, tag)
-            node.set(android_attr("name"), name)
-            node.set(tools_attr("node"), "remove")
     if not any(
         node.get(android_attr("name")) == ".IntercomService"
         for node in application.findall("service")
@@ -214,61 +194,6 @@ def configure_intercom_manifest(manifest: ET.Element) -> None:
         service.set(android_attr("name"), ".IntercomService")
         service.set(android_attr("exported"), "false")
         service.set(android_attr("foregroundServiceType"), "microphone")
-
-
-def configure_intercom_gradle(content: str, kotlin_dsl: bool) -> str:
-    if kotlin_dsl:
-        content = re.sub(
-            r"compileSdk = (flutter\.compileSdkVersion|\d+)",
-            f"compileSdk = {INTERCOM_COMPILE_SDK}",
-            content,
-            count=1,
-        )
-        desugar_flag = "isCoreLibraryDesugaringEnabled = true"
-        target = "targetCompatibility = JavaVersion.VERSION_17"
-    else:
-        content = re.sub(
-            r"compileSdk(Version)? (flutter\.compileSdkVersion|\d+)",
-            f"compileSdk {INTERCOM_COMPILE_SDK}",
-            content,
-            count=1,
-        )
-        desugar_flag = "coreLibraryDesugaringEnabled true"
-        target = "targetCompatibility JavaVersion.VERSION_17"
-    if desugar_flag not in content:
-        match = re.search(rf"^(\s*){re.escape(target)}\s*$", content, re.MULTILINE)
-        if match is None:
-            raise SystemExit(
-                "Unexpected Android compileOptions template; "
-                "refusing unsafe desugaring patch."
-            )
-        content = (
-            content[: match.end()]
-            + "\n"
-            + match.group(1)
-            + desugar_flag
-            + content[match.end():]
-        )
-
-    if INTERCOM_DEPENDENCY in content:
-        return content
-    if kotlin_dsl:
-        lines = (
-            f'    implementation("{INTERCOM_DEPENDENCY}")\n'
-            f'    coreLibraryDesugaring("{INTERCOM_DESUGAR_DEPENDENCY}")\n'
-        )
-    else:
-        lines = (
-            f'    implementation "{INTERCOM_DEPENDENCY}"\n'
-            f'    coreLibraryDesugaring "{INTERCOM_DESUGAR_DEPENDENCY}"\n'
-        )
-    return (
-        content.rstrip("\n")
-        + "\n\ndependencies {\n"
-        + "    // Ride voice intercom (Cloudflare RealtimeKit, audio only).\n"
-        + lines
-        + "}\n"
-    )
 
 
 def configure_release_signing(content: str) -> str:
@@ -384,6 +309,12 @@ def configure_android() -> None:
             content,
             flags=re.MULTILINE,
         )
+        content = re.sub(
+            r"^\s*isCoreLibraryDesugaringEnabled\s*=\s*true\s*$\n?",
+            "",
+            content,
+            flags=re.MULTILINE,
+        )
         content = content.replace(
             '\n\ndependencies {\n'
             '    coreLibraryDesugaring('
@@ -405,9 +336,6 @@ def configure_android() -> None:
 
         if gradle_name == "build.gradle.kts":
             content = configure_release_signing(content)
-        content = configure_intercom_gradle(
-            content, kotlin_dsl=gradle_name == "build.gradle.kts"
-        )
 
         path.write_text(content, encoding="utf-8")
         configured = True

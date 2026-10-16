@@ -204,7 +204,7 @@ class AuditVoiceTransport implements RideVoiceTransport {
   Stream<RideVoiceEvent> get events => controller.stream;
 
   @override
-  bool get supportsLocalMute => false;
+  bool get supportsLocalMute => true;
 
   @override
   Future<void> connect({

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:commride_mobile/src/active_ride/realtimekit_voice_transport.dart';
 import 'package:commride_mobile/src/active_ride/voice_intercom.dart';
 import 'package:commride_mobile/src/api/http_intercom_api.dart';
 import 'package:commride_mobile/src/api/intercom_api.dart';
@@ -184,58 +183,38 @@ void main() {
     controller.dispose();
   });
 
-  group('RealtimeKit bridge events', () {
-    test('decode connection, speaker, mute and participants', () {
-      expect(
-        decodeNativeIntercomEvent(<String, Object?>{
-          'type': 'connection',
-          'state': 'reconnecting',
-        }),
-        isA<RideVoiceTransportDegraded>(),
-      );
-      expect(
-        decodeNativeIntercomEvent(<String, Object?>{
-          'type': 'connection',
-          'state': 'ended',
-        }),
-        isA<RideVoiceTransportClosed>(),
-      );
-      final RideVoiceEvent? speaker = decodeNativeIntercomEvent(
-        <String, Object?>{'type': 'speaker', 'riderId': 'rider-2'},
-      );
-      expect((speaker! as RideVoiceActiveSpeakersChanged).riderIds, <String>{
-        'rider-2',
-      });
-      expect(
-        decodeNativeIntercomEvent(<String, Object?>{'type': 'moderatorMuted'}),
-        isA<RideVoiceModeratorMutedChanged>(),
-      );
-      final RideVoiceEvent? participants = decodeNativeIntercomEvent(
-        <String, Object?>{
-          'type': 'participants',
-          'participants': <Object?>[
-            <String, Object?>{
-              'riderId': 'rider-2',
-              'name': 'Sweep',
-              'audioEnabled': true,
-            },
-            <String, Object?>{'name': 'no id'},
-          ],
-        },
-      );
-      expect(
-        (participants! as RideVoiceParticipantsChanged)
-            .participants
-            .single
-            .riderId,
-        'rider-2',
-      );
-      expect(decodeNativeIntercomEvent('junk'), isNull);
-      expect(
-        decodeNativeIntercomEvent(<String, Object?>{'type': 'other'}),
-        isNull,
-      );
-    });
+  testWidgets('local mute appears only where the provider supports it', (
+    tester,
+  ) async {
+    final FakeVoiceTransport local = FakeVoiceTransport();
+    final RideVoiceController controller = RideVoiceController(
+      rideId: 'ride-1',
+      transport: local,
+      canModerate: false,
+    );
+    await controller.join();
+    local.controller.add(
+      const RideVoiceParticipantsChanged(<RideVoiceParticipant>[
+        RideVoiceParticipant(
+          riderId: 'rider-2',
+          name: 'Sweep',
+          audioEnabled: true,
+        ),
+      ]),
+    );
+    await tester.pumpWidget(
+      _host(
+        RideIntercomBar(voiceIntercomEnabled: true, controller: controller),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('intercom-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Bisukan untuk saya'));
+    await tester.pump();
+    expect(local.mutedLocally, contains('rider-2'));
+    expect(find.byTooltip('Dengarkan lagi'), findsOneWidget);
+    controller.dispose();
+    await local.controller.close();
   });
 
   group('HttpIntercomApi', () {
@@ -249,9 +228,9 @@ void main() {
           return http.Response(
             jsonEncode(<String, Object?>{
               'intercom': <String, Object?>{
-                'provider': 'cloudflare_realtimekit',
+                'provider': 'livekit',
+                'serverUrl': 'wss://commride.livekit.cloud',
                 'authToken': 'join-token',
-                'baseDomain': 'realtime.cloudflare.com',
                 'role': 'leader',
                 'canModerate': true,
               },
@@ -265,8 +244,26 @@ void main() {
       expect(seen.method, 'POST');
       expect(seen.url.path, '/v1/rides/ride%201/intercom/token');
       expect(seen.headers['authorization'], 'Bearer id-token');
+      expect(grant.serverUrl, 'wss://commride.livekit.cloud');
       expect(grant.authToken, 'join-token');
       expect(grant.canModerate, isTrue);
+    });
+
+    test('asks the API to mute a Rider for everyone', () async {
+      late http.Request seen;
+      final HttpIntercomApi api = HttpIntercomApi(
+        apiBaseUrl: Uri.parse('https://api.example'),
+        authGateway: _TokenAuth(),
+        client: MockClient((http.Request request) async {
+          seen = request;
+          return http.Response('{"muted":true}', 200);
+        }),
+      );
+
+      await api.muteRider(rideId: 'ride-1', riderId: 'rider-2');
+      expect(seen.url.path, '/v1/rides/ride-1/intercom/mute');
+      expect(jsonDecode(seen.body), <String, Object?>{'riderId': 'rider-2'});
+      expect(seen.headers['content-type'], startsWith('application/json'));
     });
 
     test('surfaces API errors with their code', () async {

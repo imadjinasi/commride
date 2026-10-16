@@ -14,10 +14,8 @@ export interface Env {
   readonly TRAFFIC_PROVIDER?: string;
   readonly VALHALLA_BASE_URL?: string;
   readonly LOCATION_SAMPLE_RETENTION_DAYS?: string;
-  /** Cloudflare RealtimeKit voice intercom; the API token is a secret. */
-  readonly REALTIMEKIT_ACCOUNT_ID?: string;
-  readonly REALTIMEKIT_APP_ID?: string;
-  readonly REALTIMEKIT_API_TOKEN?: string;
-  readonly REALTIMEKIT_RIDER_PRESET?: string;
-  readonly REALTIMEKIT_LEADER_PRESET?: string;
+  /** LiveKit Cloud voice intercom; key and secret are Worker secrets. */
+  readonly LIVEKIT_URL?: string;
+  readonly LIVEKIT_API_KEY?: string;
+  readonly LIVEKIT_API_SECRET?: string;
 }

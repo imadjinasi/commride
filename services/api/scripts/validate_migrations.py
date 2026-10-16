@@ -43,7 +43,6 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "rider_push_tokens",
         "push_notification_events",
         "rider_notifications",
-        "ride_intercom_rooms",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"

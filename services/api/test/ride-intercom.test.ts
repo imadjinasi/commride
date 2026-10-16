@@ -1,3 +1,4 @@
+import { decodeJwt, decodeProtectedHeader, jwtVerify } from 'jose';
 import { describe, expect, it } from 'vitest';
 
 import type {
@@ -12,22 +13,17 @@ import type {
 import type { ClubRideRepository } from '../src/clubs-rides/repository';
 import {
   IntercomProviderError,
-  type IntercomParticipantInput,
+  type IntercomJoinInput,
   type IntercomRoomProvider,
-  RealtimeKitRoomProvider,
+  LiveKitRoomProvider,
+  liveKitRoomName,
 } from '../src/intercom/provider';
-import {
-  D1IntercomRoomRepository,
-  type IntercomRoomRecord,
-  type IntercomRoomRepository,
-} from '../src/intercom/repository';
 import type {
   RiderProfile,
   UpsertRiderProfileInput,
 } from '../src/riders/rider-profile';
 import type { RiderRepository } from '../src/riders/rider-repository';
 import { handleRequest } from '../src/router';
-import { createSqliteD1 } from './support/sqlite-d1';
 
 const rider: RiderProfile = {
   id: 'rider-1',
@@ -62,39 +58,26 @@ class TestRiderRepository implements RiderRepository {
 }
 
 class RecordingProvider implements IntercomRoomProvider {
-  readonly name = 'cloudflare_realtimekit' as const;
-  readonly clientBaseDomain = 'realtime.cloudflare.com';
-  rooms: string[] = [];
-  participants: IntercomParticipantInput[] = [];
+  readonly name = 'livekit' as const;
+  readonly clientUrl = 'wss://commride.livekit.cloud';
+  joins: IntercomJoinInput[] = [];
+  mutes: Array<{ rideId: string; riderId: string }> = [];
 
-  constructor(private readonly failing = false) {}
+  constructor(
+    private readonly failing = false,
+    private readonly publishing = true,
+  ) {}
 
-  async createRoom(title: string): Promise<string> {
+  async mintJoinToken(input: IntercomJoinInput): Promise<string> {
     if (this.failing) throw new IntercomProviderError('down', 500);
-    this.rooms.push(title);
-    return `meeting-${this.rooms.length}`;
+    this.joins.push(input);
+    return `token-${this.joins.length}`;
   }
 
-  async addParticipant(input: IntercomParticipantInput): Promise<string> {
-    this.participants.push(input);
-    return `token-${this.participants.length}`;
-  }
-}
-
-class MemoryRoomRepository implements IntercomRoomRepository {
-  records = new Map<string, IntercomRoomRecord>();
-
-  async find(rideId: string): Promise<IntercomRoomRecord | null> {
-    return this.records.get(rideId) ?? null;
-  }
-
-  async insertIfAbsent(
-    record: IntercomRoomRecord,
-  ): Promise<IntercomRoomRecord> {
-    if (!this.records.has(record.rideId)) {
-      this.records.set(record.rideId, record);
-    }
-    return this.records.get(record.rideId)!;
+  async muteRider(rideId: string, riderId: string): Promise<boolean> {
+    if (this.failing) throw new IntercomProviderError('down', 500);
+    this.mutes.push({ rideId, riderId });
+    return this.publishing;
   }
 }
 
@@ -133,25 +116,30 @@ function rides(
   } as unknown as ClubRideRepository;
 }
 
-function tokenRequest(method = 'POST', rideId = 'ride-1'): Request {
+function intercomRequest(
+  action: 'token' | 'mute' = 'token',
+  options: { method?: string; rideId?: string; body?: unknown } = {},
+): Request {
   return new Request(
-    `https://commride.invalid/v1/rides/${rideId}/intercom/token`,
-    { method, headers: { authorization: 'Bearer test-token' } },
+    `https://commride.invalid/v1/rides/${options.rideId ?? 'ride-1'}/intercom/${action}`,
+    {
+      method: options.method ?? 'POST',
+      headers: { authorization: 'Bearer test-token' },
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
+    },
   );
 }
 
 function overrides(
   clubRideRepository: ClubRideRepository,
   provider: IntercomRoomProvider | null = new RecordingProvider(),
-  roomRepository: IntercomRoomRepository = new MemoryRoomRepository(),
 ) {
   return {
     identityVerifier: new TestIdentityVerifier(),
     riderRepository: new TestRiderRepository(),
     clubRideRepository,
     intercomRoomProvider: provider,
-    intercomRoomRepository: roomRepository,
-    now: () => new Date('2026-10-16T10:00:00Z'),
   };
 }
 
@@ -161,10 +149,10 @@ async function errorCode(response: Response): Promise<string> {
 }
 
 describe('Ride intercom token endpoint', () => {
-  it('mints a Rider token in the Ride room for an Active participant', async () => {
+  it('mints a Rider token for an Active participant', async () => {
     const provider = new RecordingProvider();
     const response = await handleRequest(
-      tokenRequest(),
+      intercomRequest(),
       {},
       overrides(rides('active'), provider),
     );
@@ -173,72 +161,28 @@ describe('Ride intercom token endpoint', () => {
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(await response.json()).toEqual({
       intercom: {
-        provider: 'cloudflare_realtimekit',
+        provider: 'livekit',
+        serverUrl: 'wss://commride.livekit.cloud',
         authToken: 'token-1',
-        baseDomain: 'realtime.cloudflare.com',
         role: 'rider',
         canModerate: false,
       },
     });
-    expect(provider.participants).toEqual([
-      {
-        roomId: 'meeting-1',
-        riderId: rider.id,
-        displayName: 'Sweep',
-        preset: 'rider',
-      },
+    expect(provider.joins).toEqual([
+      { rideId: 'ride-1', riderId: rider.id, displayName: 'Sweep' },
     ]);
   });
 
-  it('gives the Leader the moderator preset', async () => {
-    const provider = new RecordingProvider();
+  it('marks the Leader as moderator', async () => {
     const response = await handleRequest(
-      tokenRequest(),
+      intercomRequest(),
       {},
-      overrides(rides('active', 'ready', 'leader'), provider),
+      overrides(rides('active', 'ready', 'leader')),
     );
-
-    expect(response.status).toBe(200);
     const body = (await response.json()) as {
       intercom: { role: string; canModerate: boolean };
     };
-    expect(body.intercom.role).toBe('leader');
-    expect(body.intercom.canModerate).toBe(true);
-    expect(provider.participants[0]?.preset).toBe('leader');
-  });
-
-  it.each(['sweeper', 'navigator'] as const)(
-    'keeps the %s on the Rider preset',
-    async (role) => {
-      const provider = new RecordingProvider();
-      await handleRequest(
-        tokenRequest(),
-        {},
-        overrides(rides('active', 'joined', role), provider),
-      );
-      expect(provider.participants[0]?.preset).toBe('rider');
-    },
-  );
-
-  it('reuses one provider room per Ride', async () => {
-    const provider = new RecordingProvider();
-    const rooms = new MemoryRoomRepository();
-    const deps = overrides(rides('active'), provider, rooms);
-
-    await handleRequest(tokenRequest(), {}, deps);
-    await handleRequest(tokenRequest(), {}, deps);
-
-    expect(provider.rooms).toHaveLength(1);
-    expect(provider.participants.map((p) => p.roomId)).toEqual([
-      'meeting-1',
-      'meeting-1',
-    ]);
-    expect(rooms.records.get('ride-1')).toEqual({
-      rideId: 'ride-1',
-      provider: 'cloudflare_realtimekit',
-      providerRoomId: 'meeting-1',
-      createdAt: '2026-10-16T10:00:00.000Z',
-    });
+    expect(body.intercom).toMatchObject({ role: 'leader', canModerate: true });
   });
 
   it.each(['published', 'completed', 'draft'] as const)(
@@ -246,13 +190,13 @@ describe('Ride intercom token endpoint', () => {
     async (status) => {
       const provider = new RecordingProvider();
       const response = await handleRequest(
-        tokenRequest(),
+        intercomRequest(),
         {},
         overrides(rides(status), provider),
       );
       expect(response.status).toBe(409);
       expect(await errorCode(response)).toBe('active_ride_required');
-      expect(provider.participants).toHaveLength(0);
+      expect(provider.joins).toHaveLength(0);
     },
   );
 
@@ -261,19 +205,19 @@ describe('Ride intercom token endpoint', () => {
     async (membershipStatus) => {
       const provider = new RecordingProvider();
       const response = await handleRequest(
-        tokenRequest(),
+        intercomRequest(),
         {},
         overrides(rides('active', membershipStatus), provider),
       );
       expect(response.status).toBe(403);
       expect(await errorCode(response)).toBe('ride_membership_required');
-      expect(provider.rooms).toHaveLength(0);
+      expect(provider.joins).toHaveLength(0);
     },
   );
 
   it('returns 404 for an unknown Ride', async () => {
     const response = await handleRequest(
-      tokenRequest('POST', 'ride-x'),
+      intercomRequest('token', { rideId: 'ride-x' }),
       {},
       overrides(rides('active')),
     );
@@ -293,7 +237,7 @@ describe('Ride intercom token endpoint', () => {
 
   it('rejects GET', async () => {
     const response = await handleRequest(
-      tokenRequest('GET'),
+      intercomRequest('token', { method: 'GET' }),
       {},
       overrides(rides('active')),
     );
@@ -302,7 +246,7 @@ describe('Ride intercom token endpoint', () => {
 
   it('reports a missing provider configuration as 503', async () => {
     const response = await handleRequest(
-      tokenRequest(),
+      intercomRequest(),
       {},
       overrides(rides('active'), null),
     );
@@ -310,18 +254,19 @@ describe('Ride intercom token endpoint', () => {
     expect(await errorCode(response)).toBe('intercom_not_configured');
   });
 
-  it('is unconfigured when the Worker has no RealtimeKit secrets', async () => {
-    const response = await handleRequest(tokenRequest(), {}, {
-      ...overrides(rides('active')),
-      intercomRoomProvider: undefined,
-    });
+  it('is unconfigured when the Worker has no LiveKit secrets', async () => {
+    const response = await handleRequest(
+      intercomRequest(),
+      { LIVEKIT_URL: 'wss://x.livekit.cloud', LIVEKIT_API_KEY: 'key' },
+      { ...overrides(rides('active')), intercomRoomProvider: undefined },
+    );
     expect(response.status).toBe(503);
     expect(await errorCode(response)).toBe('intercom_not_configured');
   });
 
   it('maps provider failure to 502 without leaking details', async () => {
     const response = await handleRequest(
-      tokenRequest(),
+      intercomRequest(),
       {},
       overrides(rides('active'), new RecordingProvider(true)),
     );
@@ -332,119 +277,171 @@ describe('Ride intercom token endpoint', () => {
   });
 });
 
-describe('RealtimeKitRoomProvider', () => {
-  const config = {
-    accountId: 'acct',
-    appId: 'app',
-    apiToken: 'secret-token',
-    riderPreset: 'commride_rider',
-    leaderPreset: 'commride_leader',
-  };
+describe('Ride intercom Leader mute endpoint', () => {
+  it('lets the Leader mute a Rider for everyone', async () => {
+    const provider = new RecordingProvider();
+    const response = await handleRequest(
+      intercomRequest('mute', { body: { riderId: 'rider-2' } }),
+      {},
+      overrides(rides('active', 'joined', 'leader'), provider),
+    );
+    expect(response.status).toBe(200);
+    expect(provider.mutes).toEqual([{ rideId: 'ride-1', riderId: 'rider-2' }]);
+  });
 
-  function recordingFetch(body: unknown, status = 200) {
+  it.each(['member', 'sweeper', 'navigator'] as const)(
+    'refuses a %s',
+    async (role) => {
+      const provider = new RecordingProvider();
+      const response = await handleRequest(
+        intercomRequest('mute', { body: { riderId: 'rider-2' } }),
+        {},
+        overrides(rides('active', 'joined', role), provider),
+      );
+      expect(response.status).toBe(403);
+      expect(await errorCode(response)).toBe('ride_leader_required');
+      expect(provider.mutes).toHaveLength(0);
+    },
+  );
+
+  it('refuses once the Ride is no longer Active', async () => {
+    const response = await handleRequest(
+      intercomRequest('mute', { body: { riderId: 'rider-2' } }),
+      {},
+      overrides(rides('completed', 'joined', 'leader')),
+    );
+    expect(response.status).toBe(409);
+  });
+
+  it('validates the body', async () => {
+    const response = await handleRequest(
+      intercomRequest('mute', { body: { riderId: '' } }),
+      {},
+      overrides(rides('active', 'joined', 'leader')),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('reports a Rider who is not talking as 404', async () => {
+    const response = await handleRequest(
+      intercomRequest('mute', { body: { riderId: 'rider-9' } }),
+      {},
+      overrides(
+        rides('active', 'joined', 'leader'),
+        new RecordingProvider(false, false),
+      ),
+    );
+    expect(response.status).toBe(404);
+    expect(await errorCode(response)).toBe('intercom_participant_not_found');
+  });
+});
+
+describe('LiveKitRoomProvider', () => {
+  const config = {
+    url: 'wss://commride.livekit.cloud',
+    apiKey: 'APIkey123',
+    apiSecret: 'secret-secret-secret-secret-secret',
+  };
+  const now = () => new Date('2026-10-16T10:00:00Z');
+
+  function recordingFetch(responses: unknown[], status = 200) {
     const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
     const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ url: String(input), init });
-      return new Response(JSON.stringify(body), { status });
+      return new Response(JSON.stringify(responses.shift() ?? {}), {
+        status,
+      });
     }) as typeof fetch;
     return { calls, fetcher };
   }
 
-  it('creates a meeting with the API token server-side', async () => {
-    const { calls, fetcher } = recordingFetch({
-      success: true,
-      data: { id: 'meeting-9' },
-    });
-    const provider = new RealtimeKitRoomProvider(config, fetcher);
-
-    expect(await provider.createRoom('CommRide Ride ride-1')).toBe(
-      'meeting-9',
+  it('signs a microphone-only join token for the Ride room', async () => {
+    const provider = new LiveKitRoomProvider(
+      config,
+      recordingFetch([]).fetcher,
+      now,
     );
-    expect(calls[0]?.url).toBe(
-      'https://api.cloudflare.com/client/v4/accounts/acct/realtime/kit/app/meetings',
-    );
-    expect(calls[0]?.init?.method).toBe('POST');
-    expect(
-      (calls[0]?.init?.headers as Record<string, string>).authorization,
-    ).toBe('Bearer secret-token');
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
-      title: 'CommRide Ride ride-1',
-    });
-  });
-
-  it('adds a participant with the role preset and returns its token', async () => {
-    const { calls, fetcher } = recordingFetch({
-      success: true,
-      data: { id: 'p-1', token: 'auth-token' },
-    });
-    const provider = new RealtimeKitRoomProvider(config, fetcher);
-
-    const token = await provider.addParticipant({
-      roomId: 'meeting-9',
+    const token = await provider.mintJoinToken({
+      rideId: 'ride-1',
       riderId: 'rider-1',
       displayName: 'Sweep',
-      preset: 'leader',
     });
 
-    expect(token).toBe('auth-token');
-    expect(calls[0]?.url).toBe(
-      'https://api.cloudflare.com/client/v4/accounts/acct/realtime/kit/app/meetings/meeting-9/participants',
+    expect(decodeProtectedHeader(token).alg).toBe('HS256');
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(config.apiSecret),
+      { currentDate: now() },
     );
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
-      name: 'Sweep',
-      custom_participant_id: 'rider-1',
-      preset_name: 'commride_leader',
+    expect(payload.iss).toBe('APIkey123');
+    expect(payload.sub).toBe('rider-1');
+    expect(payload.name).toBe('Sweep');
+    expect(payload.exp! - payload.nbf!).toBe(6 * 60 * 60);
+    expect(payload.video).toEqual({
+      room: 'commride-ride-ride-1',
+      roomJoin: true,
+      canSubscribe: true,
+      canPublish: true,
+      canPublishData: false,
+      canPublishSources: ['microphone'],
     });
   });
 
-  it('throws a provider error on HTTP failure or a rejected envelope', async () => {
-    const failing = new RealtimeKitRoomProvider(
-      config,
-      recordingFetch({}, 401).fetcher,
-    );
-    await expect(failing.createRoom('x')).rejects.toBeInstanceOf(
-      IntercomProviderError,
-    );
+  it('mutes the microphone track through the room service', async () => {
+    const { calls, fetcher } = recordingFetch([
+      {
+        participants: [
+          { identity: 'rider-3', tracks: [{ sid: 'TR_x', source: 'MICROPHONE' }] },
+          {
+            identity: 'rider-2',
+            tracks: [
+              { sid: 'TR_cam', source: 'CAMERA', type: 'VIDEO' },
+              { sid: 'TR_mic', source: 'MICROPHONE' },
+            ],
+          },
+        ],
+      },
+      {},
+    ]);
+    const provider = new LiveKitRoomProvider(config, fetcher, now);
 
-    const rejected = new RealtimeKitRoomProvider(
-      config,
-      recordingFetch({ success: false }).fetcher,
-    );
-    await expect(rejected.createRoom('x')).rejects.toBeInstanceOf(
-      IntercomProviderError,
-    );
+    expect(await provider.muteRider('ride-1', 'rider-2')).toBe(true);
+    expect(calls.map((call) => call.url)).toEqual([
+      'https://commride.livekit.cloud/twirp/livekit.RoomService/ListParticipants',
+      'https://commride.livekit.cloud/twirp/livekit.RoomService/MutePublishedTrack',
+    ]);
+    expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({
+      room: liveKitRoomName('ride-1'),
+      identity: 'rider-2',
+      track_sid: 'TR_mic',
+      muted: true,
+    });
+    const auth = (calls[0]?.init?.headers as Record<string, string>)
+      .authorization;
+    const admin = decodeJwt(auth.replace('Bearer ', ''));
+    expect(admin.video).toEqual({
+      room: 'commride-ride-ride-1',
+      roomAdmin: true,
+    });
   });
-});
 
-describe('D1IntercomRoomRepository', () => {
-  it('keeps the first stored room when two first joins race', async () => {
-    const db = await createSqliteD1();
-    db.exec(`
-      INSERT INTO riders(id, auth_subject, display_name) VALUES
-        ('rider-a', 'firebase-a', 'Rider A');
-      INSERT INTO clubs(id, created_by_rider_id, name, slug) VALUES
-        ('club-x', 'rider-a', 'Club X', 'club-x');
-      INSERT INTO rides(id, club_id, created_by_rider_id, title, status,
-                        actual_start_at) VALUES
-        ('ride-1', 'club-x', 'rider-a', 'R1', 'active', '2026-10-16T09:00:00Z');
-    `);
-    const repository = new D1IntercomRoomRepository(db.d1);
+  it('reports a Rider without a microphone track', async () => {
+    const { calls, fetcher } = recordingFetch([
+      { participants: [{ identity: 'rider-2', tracks: [] }] },
+    ]);
+    const provider = new LiveKitRoomProvider(config, fetcher, now);
+    expect(await provider.muteRider('ride-1', 'rider-2')).toBe(false);
+    expect(calls).toHaveLength(1);
+  });
 
-    expect(await repository.find('ride-1')).toBeNull();
-    const first = await repository.insertIfAbsent({
-      rideId: 'ride-1',
-      provider: 'cloudflare_realtimekit',
-      providerRoomId: 'meeting-a',
-      createdAt: '2026-10-16T10:00:00Z',
-    });
-    const second = await repository.insertIfAbsent({
-      rideId: 'ride-1',
-      provider: 'cloudflare_realtimekit',
-      providerRoomId: 'meeting-b',
-      createdAt: '2026-10-16T10:00:01Z',
-    });
-
-    expect(first.providerRoomId).toBe('meeting-a');
-    expect(second.providerRoomId).toBe('meeting-a');
+  it('throws a provider error on HTTP failure', async () => {
+    const provider = new LiveKitRoomProvider(
+      config,
+      recordingFetch([], 401).fetcher,
+      now,
+    );
+    await expect(provider.muteRider('ride-1', 'rider-2')).rejects.toBeInstanceOf(
+      IntercomProviderError,
+    );
   });
 });

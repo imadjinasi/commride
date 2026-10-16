@@ -1,14 +1,15 @@
 import { authenticateRider } from '../auth/authenticated-rider';
 import type { IdentityVerifier } from '../auth/identity';
+import type { RideMembership } from '../clubs-rides/models';
 import type { ClubRideRepository } from '../clubs-rides/repository';
 import { errorResponse, jsonResponse } from '../http/json';
+import type { RiderProfile } from '../riders/rider-profile';
 import type { RiderRepository } from '../riders/rider-repository';
 import {
   IntercomProviderError,
   type IntercomPreset,
   type IntercomRoomProvider,
 } from './provider';
-import type { IntercomRoomRepository } from './repository';
 
 export interface RideIntercomHandlerDependencies {
   readonly identityVerifier: IdentityVerifier;
@@ -16,17 +17,18 @@ export interface RideIntercomHandlerDependencies {
   readonly clubRideRepository: ClubRideRepository;
   /** Null when no provider credentials are configured. */
   readonly provider: IntercomRoomProvider | null;
-  readonly roomRepository: IntercomRoomRepository;
-  readonly now?: () => Date;
 }
+
+type IntercomAction = 'token' | 'mute';
 
 export function isRideIntercomPath(pathname: string): boolean {
   return matchRideIntercomPath(pathname) != null;
 }
 
 /**
- * Mints a voice intercom join token for a participating Rider of an Active
- * Ride. Provider credentials never leave the Worker.
+ * Ride voice intercom for participating Riders of an Active Ride:
+ * `token` mints a join token, `mute` lets the Ride Leader mute a Rider's
+ * microphone for everyone. Provider credentials never leave the Worker.
  */
 export async function handleRideIntercomRequest(
   request: Request,
@@ -34,20 +36,108 @@ export async function handleRideIntercomRequest(
   requestId: string,
   dependencies: RideIntercomHandlerDependencies,
 ): Promise<Response | null> {
-  const rideId = matchRideIntercomPath(url.pathname);
-  if (rideId == null) {
+  const match = matchRideIntercomPath(url.pathname);
+  if (match == null) {
     return null;
   }
+  const { rideId, action } = match;
 
   if (request.method !== 'POST') {
     return errorResponse(
       'method_not_allowed',
-      'Only POST is supported for the intercom token endpoint.',
+      'Only POST is supported for intercom endpoints.',
       405,
       requestId,
     );
   }
 
+  const access = await authorize(request, rideId, requestId, dependencies);
+  if (access instanceof Response) {
+    return access;
+  }
+  const { rider, membership } = access;
+
+  const provider = dependencies.provider;
+  if (provider == null) {
+    return errorResponse(
+      'intercom_not_configured',
+      'Voice intercom is not configured for this environment.',
+      503,
+      requestId,
+    );
+  }
+
+  const preset: IntercomPreset =
+    membership.role === 'leader' ? 'leader' : 'rider';
+
+  try {
+    if (action === 'token') {
+      const authToken = await provider.mintJoinToken({
+        rideId,
+        riderId: rider.id,
+        displayName: rider.callsign ?? rider.displayName,
+      });
+      return jsonResponse(
+        {
+          intercom: {
+            provider: provider.name,
+            serverUrl: provider.clientUrl,
+            authToken,
+            role: preset,
+            canModerate: preset === 'leader',
+          },
+        },
+        200,
+        requestId,
+      );
+    }
+
+    if (preset !== 'leader') {
+      return errorResponse(
+        'ride_leader_required',
+        'Only the Ride Leader can mute a Rider for everyone.',
+        403,
+        requestId,
+      );
+    }
+    const target = await readTargetRiderId(request);
+    if (target == null) {
+      return errorResponse(
+        'invalid_request',
+        'Body must be {"riderId": string}.',
+        400,
+        requestId,
+      );
+    }
+    const muted = await provider.muteRider(rideId, target);
+    if (!muted) {
+      return errorResponse(
+        'intercom_participant_not_found',
+        'That Rider is not talking in the intercom.',
+        404,
+        requestId,
+      );
+    }
+    return jsonResponse({ muted: true }, 200, requestId);
+  } catch (error) {
+    if (error instanceof IntercomProviderError) {
+      return errorResponse(
+        'intercom_provider_unavailable',
+        'The voice intercom provider could not be reached.',
+        502,
+        requestId,
+      );
+    }
+    throw error;
+  }
+}
+
+async function authorize(
+  request: Request,
+  rideId: string,
+  requestId: string,
+  dependencies: RideIntercomHandlerDependencies,
+): Promise<{ rider: RiderProfile; membership: RideMembership } | Response> {
   const authentication = await authenticateRider(
     request,
     dependencies.identityVerifier,
@@ -101,67 +191,31 @@ export async function handleRideIntercomRequest(
     );
   }
 
-  const provider = dependencies.provider;
-  if (provider == null) {
-    return errorResponse(
-      'intercom_not_configured',
-      'Voice intercom is not configured for this environment.',
-      503,
-      requestId,
-    );
-  }
+  return { rider, membership };
+}
 
-  const preset: IntercomPreset =
-    membership.role === 'leader' ? 'leader' : 'rider';
-
+async function readTargetRiderId(request: Request): Promise<string | null> {
   try {
-    let room = await dependencies.roomRepository.find(rideId);
-    if (room == null) {
-      const providerRoomId = await provider.createRoom(
-        `CommRide Ride ${rideId}`,
-      );
-      room = await dependencies.roomRepository.insertIfAbsent({
-        rideId,
-        provider: provider.name,
-        providerRoomId,
-        createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
-      });
-    }
-
-    const authToken = await provider.addParticipant({
-      roomId: room.providerRoomId,
-      riderId: rider.id,
-      displayName: rider.callsign ?? rider.displayName,
-      preset,
-    });
-
-    return jsonResponse(
-      {
-        intercom: {
-          provider: provider.name,
-          authToken,
-          baseDomain: provider.clientBaseDomain,
-          role: preset,
-          canModerate: preset === 'leader',
-        },
-      },
-      200,
-      requestId,
-    );
-  } catch (error) {
-    if (error instanceof IntercomProviderError) {
-      return errorResponse(
-        'intercom_provider_unavailable',
-        'The voice intercom provider could not be reached.',
-        502,
-        requestId,
-      );
-    }
-    throw error;
+    const body = (await request.json()) as { riderId?: unknown };
+    return typeof body.riderId === 'string' && body.riderId.trim() !== ''
+      ? body.riderId
+      : null;
+  } catch {
+    return null;
   }
 }
 
-function matchRideIntercomPath(pathname: string): string | null {
-  const match = /^\/v1\/rides\/([^/]+)\/intercom\/token$/.exec(pathname);
-  return match?.[1] == null ? null : decodeURIComponent(match[1]);
+function matchRideIntercomPath(
+  pathname: string,
+): { rideId: string; action: IntercomAction } | null {
+  const match = /^\/v1\/rides\/([^/]+)\/intercom\/(token|mute)$/.exec(
+    pathname,
+  );
+  if (match?.[1] == null || match[2] == null) {
+    return null;
+  }
+  return {
+    rideId: decodeURIComponent(match[1]),
+    action: match[2] as IntercomAction,
+  };
 }

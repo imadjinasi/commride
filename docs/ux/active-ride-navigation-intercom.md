@@ -89,8 +89,8 @@ Leader cannot remotely unmute or enable another Rider's microphone; the muted
 Rider sees that the Leader muted them and may turn the mic on again with their
 own tap.
 
-The pilot provider (Cloudflare RealtimeKit on Android) does not expose local
-mute of a single Rider, so that control is hidden until a provider supports it.
+Any Rider can silence one other Rider for themselves only ("Bisukan untuk
+saya"); the pilot provider (LiveKit) then stops sending that audio to them.
 
 Mic state must remain visible. Joining an Active Ride does not authorize hidden
 microphone activation.

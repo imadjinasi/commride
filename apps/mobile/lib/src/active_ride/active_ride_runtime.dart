@@ -9,7 +9,7 @@ import 'live_group_controller.dart';
 import 'location_provider.dart';
 import 'location_session_controller.dart';
 import 'realtime_client.dart';
-import 'realtimekit_voice_transport.dart';
+import 'livekit_voice_transport.dart';
 import 'voice_intercom.dart';
 
 class ActiveRideRuntime {
@@ -119,8 +119,8 @@ class ActiveRideRuntimeManager {
       locationProvider: locationProvider,
       locationSession: locationSession,
       groupController: groupController,
-      voiceTransportFactory: RealtimeKitVoiceTransport.platformSupported
-          ? () => RealtimeKitVoiceTransport(
+      voiceTransportFactory: LiveKitVoiceTransport.platformSupported
+          ? () => LiveKitVoiceTransport(
               api: HttpIntercomApi(
                 apiBaseUrl: _apiBaseUrl,
                 authGateway: _authGateway,

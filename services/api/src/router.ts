@@ -107,12 +107,8 @@ import {
 } from './intercom/handler';
 import {
   type IntercomRoomProvider,
-  RealtimeKitRoomProvider,
+  LiveKitRoomProvider,
 } from './intercom/provider';
-import {
-  D1IntercomRoomRepository,
-  type IntercomRoomRepository,
-} from './intercom/repository';
 import { handleRideSosRequest, isRideSosPath } from './ride-sos/handler';
 import {
   handleRideRecapRequest,
@@ -168,7 +164,6 @@ export interface RouterOverrides {
   readonly rideSosRepository?: RideSosRepository;
   /** `null` simulates an environment without intercom credentials. */
   readonly intercomRoomProvider?: IntercomRoomProvider | null;
-  readonly intercomRoomRepository?: IntercomRoomRepository;
   readonly rideRecapRepository?: RideRecapRepository;
   readonly pushRepository?: PushRepository;
   readonly notificationRepository?: NotificationRepository;
@@ -424,15 +419,7 @@ export async function handleRequest(
       const clubRideRepository =
         overrides.clubRideRepository ??
         (env.DB == null ? null : new D1ClubRideRepository(env.DB));
-      const roomRepository =
-        overrides.intercomRoomRepository ??
-        (env.DB == null ? null : new D1IntercomRoomRepository(env.DB));
-
-      if (
-        riderRepository == null ||
-        clubRideRepository == null ||
-        roomRepository == null
-      ) {
+      if (riderRepository == null || clubRideRepository == null) {
         return errorResponse(
           'database_not_configured',
           'Ride intercom persistence is not configured.',
@@ -453,8 +440,6 @@ export async function handleRequest(
             overrides.intercomRoomProvider === undefined
               ? resolveIntercomRoomProvider(env)
               : overrides.intercomRoomProvider,
-          roomRepository,
-          now: overrides.now,
         },
       );
 
@@ -1214,20 +1199,14 @@ function selector(value: string | undefined): string | null {
 }
 
 function resolveIntercomRoomProvider(env: Env): IntercomRoomProvider | null {
-  const accountId = env.REALTIMEKIT_ACCOUNT_ID?.trim();
-  const appId = env.REALTIMEKIT_APP_ID?.trim();
-  const apiToken = env.REALTIMEKIT_API_TOKEN?.trim();
-  if (!accountId || !appId || !apiToken) {
+  const url = env.LIVEKIT_URL?.trim();
+  const apiKey = env.LIVEKIT_API_KEY?.trim();
+  const apiSecret = env.LIVEKIT_API_SECRET?.trim();
+  if (!url || !apiKey || !apiSecret) {
     return null;
   }
 
-  return new RealtimeKitRoomProvider({
-    accountId,
-    appId,
-    apiToken,
-    riderPreset: env.REALTIMEKIT_RIDER_PRESET?.trim() || 'commride_rider',
-    leaderPreset: env.REALTIMEKIT_LEADER_PRESET?.trim() || 'commride_leader',
-  });
+  return new LiveKitRoomProvider({ url, apiKey, apiSecret });
 }
 
 function resolveActiveRideGateway(env: Env): ActiveRideGateway | null {

@@ -1,22 +1,27 @@
+import { SignJWT } from 'jose';
+
 /**
  * Voice intercom room provider. Provider payloads stay inside the adapter;
- * the handler only sees a room id and a join token.
+ * the handler only sees a join token and a mute result.
  */
 export type IntercomPreset = 'rider' | 'leader';
 
-export interface IntercomParticipantInput {
-  readonly roomId: string;
+export interface IntercomJoinInput {
+  readonly rideId: string;
   readonly riderId: string;
   readonly displayName: string;
-  readonly preset: IntercomPreset;
 }
 
 export interface IntercomRoomProvider {
-  readonly name: 'cloudflare_realtimekit';
-  /** Value the client SDK needs besides the token (e.g. base domain). */
-  readonly clientBaseDomain: string;
-  createRoom(title: string): Promise<string>;
-  addParticipant(input: IntercomParticipantInput): Promise<string>;
+  readonly name: 'livekit';
+  /** WebSocket URL the client SDK connects to. */
+  readonly clientUrl: string;
+  mintJoinToken(input: IntercomJoinInput): Promise<string>;
+  /**
+   * Mutes the Rider's microphone track for everyone in the Ride room.
+   * Returns false when that Rider is not publishing a microphone there.
+   */
+  muteRider(rideId: string, riderId: string): Promise<boolean>;
 }
 
 export class IntercomProviderError extends Error {
@@ -29,82 +34,141 @@ export class IntercomProviderError extends Error {
   }
 }
 
-export interface RealtimeKitConfig {
-  readonly accountId: string;
-  readonly appId: string;
-  readonly apiToken: string;
-  readonly riderPreset: string;
-  readonly leaderPreset: string;
+export interface LiveKitConfig {
+  /** wss:// project URL from LiveKit Cloud. */
+  readonly url: string;
+  readonly apiKey: string;
+  readonly apiSecret: string;
 }
+
+/** One room per Ride; LiveKit creates it on the first join. */
+export function liveKitRoomName(rideId: string): string {
+  return `commride-ride-${rideId}`;
+}
+
+// Long enough for a full Ride; a rejoin asks the Worker for a new token.
+const JOIN_TOKEN_TTL_SECONDS = 6 * 60 * 60;
+const ADMIN_TOKEN_TTL_SECONDS = 60;
 
 const workerFetch: typeof fetch = (input, init) => fetch(input, init);
 
-interface RealtimeKitEnvelope {
-  readonly success?: boolean;
-  readonly data?: { readonly id?: unknown; readonly token?: unknown };
+interface LiveKitTrackJson {
+  readonly sid?: unknown;
+  readonly source?: unknown;
 }
 
-export class RealtimeKitRoomProvider implements IntercomRoomProvider {
-  readonly name = 'cloudflare_realtimekit' as const;
-  readonly clientBaseDomain = 'realtime.cloudflare.com';
+interface LiveKitParticipantJson {
+  readonly identity?: unknown;
+  readonly tracks?: readonly LiveKitTrackJson[];
+}
+
+export class LiveKitRoomProvider implements IntercomRoomProvider {
+  readonly name = 'livekit' as const;
 
   constructor(
-    private readonly config: RealtimeKitConfig,
+    private readonly config: LiveKitConfig,
     private readonly fetcher: typeof fetch = workerFetch,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async createRoom(title: string): Promise<string> {
-    const data = await this.post('/meetings', { title });
-    if (typeof data.id !== 'string' || data.id.length === 0) {
-      throw new IntercomProviderError('Meeting id missing.', null);
-    }
-    return data.id;
+  get clientUrl(): string {
+    return this.config.url;
   }
 
-  async addParticipant(input: IntercomParticipantInput): Promise<string> {
-    const data = await this.post(
-      `/meetings/${encodeURIComponent(input.roomId)}/participants`,
+  mintJoinToken(input: IntercomJoinInput): Promise<string> {
+    // Riders publish their microphone only. Leader mute goes through the
+    // Worker, so no client ever gets room admin.
+    return this.sign(
+      input.riderId,
       {
-        name: input.displayName,
-        custom_participant_id: input.riderId,
-        preset_name:
-          input.preset === 'leader'
-            ? this.config.leaderPreset
-            : this.config.riderPreset,
+        room: liveKitRoomName(input.rideId),
+        roomJoin: true,
+        canSubscribe: true,
+        canPublish: true,
+        canPublishData: false,
+        canPublishSources: ['microphone'],
+      },
+      JOIN_TOKEN_TTL_SECONDS,
+      input.displayName,
+    );
+  }
+
+  async muteRider(rideId: string, riderId: string): Promise<boolean> {
+    const room = liveKitRoomName(rideId);
+    const listed = (await this.roomService('ListParticipants', room, {
+      room,
+    })) as { participants?: readonly LiveKitParticipantJson[] };
+    const participant = listed.participants?.find(
+      (item) => item.identity === riderId,
+    );
+    const track = participant?.tracks?.find(isMicrophone);
+    if (track == null || typeof track.sid !== 'string') {
+      return false;
+    }
+
+    await this.roomService('MutePublishedTrack', room, {
+      room,
+      identity: riderId,
+      track_sid: track.sid,
+      muted: true,
+    });
+    return true;
+  }
+
+  private async roomService(
+    method: string,
+    room: string,
+    body: unknown,
+  ): Promise<unknown> {
+    const token = await this.sign(
+      'commride-api',
+      { room, roomAdmin: true },
+      ADMIN_TOKEN_TTL_SECONDS,
+    );
+    const response = await this.fetcher(
+      `${httpBase(this.config.url)}/twirp/livekit.RoomService/${method}`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
       },
     );
-    if (typeof data.token !== 'string' || data.token.length === 0) {
-      throw new IntercomProviderError('Participant token missing.', null);
-    }
-    return data.token;
-  }
-
-  private async post(
-    path: string,
-    body: unknown,
-  ): Promise<NonNullable<RealtimeKitEnvelope['data']>> {
-    const url =
-      'https://api.cloudflare.com/client/v4/accounts/' +
-      `${encodeURIComponent(this.config.accountId)}/realtime/kit/` +
-      `${encodeURIComponent(this.config.appId)}${path}`;
-    const response = await this.fetcher(url, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${this.config.apiToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
     if (!response.ok) {
       throw new IntercomProviderError(
-        `RealtimeKit request failed (${response.status}).`,
+        `LiveKit ${method} failed (${response.status}).`,
         response.status,
       );
     }
-    const envelope = (await response.json()) as RealtimeKitEnvelope;
-    if (envelope.success !== true || envelope.data == null) {
-      throw new IntercomProviderError('RealtimeKit request rejected.', null);
-    }
-    return envelope.data;
+    return response.json();
   }
+
+  private sign(
+    identity: string,
+    video: Record<string, unknown>,
+    ttlSeconds: number,
+    name?: string,
+  ): Promise<string> {
+    const issuedAt = Math.floor(this.now().getTime() / 1000);
+    return new SignJWT({ video, ...(name == null ? {} : { name }) })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+      .setIssuer(this.config.apiKey)
+      .setSubject(identity)
+      .setNotBefore(issuedAt)
+      .setExpirationTime(issuedAt + ttlSeconds)
+      .sign(new TextEncoder().encode(this.config.apiSecret));
+  }
+}
+
+function isMicrophone(track: LiveKitTrackJson): boolean {
+  return track.source === 'MICROPHONE' || track.source === 2;
+}
+
+function httpBase(url: string): string {
+  return url
+    .replace(/^wss:/, 'https:')
+    .replace(/^ws:/, 'http:')
+    .replace(/\/+$/, '');
 }
