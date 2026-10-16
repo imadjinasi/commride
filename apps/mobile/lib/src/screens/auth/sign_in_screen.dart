@@ -231,15 +231,27 @@ class _SignInScreenState extends State<SignInScreen> {
       } else {
         await widget.authGateway.signIn(email: email, password: password);
       }
+    } on AuthFailure catch (failure) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        if (failure.reason == AuthFailureReason.emailAlreadyInUse) {
+          // Keep the Rider on their existing account instead of letting
+          // them retry with a slightly different email and lose history.
+          _creatingAccount = false;
+          _passwordController.clear();
+        }
+        _errorMessage = _messageFor(failure.reason);
+      });
     } catch (_) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _errorMessage =
-            'Tidak dapat melanjutkan. Periksa email, kata sandi, '
-            'dan koneksi Anda.';
+        _errorMessage = _messageFor(AuthFailureReason.unknown);
       });
     } finally {
       if (mounted) {
@@ -248,5 +260,26 @@ class _SignInScreenState extends State<SignInScreen> {
         });
       }
     }
+  }
+
+  String _messageFor(AuthFailureReason reason) {
+    return switch (reason) {
+      AuthFailureReason.emailAlreadyInUse =>
+        'Email ini sudah punya akun CommRide. Silakan masuk dengan email '
+            'ini, atau ketuk "Lupa kata sandi?" bila lupa kata sandinya.',
+      AuthFailureReason.invalidEmail => 'Format email belum benar.',
+      AuthFailureReason.weakPassword =>
+        'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.',
+      AuthFailureReason.wrongCredentials =>
+        'Email atau kata sandi salah. Periksa lagi, atau ketuk '
+            '"Lupa kata sandi?".',
+      AuthFailureReason.tooManyRequests =>
+        'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.',
+      AuthFailureReason.network =>
+        'Tidak ada koneksi internet. Periksa koneksi lalu coba lagi.',
+      AuthFailureReason.unknown =>
+        'Tidak dapat melanjutkan. Periksa email, kata sandi, '
+            'dan koneksi Anda.',
+    };
   }
 }

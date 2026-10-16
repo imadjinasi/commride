@@ -14,6 +14,7 @@ class ProfileScreen extends StatefulWidget {
     required this.riderProfile,
     required this.vehicleApi,
     required this.authGateway,
+    this.accountEmail,
     this.ridePushController,
     super.key,
   });
@@ -21,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
   final RiderProfile riderProfile;
   final VehicleApi vehicleApi;
   final AuthGateway authGateway;
+  final String? accountEmail;
   final RidePushController? ridePushController;
 
   @override
@@ -63,6 +65,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   profile.homeArea!,
                   style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+              if (widget.accountEmail != null) ...<Widget>[
+                const SizedBox(height: 12),
+                Row(
+                  key: const ValueKey<String>('profile-account-email'),
+                  children: <Widget>[
+                    const Icon(Icons.mail_outline, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Masuk sebagai ${widget.accountEmail!}',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
                 ),
               ],
               const SizedBox(height: 20),

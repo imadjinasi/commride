@@ -396,5 +396,10 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Ride'), findsOneWidget);
     expect(find.text('Clubs'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Masuk sebagai rider@example.com'), findsOneWidget);
   });
 }

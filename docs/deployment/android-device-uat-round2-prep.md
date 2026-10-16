@@ -55,6 +55,18 @@ operator/device acceptance work after the next APK is installed.
 - Password reset returned the Rider to an account state without the expected
   history. Treat this as a blocking identity-continuity defect; password reset
   must preserve the Firebase identity mapping and Rider history.
+  - Repository investigation (16 October 2026): the API resolves a Rider only
+    by the Firebase `sub` (uid), which a password reset does not change; the
+    app never creates an account implicitly, routes only `404` to onboarding
+    and shows load failures as errors rather than empty lists. No repository
+    path that drops history on reset was found. Remaining suspects need
+    runtime evidence: signing in to a different Firebase account (for example
+    after Create Account with another email), or pilot D1 data changing
+    between rounds. A read-only check of `riders` and memberships in the pilot
+    D1 is still required to close this finding.
+  - Mitigation in the app: Profile shows the signed-in email, and Create
+    Account with an existing email sends the Rider back to Masuk / Lupa kata
+    sandi with a clear message.
 - The persistent CommRide header logo is visually too small. The primary logo
   needs a horizontal layout slot rather than a square 44 px box. The repository
   already contains the PR #80 branding assets; any newer operator-local artwork

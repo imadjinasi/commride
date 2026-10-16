@@ -78,6 +78,7 @@ class AuthGate extends StatelessWidget {
 
         return _RiderProfileGate(
           key: ValueKey<String>(user.id),
+          accountEmail: user.email,
           config: config,
           authGateway: authGateway,
           riderProfileApi: riderProfileApi,
@@ -102,6 +103,7 @@ class AuthGate extends StatelessWidget {
 class _RiderProfileGate extends StatefulWidget {
   const _RiderProfileGate({
     required this.config,
+    this.accountEmail,
     required this.authGateway,
     required this.riderProfileApi,
     required this.vehicleApi,
@@ -119,6 +121,7 @@ class _RiderProfileGate extends StatefulWidget {
     super.key,
   });
 
+  final String? accountEmail;
   final AppConfig config;
   final AuthGateway authGateway;
   final RiderProfileApi riderProfileApi;
@@ -196,6 +199,7 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           pushMessaging: widget.pushMessaging,
           pushPlatform: widget.pushPlatform,
           authGateway: widget.authGateway,
+          accountEmail: widget.accountEmail,
         );
       },
     );

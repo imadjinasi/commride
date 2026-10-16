@@ -40,6 +40,7 @@ class AppShell extends StatefulWidget {
     this.rideRecapApi,
     this.notificationApi,
     required this.authGateway,
+    this.accountEmail,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -58,6 +59,10 @@ class AppShell extends StatefulWidget {
   final RideRecapApi? rideRecapApi;
   final NotificationApi? notificationApi;
   final AuthGateway authGateway;
+
+  /// Email of the signed-in account, shown on Profile so the Rider can see
+  /// which account they are using.
+  final String? accountEmail;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -183,6 +188,7 @@ class _AppShellState extends State<AppShell> {
         riderProfile: widget.riderProfile,
         vehicleApi: widget.vehicleApi,
         authGateway: widget.authGateway,
+        accountEmail: widget.accountEmail,
         ridePushController: _ridePushController,
       ),
     ];
