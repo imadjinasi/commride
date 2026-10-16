@@ -27,6 +27,11 @@ class PlatformTests(unittest.TestCase):
         applicationId = "io.github.imadjinasi.commride_mobile"
         minSdk = flutter.minSdkVersion
     }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }''')
         self.write("android/app/src/main/res/values/commride_maps.xml", "<resources/>")
         plist_path = self.root / "ios/Runner/Info.plist"
@@ -75,6 +80,9 @@ func application() {
         self.assertNotIn("MAPS_API_KEY", gradle)
         self.assertNotIn("commRideMapsApiKey", gradle)
         self.assertNotIn("coreLibraryDesugaring", gradle)
+        self.assertEqual(gradle.count("commRideKeystoreProperties = "), 1)
+        self.assertIn('signingConfigs.getByName("release")', gradle)
+        self.assertIn('rootProject.file("key.properties")', gradle)
 
     def test_wrong_orientation_policy_is_rejected(self):
         configure.main()

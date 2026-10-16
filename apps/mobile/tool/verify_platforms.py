@@ -67,6 +67,11 @@ def verify_android() -> None:
         raise SystemExit("Android minSdk 24 declaration missing.")
     if "MAPS_API_KEY" in content or "commRideMapsApiKey" in content:
         raise SystemExit("Obsolete Google Navigation Gradle wiring remains.")
+    if gradle.name == "build.gradle.kts" and (
+        "commRideKeystoreProperties" not in content
+        or 'signingConfigs.getByName("release")' not in content
+    ):
+        raise SystemExit("Android release signing wiring missing.")
     app_id = re.findall(r'applicationId\s*=?\s*[\"\']([^\"\']+)[\"\']', content)
     if app_id != ["io.github.imadjinasi.commride"]:
         raise SystemExit("Android application ID does not match the accepted Firebase registration.")

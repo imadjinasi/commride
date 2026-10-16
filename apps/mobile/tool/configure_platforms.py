@@ -22,6 +22,64 @@ def android_attr(name: str) -> str:
     return f"{{{ANDROID_NS}}}{name}"
 
 
+RELEASE_SIGNING_MARKER = "commRideKeystoreProperties"
+
+RELEASE_SIGNING_HEADER = """// Release signing reads android/key.properties, which stays local and
+// untracked. Without it, release builds fall back to the debug key so CI can
+// still build; such a build must never be uploaded to Google Play.
+val commRideKeystoreProperties = java.util.Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+"""
+
+RELEASE_SIGNING_CONFIG = """    signingConfigs {
+        create("release") {
+            if (!commRideKeystoreProperties.isEmpty()) {
+                keyAlias = commRideKeystoreProperties.getProperty("keyAlias")
+                keyPassword = commRideKeystoreProperties.getProperty("keyPassword")
+                storeFile = file(commRideKeystoreProperties.getProperty("storeFile"))
+                storePassword = commRideKeystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
+"""
+
+RELEASE_SIGNING_SELECTION = """signingConfig = if (commRideKeystoreProperties.isEmpty()) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }"""
+
+
+def configure_release_signing(content: str) -> str:
+    """Wire the Play upload key into Kotlin Gradle release builds."""
+    if RELEASE_SIGNING_MARKER in content:
+        return content
+    if (
+        "\nandroid {" not in "\n" + content
+        or "    buildTypes {" not in content
+        or 'signingConfig = signingConfigs.getByName("debug")' not in content
+    ):
+        raise SystemExit(
+            "Unexpected Android release build template; "
+            "refusing unsafe signing patch."
+        )
+    content = content.replace("android {", RELEASE_SIGNING_HEADER + "android {", 1)
+    content = content.replace(
+        "    buildTypes {", RELEASE_SIGNING_CONFIG + "    buildTypes {", 1
+    )
+    return content.replace(
+        'signingConfig = signingConfigs.getByName("debug")',
+        RELEASE_SIGNING_SELECTION,
+        1,
+    )
+
+
 def configure_android() -> None:
     manifest_path = ROOT / "android/app/src/main/AndroidManifest.xml"
     if not manifest_path.exists():
@@ -132,6 +190,9 @@ def configure_android() -> None:
                 "Unexpected Android applicationId template; "
                 "refusing unsafe patch."
             )
+
+        if gradle_name == "build.gradle.kts":
+            content = configure_release_signing(content)
 
         path.write_text(content, encoding="utf-8")
         configured = True
