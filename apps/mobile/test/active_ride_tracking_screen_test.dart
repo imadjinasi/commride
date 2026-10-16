@@ -183,7 +183,7 @@ void main() {
     await tester.tap(find.text('Aktifkan tracking'));
     await pumpUi(tester);
 
-    expect(find.text('Aktifkan lokasi untuk Ride?'), findsOneWidget);
+    expect(find.text('CommRide memakai lokasi Anda'), findsOneWidget);
     expect(location.checkCalls, 0);
 
     await tester.tap(find.text('Lanjutkan'));
@@ -211,7 +211,7 @@ void main() {
     await tester.pumpWidget(buildScreen(controller: controller));
     await tester.tap(find.text('Aktifkan tracking'));
     await pumpUi(tester);
-    await tester.tap(find.text('Nanti'));
+    await tester.tap(find.text('Tidak sekarang'));
     await pumpUi(tester);
 
     expect(location.checkCalls, 0);

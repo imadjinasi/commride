@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../auth/auth_gateway.dart';
 import '../../widgets/commride_brand.dart';
+import '../../widgets/privacy_policy_link.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({required this.authGateway, super.key});
@@ -142,6 +143,8 @@ class _SignInScreenState extends State<SignInScreen> {
                       'Ride yang membutuhkannya digunakan.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    const SizedBox(height: 8),
+                    const Align(child: PrivacyPolicyLink()),
                   ],
                 ),
               ),

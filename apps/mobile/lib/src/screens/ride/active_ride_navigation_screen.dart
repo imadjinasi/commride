@@ -15,6 +15,7 @@ import '../../models/route_planner.dart';
 import '../../theme/commride_theme.dart';
 import '../../widgets/active_ride_quick_actions.dart';
 import '../../widgets/sos_hold_button.dart';
+import '../../widgets/location_disclosure_dialog.dart';
 import 'route_planner_screen.dart';
 
 class ActiveRideNavigationScreen extends StatefulWidget {
@@ -342,7 +343,10 @@ class _ActiveRideNavigationScreenState
       final CommRideNavigationEngine engine = CommRideNavigationEngine(plan);
 
       if (!widget.runtime.locationSession.state.isTracking) {
-        await widget.runtime.locationSession.startTracking(widget.ride);
+        await widget.runtime.locationSession.startTracking(
+          widget.ride,
+          beforePermissionRequest: () => showLocationDisclosure(context),
+        );
       }
 
       if (!mounted) return;
