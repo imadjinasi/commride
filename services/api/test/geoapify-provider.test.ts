@@ -40,6 +40,43 @@ describe('GeoapifyProvider', () => {
     ]);
   });
 
+  it('biases search to the map center and limits it to the visible area', async () => {
+    let url: URL | null = null;
+    const provider = new GeoapifyProvider('fixture', async (request) => {
+      url = new URL(String(request));
+      return json({ results: [] });
+    });
+
+    await provider.autocomplete({
+      input: 'pesantren',
+      near: { latitude: -6.73, longitude: 108.55 },
+      area: { south: -6.8, west: 108.5, north: -6.7, east: 108.6 },
+    });
+
+    expect(url!.searchParams.get('bias')).toBe('proximity:108.55,-6.73');
+    expect(url!.searchParams.get('filter')).toBe('rect:108.5,-6.8,108.6,-6.7');
+    expect(url!.searchParams.get('lang')).toBe('id');
+  });
+
+  it('keeps the picked point when describing it', async () => {
+    const provider = new GeoapifyProvider('fixture', async (request) => {
+      const url = new URL(String(request));
+      expect(url.pathname).toBe('/v1/geocode/reverse');
+      expect(url.searchParams.get('lat')).toBe('-6.7');
+      return json({
+        results: [{ formatted: 'Jalan Fixture, Cirebon', lat: -6.71, lon: 108.51 }],
+      });
+    });
+
+    await expect(
+      provider.reverseGeocode({ latitude: -6.7, longitude: 108.5 }),
+    ).resolves.toEqual({
+      reference: 'point:-6.700000,108.500000',
+      formattedAddress: 'Jalan Fixture, Cirebon',
+      location: { latitude: -6.7, longitude: 108.5 },
+    });
+  });
+
   it('resolves provider place details and rejects missing coordinates', async () => {
     const provider = new GeoapifyProvider('fixture', async (request) => {
       const url = new URL(request.toString());

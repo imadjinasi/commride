@@ -33,9 +33,19 @@ export class GeoapifyProvider implements RoutePlaceProvider {
   }
 
   async autocomplete(input: PlaceAutocompleteInput): Promise<readonly PlaceSuggestion[]> {
-    const body = await this.get('/v1/geocode/autocomplete', {
-      text: input.input, format: 'json', limit: '8',
-    });
+    const parameters: Record<string, string> = {
+      text: input.input, format: 'json', limit: '8', lang: 'id',
+    };
+    // Without a bias Geoapify ranks the whole world, so small local places
+    // lose to famous ones elsewhere.
+    if (input.near != null) {
+      parameters.bias = `proximity:${input.near.longitude},${input.near.latitude}`;
+    }
+    if (input.area != null) {
+      const { west, south, east, north } = input.area;
+      parameters.filter = `rect:${west},${south},${east},${north}`;
+    }
+    const body = await this.get('/v1/geocode/autocomplete', parameters);
     return collection(body, 'results').slice(0, 8).flatMap((item) => {
       const reference = text(item.place_id);
       const label = text(item.formatted) ?? text(item.address_line1) ?? text(item.name);
@@ -54,6 +64,21 @@ export class GeoapifyProvider implements RoutePlaceProvider {
     return {
       reference: text(properties.place_id) ?? input.reference,
       formattedAddress: text(properties.formatted),
+      location,
+    };
+  }
+
+  async reverseGeocode(location: GeoPoint): Promise<ResolvedPlace> {
+    const body = await this.get('/v1/geocode/reverse', {
+      lat: String(location.latitude), lon: String(location.longitude),
+      format: 'json', lang: 'id',
+    });
+    const first = collection(body, 'results')[0];
+    return {
+      reference: `point:${location.latitude.toFixed(6)},${location.longitude.toFixed(6)}`,
+      formattedAddress: first == null
+        ? null
+        : text(first.formatted) ?? text(first.address_line1) ?? null,
       location,
     };
   }

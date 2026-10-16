@@ -59,11 +59,24 @@ class TestRiderRepository implements RiderRepository {
 class RecordingProvider implements RoutePlaceProvider {
   computeInput: ComputeRoutesInput | null = null;
   searchInput: SearchAlongRouteInput | null = null;
+  autocompleteInput: PlaceAutocompleteInput | null = null;
 
   async autocomplete(
-    _input: PlaceAutocompleteInput,
+    input: PlaceAutocompleteInput,
   ): Promise<readonly PlaceSuggestion[]> {
+    this.autocompleteInput = input;
     return [{ reference: 'place-1', text: 'Cirebon, West Java' }];
+  }
+
+  async reverseGeocode(location: {
+    readonly latitude: number;
+    readonly longitude: number;
+  }): Promise<ResolvedPlace> {
+    return {
+      reference: 'point:-6.700000,108.500000',
+      formattedAddress: 'Jalan Fixture, Cirebon',
+      location,
+    };
   }
 
   async resolvePlace(
@@ -153,6 +166,58 @@ describe('maps API', () => {
       travelMode: 'two_wheeler',
       computeAlternatives: true,
       intermediates: [],
+    });
+  });
+
+  it('passes the map center and visible area to place search', async () => {
+    const provider = new RecordingProvider();
+
+    const response = await handleRequest(
+      request('/v1/maps/autocomplete', {
+        input: 'pesantren',
+        near: { latitude: -6.73, longitude: 108.55 },
+        area: { south: -6.8, west: 108.5, north: -6.7, east: 108.6 },
+      }),
+      {},
+      overrides(provider),
+    );
+
+    expect(response.status).toBe(200);
+    expect(provider.autocompleteInput).toMatchObject({
+      input: 'pesantren',
+      near: { latitude: -6.73, longitude: 108.55 },
+      area: { south: -6.8, west: 108.5, north: -6.7, east: 108.6 },
+    });
+  });
+
+  it('rejects an unbounded search area', async () => {
+    const response = await handleRequest(
+      request('/v1/maps/autocomplete', {
+        input: 'pesantren',
+        area: { south: -10, west: 100, north: 5, east: 120 },
+      }),
+      {},
+      overrides(new RecordingProvider()),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it('describes a point picked on the map without moving it', async () => {
+    const response = await handleRequest(
+      request('/v1/maps/reverse-geocode', {
+        location: { latitude: -6.7, longitude: 108.5 },
+      }),
+      {},
+      overrides(new RecordingProvider()),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      place: {
+        formattedAddress: 'Jalan Fixture, Cirebon',
+        location: { latitude: -6.7, longitude: 108.5 },
+      },
     });
   });
 

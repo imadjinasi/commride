@@ -37,6 +37,31 @@ export class GoogleMapsProvider implements RoutePlaceProvider {
           ...(input.sessionToken == null
             ? {}
             : { sessionToken: input.sessionToken }),
+          ...(input.area == null
+            ? input.near == null
+              ? {}
+              : {
+                  locationBias: {
+                    circle: {
+                      center: input.near,
+                      radius: 50000,
+                    },
+                  },
+                }
+            : {
+                locationRestriction: {
+                  rectangle: {
+                    low: {
+                      latitude: input.area.south,
+                      longitude: input.area.west,
+                    },
+                    high: {
+                      latitude: input.area.north,
+                      longitude: input.area.east,
+                    },
+                  },
+                },
+              }),
         }),
       },
       'suggestions.placePrediction.placeId,suggestions.placePrediction.text.text',
@@ -51,6 +76,15 @@ export class GoogleMapsProvider implements RoutePlaceProvider {
         ? []
         : [{ reference: placeId, text: predictionText }];
     });
+  }
+
+  async reverseGeocode(_location: GeoPoint): Promise<ResolvedPlace> {
+    // The optional Google adapter has no Geocoding API credential gate yet.
+    throw new RoutePlaceProviderError(
+      'reverse_geocode_not_supported',
+      'Picking a point on the map is not available with this place provider.',
+      501,
+    );
   }
 
   async resolvePlace(input: ResolvePlaceInput): Promise<ResolvedPlace> {
