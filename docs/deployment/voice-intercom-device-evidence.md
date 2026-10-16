@@ -2,8 +2,21 @@
 
 Decision: `docs/voice-intercom-decision-2026-10-16.md`.
 
-Nothing below is recorded yet. Repository PASS (CI) does not count as any of
-these gates.
+Repository PASS (CI) does not count as any of these gates.
+
+## Log
+
+- 2026-10-16 — LiveKit Cloud project `CommRide Pilot` (Build plan, project
+  `p_3wniesihmus`, data region United States) created by the product owner;
+  `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` stored as Worker
+  secrets (names verified, values not read).
+- 2026-10-16 — Worker `commride-api` deployed from `feat/voice-intercom`
+  `8a8850c` with owner approval (includes the unmerged stack #81–#85). Version
+  `5e6283d4-4e08-4b33-a6e8-bfefe5d872ad`; previous version
+  `8dd2d595-7b2d-4637-be5a-a684d449f7fe` (rollback target). Remote D1 had no
+  pending migrations. `/health` ok; unauthenticated intercom token request
+  answers `401 authentication_required` (endpoint live, secrets present).
+  Provider PASS still open: no real join token minted yet.
 
 ## 1. Provider setup (operator, needs approval)
 
