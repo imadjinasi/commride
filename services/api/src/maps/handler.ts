@@ -13,6 +13,7 @@ import type {
 } from './models';
 import {
   type RoutePlaceProvider,
+  type SearchArea,
   RoutePlaceProviderError,
 } from './provider';
 import type { TrafficIncidentProvider } from './traffic-provider';
@@ -30,6 +31,7 @@ export interface MapsHandlerDependencies {
 
 export function isMapsPath(pathname: string): boolean {
   return pathname === '/v1/maps/autocomplete' ||
+    pathname === '/v1/maps/reverse-geocode' ||
     pathname === '/v1/maps/resolve-place' ||
     pathname === '/v1/maps/routes' ||
     pathname === '/v1/maps/search-along-route' ||
@@ -91,6 +93,10 @@ export async function handleMapsRequest(
       return await autocomplete(body, requestId, dependencies.provider);
     }
 
+    if (url.pathname === '/v1/maps/reverse-geocode') {
+      return await reverseGeocode(body, requestId, dependencies.provider);
+    }
+
     if (url.pathname === '/v1/maps/resolve-place') {
       return await resolvePlace(body, requestId, dependencies.provider);
     }
@@ -136,8 +142,15 @@ async function autocomplete(
 ): Promise<Response> {
   const input = requiredString(body.input, 2, 120);
   const sessionToken = optionalString(body.sessionToken, 128);
+  const near = body.near == null ? null : point(body.near);
+  const area = body.area == null ? null : searchArea(body.area);
 
-  if (input == null || sessionToken === undefined) {
+  if (
+    input == null ||
+    sessionToken === undefined ||
+    (body.near != null && near == null) ||
+    (body.area != null && area == null)
+  ) {
     return errorResponse(
       'invalid_maps_request',
       'Autocomplete requires input between 2 and 120 characters.',
@@ -149,9 +162,56 @@ async function autocomplete(
   const suggestions = await provider.autocomplete({
     input,
     ...(sessionToken == null ? {} : { sessionToken }),
+    ...(near == null ? {} : { near }),
+    ...(area == null ? {} : { area }),
   });
 
   return jsonResponse({ suggestions }, 200, requestId);
+}
+
+async function reverseGeocode(
+  body: Record<string, unknown>,
+  requestId: string,
+  provider: RoutePlaceProvider,
+): Promise<Response> {
+  const location = point(body.location);
+  if (location == null) {
+    return errorResponse(
+      'invalid_maps_request',
+      'A valid location is required.',
+      400,
+      requestId,
+    );
+  }
+
+  const place = await provider.reverseGeocode(location);
+  return jsonResponse({ place }, 200, requestId);
+}
+
+/** A bounded search rectangle no larger than about 2 degrees per side. */
+function searchArea(value: unknown): SearchArea | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { south, west, north, east } = value;
+  if (
+    typeof south !== 'number' ||
+    typeof west !== 'number' ||
+    typeof north !== 'number' ||
+    typeof east !== 'number' ||
+    ![south, west, north, east].every(Number.isFinite) ||
+    south < -90 ||
+    north > 90 ||
+    west < -180 ||
+    east > 180 ||
+    south >= north ||
+    west >= east ||
+    north - south > 2 ||
+    east - west > 2
+  ) {
+    return null;
+  }
+  return { south, west, north, east };
 }
 
 async function resolvePlace(

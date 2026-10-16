@@ -69,6 +69,9 @@ class FakeLocationProvider implements RideLocationProvider {
   }
 
   @override
+  Future<void> dispose() async {}
+
+  @override
   Future<void> stop() async {
     stopCalls += 1;
   }
@@ -171,6 +174,71 @@ void main() {
       await realtime.close();
     },
   );
+
+  test('shows the location disclosure before the OS prompt only', () async {
+    final FakeLocationProvider location = FakeLocationProvider(
+      permission: RideLocationPermission.denied,
+      requestedPermission: RideLocationPermission.granted,
+    );
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final RideLocationSessionController session = RideLocationSessionController(
+      locationProvider: location,
+      realtimeClient: realtime,
+    );
+    int disclosures = 0;
+
+    // Declining the disclosure never reaches the OS permission prompt.
+    await session.startTracking(
+      ride(RideStatus.active),
+      beforePermissionRequest: () async {
+        disclosures += 1;
+        return false;
+      },
+    );
+    expect(disclosures, 1);
+    expect(location.requestCalls, 0);
+    expect(location.startCalls, 0);
+    expect(session.state.phase, RideLocationSessionPhase.inactive);
+
+    await session.startTracking(
+      ride(RideStatus.active),
+      beforePermissionRequest: () async {
+        disclosures += 1;
+        return true;
+      },
+    );
+    expect(disclosures, 2);
+    expect(location.requestCalls, 1);
+    expect(session.state.phase, RideLocationSessionPhase.active);
+
+    session.dispose();
+    await flushAsync();
+    await location.close();
+    await realtime.close();
+  });
+
+  test('skips the disclosure when permission is already granted', () async {
+    final FakeLocationProvider location = FakeLocationProvider();
+    final FakeRealtimeClient realtime = FakeRealtimeClient();
+    final RideLocationSessionController session = RideLocationSessionController(
+      locationProvider: location,
+      realtimeClient: realtime,
+    );
+    bool disclosed = false;
+
+    await session.startTracking(
+      ride(RideStatus.active),
+      beforePermissionRequest: () async => disclosed = true,
+    );
+
+    expect(disclosed, isFalse);
+    expect(session.state.phase, RideLocationSessionPhase.active);
+
+    session.dispose();
+    await flushAsync();
+    await location.close();
+    await realtime.close();
+  });
 
   test('starts provider and realtime only after granted permission', () async {
     final FakeLocationProvider location = FakeLocationProvider(

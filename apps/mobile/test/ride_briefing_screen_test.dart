@@ -92,9 +92,20 @@ class FakeRoutePlannerApi implements RoutePlannerApi {
   final SavedRoutePlan? plan;
 
   @override
+  Future<ResolvedPlace> reverseGeocode(GeoPoint location) async {
+    return ResolvedPlace(
+      reference: 'point',
+      formattedAddress: 'Titik di peta',
+      location: location,
+    );
+  }
+
+  @override
   Future<List<PlaceSuggestion>> autocomplete({
     required String input,
     required String sessionToken,
+    GeoPoint? near,
+    PlaceSearchArea? area,
   }) {
     throw UnimplementedError();
   }

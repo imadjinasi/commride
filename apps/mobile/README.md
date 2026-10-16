@@ -137,6 +137,30 @@ flutter build appbundle --release --dart-define-from-file=pilot-defines.local.js
 Verify the local JSON file remains ignored before staging anything. Do not use
 `git add .` to collect provider setup files.
 
+### Release signing (Google Play upload key)
+
+`tool/configure_platforms.py` wires release builds to `android/key.properties`.
+Without that file, release builds fall back to the debug key: fine for CI and
+local device tests, rejected by Google Play.
+
+Create the upload key once and keep it **outside the repository**, with a
+backup; losing it means asking Google to reset the upload key.
+
+```bash
+keytool -genkey -v -keystore C:/Users/<you>/commride-keys/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Then create `apps/mobile/android/key.properties` (untracked):
+
+```properties
+storeFile=C:/Users/<you>/commride-keys/upload-keystore.jks
+storePassword=<keystore password>
+keyAlias=upload
+keyPassword=<key password>
+```
+
+Use Play App Signing in Play Console; this key only signs uploads.
+
 ## Club / Ride lifecycle and planning
 
 Club lists are membership-scoped. Owner/admin invitations, invitation acceptance,

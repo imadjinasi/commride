@@ -23,10 +23,21 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
   Future<List<PlaceSuggestion>> autocomplete({
     required String input,
     required String sessionToken,
+    GeoPoint? near,
+    PlaceSearchArea? area,
   }) async {
     final Map<String, Object?> body = await _post(
       '/v1/maps/autocomplete',
-      <String, Object?>{'input': input, 'sessionToken': sessionToken},
+      <String, Object?>{
+        'input': input,
+        'sessionToken': sessionToken,
+        if (near != null)
+          'near': <String, Object?>{
+            'latitude': near.latitude,
+            'longitude': near.longitude,
+          },
+        if (area != null) 'area': area.toJson(),
+      },
     );
 
     return _readList(
@@ -34,6 +45,24 @@ class HttpRoutePlannerApi implements RoutePlannerApi {
       PlaceSuggestion.fromJson,
       'place suggestions',
     );
+  }
+
+  @override
+  Future<ResolvedPlace> reverseGeocode(GeoPoint location) async {
+    final Map<String, Object?> body = await _post(
+      '/v1/maps/reverse-geocode',
+      <String, Object?>{
+        'location': <String, Object?>{
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+        },
+      },
+    );
+    final Object? raw = body['place'];
+    if (raw is! Map<String, Object?>) {
+      throw const FormatException('Missing place.');
+    }
+    return ResolvedPlace.fromJson(raw);
   }
 
   @override

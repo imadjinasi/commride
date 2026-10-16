@@ -1,9 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../active_ride/active_ride_runtime.dart';
 import '../../active_ride/commride_navigation_engine.dart';
+import '../../active_ride/convoy_separation.dart';
+import '../../active_ride/live_group_controller.dart';
+import '../../active_ride/live_group_models.dart';
 import '../../active_ride/ride_sos_controller.dart';
 import '../../active_ride/location_provider.dart';
 import '../../active_ride/realtime_client.dart';
@@ -11,10 +15,13 @@ import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../maps/commride_navigation_map_view.dart';
 import '../../models/club_ride.dart';
+import '../../models/ride_sos.dart';
+import '../../platform/media_keys.dart';
 import '../../models/route_planner.dart';
 import '../../theme/commride_theme.dart';
 import '../../widgets/active_ride_quick_actions.dart';
 import '../../widgets/sos_hold_button.dart';
+import '../../widgets/location_disclosure_dialog.dart';
 import 'route_planner_screen.dart';
 
 class ActiveRideNavigationScreen extends StatefulWidget {
@@ -60,6 +67,8 @@ class _ActiveRideNavigationScreenState
   bool _recoveryRouteLoading = false;
   bool _routeRevisionRefreshing = false;
   bool _rerouteSearching = false;
+  bool _sendingQuickAction = false;
+  bool _showGroup = false;
   bool _trafficUnavailable = false;
   bool _trafficRefreshDegraded = false;
   DateTime? _trafficUpdatedAt;
@@ -104,219 +113,408 @@ class _ActiveRideNavigationScreenState
     widget.runtime.locationSession.removeListener(_onLocationChanged);
     _trafficRefreshTimer?.cancel();
     unawaited(_realtimeSubscription?.cancel());
+    _keepScreenOn(false);
     super.dispose();
+  }
+
+  void _keepScreenOn(bool enabled) {
+    unawaited(
+      WakelockPlus.toggle(enable: enabled).catchError((Object _) {
+        // Best effort: the ride continues if the platform refuses.
+      }),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final groupState = widget.runtime.groupController.state;
-    final counts = groupState.counts(DateTime.now());
+    final DateTime now = DateTime.now();
+    final counts = groupState.counts(now);
     final RideSosViewState sosState = _sosController.state;
+    final bool connected = groupState.connectionState.name == 'connected';
 
+    // Riding layout: the map fills the screen, compact overlays sit on top and
+    // every in-ride action is one tap (or a 3-second hold for SOS) on the
+    // bottom dock. Nothing important needs scrolling or a second screen.
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.ride.title),
-        actions: <Widget>[
-          if (_canManageRoute)
-            IconButton(
-              tooltip: 'Rute',
-              onPressed:
-                  _preparing || _routeRevisionRefreshing || _rerouteSearching
-                  ? null
-                  : _showRouteActions,
-              icon: const Icon(Icons.alt_route),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                if (_prepared == null)
+                  ColoredBox(color: Theme.of(context).colorScheme.surface)
+                else
+                  _buildMap(),
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      CommRideSpacing.xs,
+                      CommRideSpacing.xs,
+                      CommRideSpacing.xs,
+                      0,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (_prepared != null &&
+                            MediaKeys.supported) ...<Widget>[
+                          const _MusicBar(),
+                          const SizedBox(height: CommRideSpacing.xs),
+                        ],
+                        _RidingTopBar(
+                          title: widget.ride.title,
+                          live: counts.live,
+                          stale: counts.stale,
+                          offline: counts.offline,
+                          connected: connected,
+                          started: _prepared != null,
+                          onOpenGroup: widget.onOpenLiveGroup,
+                          menu: _buildMenu(),
+                        ),
+                        if (_prepared != null) ...<Widget>[
+                          const SizedBox(height: CommRideSpacing.xs),
+                          _IntercomBar(
+                            voiceIntercomEnabled: widget.voiceIntercomEnabled,
+                          ),
+                        ],
+                        if (_attention(groupState, sosState, now, connected)
+                            case final _Attention attention) ...<Widget>[
+                          const SizedBox(height: CommRideSpacing.xs),
+                          _AttentionStrip(attention: attention),
+                        ],
+                        if (_prepared != null) ...<Widget>[
+                          const SizedBox(height: CommRideSpacing.xs),
+                          _NavigationBanner(
+                            snapshot: _snapshot,
+                            recoverySnapshot: _recoverySnapshot,
+                            recoveryRouteLoading: _recoveryRouteLoading,
+                            remaining: _remaining(),
+                            trafficCount: _trafficIncidents.length,
+                            trafficUpdatedAt: _trafficUpdatedAt,
+                            trafficRefreshDegraded: _trafficRefreshDegraded,
+                            guidanceNotice: _guidanceNotice,
+                            rerouteBusy: _rerouteSearching,
+                            onFindNewRoute:
+                                _snapshot?.shouldOfferReroute == true
+                                ? _findNewRoute
+                                : null,
+                          ),
+                        ],
+                        if (_prepared == null)
+                          Expanded(child: _buildPreparation(context)),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_prepared != null)
+                  Positioned(
+                    right: 12,
+                    bottom: _error == null ? 12 : 84,
+                    child: _RoundSurface(
+                      child: IconButton(
+                        tooltip: _showGroup
+                            ? 'Ikuti posisi saya'
+                            : 'Lihat rombongan',
+                        iconSize: 28,
+                        padding: const EdgeInsets.all(12),
+                        onPressed: () =>
+                            setState(() => _showGroup = !_showGroup),
+                        icon: Icon(
+                          _showGroup ? Icons.navigation : Icons.groups,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_routeRevisionRefreshing ||
+                    _rerouteSearching ||
+                    _recoveryRouteLoading)
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: LinearProgressIndicator(),
+                  ),
+                if (_prepared != null && _error != null)
+                  Positioned(
+                    left: 12,
+                    right: 76,
+                    bottom: 12,
+                    child: Material(
+                      elevation: 3,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(_error!, textAlign: TextAlign.center),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          PopupMenuButton<String>(
-            tooltip: 'Aksi sekunder',
-            onSelected: (String value) {
-              if (value == 'comms') {
-                unawaited(widget.onOpenComms());
-              } else if (value == 'tracking') {
-                unawaited(widget.onOpenTracking());
-              } else if (value == 'sos-detail') {
-                unawaited(widget.onOpenSos());
-              }
-            },
-            itemBuilder: (BuildContext context) =>
-                const <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'comms',
-                    child: ListTile(
-                      leading: Icon(Icons.forum_outlined),
-                      title: Text('Comms'),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'tracking',
-                    child: ListTile(
-                      leading: Icon(Icons.my_location),
-                      title: Text('Pengaturan tracking'),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'sos-detail',
-                    child: ListTile(
-                      leading: Icon(Icons.sos_outlined),
-                      title: Text('Detail SOS'),
-                    ),
-                  ),
-                ],
+          ),
+          _RidingDock(
+            voiceIntercomEnabled: widget.voiceIntercomEnabled,
+            sosState: sosState,
+            hasOwnActiveSos: sosState.activeItems.any(
+              (item) => item.riderId == widget.membership.riderId,
+            ),
+            sendingQuickAction: _sendingQuickAction,
+            onQuickAction: _sendQuickAction,
+            onQuickActionWithReason: _showQuickActions,
+            onRaiseSos: _raiseSos,
+            onRetrySos: _retrySos,
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            _GroupStatusBar(
-              role: widget.membership.role,
-              live: counts.live,
-              stale: counts.stale,
-              offline: counts.offline,
-              connected: groupState.connectionState.name == 'connected',
-            ),
-            Expanded(
-              child: _prepared == null
-                  ? _buildPreparation(context)
-                  : _buildNavigationSurface(),
-            ),
-            _CommunicationDock(
-              voiceIntercomEnabled: widget.voiceIntercomEnabled,
-              sosState: sosState,
-              hasOwnActiveSos: sosState.activeItems.any(
-                (item) => item.riderId == widget.membership.riderId,
-              ),
-              onQuickActions: _showQuickActions,
-              onOpenLiveGroup: widget.onOpenLiveGroup,
-              onRaiseSos: _raiseSos,
-              onRetrySos: _retrySos,
-              onOpenSos: widget.onOpenSos,
-            ),
-          ],
-        ),
-      ),
     );
+  }
+
+  Widget _buildMenu() {
+    return PopupMenuButton<String>(
+      tooltip: 'Menu Ride',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (String value) {
+        switch (value) {
+          case 'route':
+            unawaited(_showRouteActions());
+          case 'status':
+            unawaited(_showQuickActions());
+          case 'comms':
+            unawaited(widget.onOpenComms());
+          case 'tracking':
+            unawaited(widget.onOpenTracking());
+          case 'sos-detail':
+            unawaited(widget.onOpenSos());
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        if (_canManageRoute)
+          PopupMenuItem<String>(
+            value: 'route',
+            enabled:
+                !_preparing && !_routeRevisionRefreshing && !_rerouteSearching,
+            child: const ListTile(
+              leading: Icon(Icons.alt_route),
+              title: Text('Kelola rute'),
+            ),
+          ),
+        const PopupMenuItem<String>(
+          value: 'status',
+          child: ListTile(
+            leading: Icon(Icons.edit_note),
+            title: Text('Status + keterangan'),
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'comms',
+          child: ListTile(
+            leading: Icon(Icons.forum_outlined),
+            title: Text('Comms'),
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'tracking',
+          child: ListTile(
+            leading: Icon(Icons.my_location),
+            title: Text('Pengaturan tracking'),
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'sos-detail',
+          child: ListTile(
+            leading: Icon(Icons.sos_outlined),
+            title: Text('Detail SOS'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The single most urgent thing about other Riders, shown on the map so
+  /// Leader and Sweeper see it without opening another screen.
+  _Attention? _attention(
+    ActiveRideGroupState groupState,
+    RideSosViewState sosState,
+    DateTime now,
+    bool connected,
+  ) {
+    final String me = widget.membership.riderId;
+    for (final RideSos sos in sosState.activeItems) {
+      if (sos.riderId != me) {
+        return _Attention(
+          critical: true,
+          icon: Icons.sos,
+          message: 'SOS dari ${sos.riderDisplayName}',
+          onTap: widget.onOpenSos,
+        );
+      }
+    }
+
+    final List<LiveQuickAction> recent = groupState.quickActions
+        .where(
+          (LiveQuickAction action) =>
+              action.riderId != me &&
+              now.difference(action.raisedAt) < const Duration(minutes: 10),
+        )
+        .toList(growable: false);
+    if (recent.isNotEmpty) {
+      final LiveQuickAction latest = recent.reduce(
+        (LiveQuickAction a, LiveQuickAction b) =>
+            a.raisedAt.isAfter(b.raisedAt) ? a : b,
+      );
+      return _Attention(
+        critical: latest.kind == LiveQuickActionKind.needHelp,
+        icon: _quickActionIcon(latest.kind),
+        message:
+            '${latest.displayName}: ${latest.kind.label} · '
+            '${_formatAge(now.difference(latest.raisedAt))}',
+        onTap: widget.onOpenLiveGroup,
+      );
+    }
+
+    if (groupState.separation?.phase ==
+        ConvoySeparationPhase.separatedAttention) {
+      return _Attention(
+        critical: false,
+        icon: Icons.call_split,
+        message: 'Rombongan terpisah · cek posisi',
+        onTap: widget.onOpenLiveGroup,
+      );
+    }
+
+    if (!connected && _prepared != null) {
+      return _Attention(
+        critical: false,
+        icon: Icons.link_off,
+        message: 'Koneksi terputus · posisi teman mungkin lama',
+        onTap: widget.onOpenLiveGroup,
+      );
+    }
+    return null;
+  }
+
+  ({double meters, int seconds})? _remaining() {
+    final _PreparedNavigation? prepared = _prepared;
+    final CommRideNavigationSnapshot? snapshot = _snapshot;
+    if (prepared == null || snapshot == null) {
+      return null;
+    }
+    final RouteOption route = prepared.plan.route;
+    final double total = route.distanceMeters.toDouble();
+    if (total <= 0) {
+      return null;
+    }
+    final double meters = (total - snapshot.routeProgressMeters).clamp(
+      0,
+      total,
+    );
+    final int seconds = (route.durationSeconds * meters / total).round();
+    return (meters: meters, seconds: seconds);
+  }
+
+  Future<void> _sendQuickAction(LiveQuickActionKind kind) async {
+    if (_sendingQuickAction) {
+      return;
+    }
+    setState(() => _sendingQuickAction = true);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.runtime.groupController.raiseQuickAction(kind);
+      messenger.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('${kind.label} terkirim ke rombongan.'),
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Status belum terkirim. Periksa koneksi lalu coba lagi.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _sendingQuickAction = false);
+      }
+    }
   }
 
   Widget _buildPreparation(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const Icon(Icons.navigation_outlined, size: 42),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Navigasi Active Ride',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'CommRide memakai RoutePlan yang sudah disepakati. '
-                    'Jika Anda menyimpang, rute tidak akan diganti diam-diam: '
-                    'CommRide akan membantu kembali ke rute utama.',
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_error != null) ...<Widget>[
-                    const SizedBox(height: 14),
-                    Text(
-                      _error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: _preparing ? null : _prepareNavigation,
-                    icon: const Icon(Icons.navigation),
-                    label: Text(
-                      _preparing
-                          ? 'Menyiapkan navigasi...'
-                          : 'Mulai navigasi & tracking',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () => unawaited(widget.onOpenLiveGroup()),
-                    child: const Text('Buka Live Group tanpa navigasi'),
-                  ),
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        CommRideSpacing.xs,
+        CommRideSpacing.md,
+        CommRideSpacing.xs,
+        CommRideSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Spacer(),
+          const Icon(Icons.navigation_outlined, size: 48),
+          const SizedBox(height: CommRideSpacing.sm),
+          Text(
+            'Siap berangkat?',
+            style: Theme.of(context).textTheme.headlineSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: CommRideSpacing.xs),
+          const Text(
+            'Rute yang sudah disepakati dipakai untuk navigasi. Kalau Anda '
+            'keluar jalur, CommRide membantu kembali ke rute tanpa '
+            'menggantinya diam-diam.',
+            textAlign: TextAlign.center,
+          ),
+          if (_error != null) ...<Widget>[
+            const SizedBox(height: CommRideSpacing.sm),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const Spacer(),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(CommRideTargets.activeRide),
+            ),
+            onPressed: _preparing ? null : _prepareNavigation,
+            icon: const Icon(Icons.navigation),
+            label: Text(
+              _preparing ? 'Menyiapkan navigasi…' : 'Mulai navigasi & tracking',
             ),
           ),
-        ),
+          const SizedBox(height: CommRideSpacing.xs),
+          TextButton(
+            onPressed: () => unawaited(widget.onOpenLiveGroup()),
+            child: const Text('Lihat rombongan tanpa navigasi'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNavigationSurface() {
+  Widget _buildMap() {
     final _PreparedNavigation prepared = _prepared!;
     final groupState = widget.runtime.groupController.state;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        CommRideNavigationMapView(
-          routePoints: prepared.engine.routePoints,
-          routeRevision: prepared.plan.revision,
-          recoveryRoutePoints: _recoveryRoute == null
-              ? const <GeoPoint>[]
-              : decodeRoutePolyline(_recoveryRoute!.encodedPolyline),
-          snapshot: _snapshot,
-          presences: groupState.presences,
-          incidents: _trafficIncidents,
-          now: DateTime.now(),
-        ),
-        Positioned(
-          left: 12,
-          right: 12,
-          top: 12,
-          child: _NavigationBanner(
-            snapshot: _snapshot,
-            recoverySnapshot: _recoverySnapshot,
-            recoveryRouteLoading: _recoveryRouteLoading,
-            trafficCount: _trafficIncidents.length,
-            trafficUpdatedAt: _trafficUpdatedAt,
-            trafficRefreshDegraded: _trafficRefreshDegraded,
-            guidanceNotice: _guidanceNotice,
-            rerouteBusy: _rerouteSearching,
-            onFindNewRoute: _snapshot?.shouldOfferReroute == true
-                ? _findNewRoute
-                : null,
-          ),
-        ),
-        if (_routeRevisionRefreshing ||
-            _rerouteSearching ||
-            _recoveryRouteLoading)
-          const Positioned(
-            left: 12,
-            right: 12,
-            top: 4,
-            child: LinearProgressIndicator(),
-          ),
-        if (_error != null)
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: Material(
-              elevation: 3,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(_error!, textAlign: TextAlign.center),
-              ),
-            ),
-          ),
-      ],
+    return CommRideNavigationMapView(
+      routePoints: prepared.engine.routePoints,
+      routeRevision: prepared.plan.revision,
+      recoveryRoutePoints: _recoveryRoute == null
+          ? const <GeoPoint>[]
+          : decodeRoutePolyline(_recoveryRoute!.encodedPolyline),
+      snapshot: _snapshot,
+      presences: groupState.presences,
+      incidents: _trafficIncidents,
+      now: DateTime.now(),
+      selfRiderId: widget.membership.riderId,
+      showGroup: _showGroup,
     );
   }
 
@@ -342,13 +540,18 @@ class _ActiveRideNavigationScreenState
       final CommRideNavigationEngine engine = CommRideNavigationEngine(plan);
 
       if (!widget.runtime.locationSession.state.isTracking) {
-        await widget.runtime.locationSession.startTracking(widget.ride);
+        await widget.runtime.locationSession.startTracking(
+          widget.ride,
+          beforePermissionRequest: () => showLocationDisclosure(context),
+        );
       }
 
       if (!mounted) return;
       _resetRecoveryRouteState();
       setState(() {
         _prepared = _PreparedNavigation(plan: plan, engine: engine);
+        // A mounted phone must not dim mid-ride while navigation is shown.
+        _keepScreenOn(true);
         _preparing = false;
         _guidanceNotice = plan.route.maneuvers.isEmpty
             ? 'RoutePlan lama belum memiliki instruksi belok. '
@@ -479,6 +682,8 @@ class _ActiveRideNavigationScreenState
       _resetRecoveryRouteState();
       setState(() {
         _prepared = _PreparedNavigation(plan: plan, engine: engine);
+        // A mounted phone must not dim mid-ride while navigation is shown.
+        _keepScreenOn(true);
         _snapshot = null;
         _guidanceNotice = plan.route.maneuvers.isEmpty
             ? 'RoutePlan terbaru belum memiliki instruksi belok.'
@@ -1008,6 +1213,7 @@ class _NavigationBanner extends StatelessWidget {
     required this.snapshot,
     required this.recoverySnapshot,
     required this.recoveryRouteLoading,
+    required this.remaining,
     required this.trafficCount,
     required this.trafficUpdatedAt,
     required this.trafficRefreshDegraded,
@@ -1019,6 +1225,7 @@ class _NavigationBanner extends StatelessWidget {
   final CommRideNavigationSnapshot? snapshot;
   final CommRideNavigationSnapshot? recoverySnapshot;
   final bool recoveryRouteLoading;
+  final ({double meters, int seconds})? remaining;
   final int trafficCount;
   final DateTime? trafficUpdatedAt;
   final bool trafficRefreshDegraded;
@@ -1028,84 +1235,128 @@ class _NavigationBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final CommRideNavigationSnapshot? state = snapshot;
-    final _BannerCopy copy = _copy(state, recoverySnapshot);
+    final ThemeData theme = Theme.of(context);
+    final _BannerCopy copy = _copy(snapshot, recoverySnapshot);
+    final bool offRoute =
+        snapshot?.phase == CommRideNavigationPhase.confirmedOffRoute ||
+        snapshot?.phase == CommRideNavigationPhase.recovery;
+    final ({double meters, int seconds})? left = remaining;
 
     return Material(
       elevation: 4,
-      borderRadius: BorderRadius.circular(16),
-      color: Theme.of(context).colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      borderRadius: BorderRadius.circular(CommRideRadii.lg),
+      color: offRoute ? CommRideColors.signalOrange : CommRideColors.commBlack,
+      child: DefaultTextStyle.merge(
+        style: TextStyle(
+          color: offRoute ? CommRideColors.commBlack : Colors.white,
+        ),
+        child: IconTheme.merge(
+          data: IconThemeData(
+            color: offRoute ? CommRideColors.commBlack : Colors.white,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Icon(copy.icon, size: 28),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        copy.title,
-                        style: Theme.of(context).textTheme.titleMedium,
+                Row(
+                  children: <Widget>[
+                    Icon(copy.icon, size: 44),
+                    const SizedBox(width: CommRideSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          if (copy.lead != null)
+                            Text(
+                              copy.lead!,
+                              style: const TextStyle(
+                                fontSize: 30,
+                                height: 1.1,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          Text(
+                            copy.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              height: 1.2,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (copy.subtitle != null)
-                        Text(
-                          copy.subtitle!,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                if (trafficCount > 0)
-                  Chip(
-                    avatar: Icon(
-                      trafficRefreshDegraded
-                          ? Icons.sync_problem_outlined
-                          : Icons.traffic,
-                      size: 16,
+                const SizedBox(height: 6),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        copy.subtitle ??
+                            (left == null
+                                ? ''
+                                : 'Sisa ${_formatDistance(left.meters)} · '
+                                      '±${_formatDuration(left.seconds)}'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
-                    label: Text(
-                      trafficUpdatedAt == null
-                          ? '$trafficCount'
-                          : '$trafficCount · '
-                                '${_formatTrafficAge(trafficUpdatedAt!)}',
+                    if (trafficCount > 0 || trafficRefreshDegraded) ...<Widget>[
+                      Icon(
+                        trafficRefreshDegraded
+                            ? Icons.sync_problem_outlined
+                            : Icons.traffic,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        trafficCount == 0
+                            ? 'terganggu'
+                            : trafficUpdatedAt == null
+                            ? '$trafficCount'
+                            : '$trafficCount · '
+                                  '${_formatTrafficAge(trafficUpdatedAt!)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
+                ),
+                if (guidanceNotice != null) ...<Widget>[
+                  const SizedBox(height: 4),
+                  Text(
+                    guidanceNotice!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: offRoute
+                          ? CommRideColors.commBlack
+                          : Colors.white70,
                     ),
-                    visualDensity: VisualDensity.compact,
-                  )
-                else if (trafficRefreshDegraded)
-                  const Chip(
-                    avatar: Icon(Icons.sync_problem_outlined, size: 16),
-                    label: Text('Traffic terganggu'),
-                    visualDensity: VisualDensity.compact,
                   ),
+                ],
+                if (onFindNewRoute != null) ...<Widget>[
+                  const SizedBox(height: CommRideSpacing.xs),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(
+                        CommRideTargets.minimum,
+                      ),
+                      backgroundColor: CommRideColors.commBlack,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: rerouteBusy
+                        ? null
+                        : () => unawaited(onFindNewRoute!()),
+                    icon: const Icon(Icons.alt_route),
+                    label: const Text('Cari rute baru'),
+                  ),
+                ],
               ],
             ),
-            if (guidanceNotice != null) ...<Widget>[
-              const SizedBox(height: 6),
-              Text(
-                guidanceNotice!,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            if (onFindNewRoute != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.tonalIcon(
-                  onPressed: rerouteBusy
-                      ? null
-                      : () => unawaited(onFindNewRoute!()),
-                  icon: const Icon(Icons.alt_route),
-                  label: const Text('Cari rute baru'),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -1119,7 +1370,7 @@ class _NavigationBanner extends StatelessWidget {
       return const _BannerCopy(
         icon: Icons.gps_fixed,
         title: 'Menunggu posisi GPS…',
-        subtitle: 'RoutePlan tetap siap di peta.',
+        subtitle: 'Rute tetap siap di peta.',
       );
     }
 
@@ -1129,47 +1380,41 @@ class _NavigationBanner extends StatelessWidget {
           icon: Icons.gps_not_fixed,
           title: 'Memeriksa posisi terhadap rute',
           subtitle:
-              'RoutePlan belum berubah · '
               '${_formatDistance(state.distanceFromRouteMeters)} dari jalur',
         );
       case CommRideNavigationPhase.confirmedOffRoute:
       case CommRideNavigationPhase.recovery:
         final RouteManeuver? recoveryManeuver = recovery?.nextManeuver;
-        final String recoveryDistance = state.distanceToRejoinMeters == null
-            ? 'kembali ke rute utama'
-            : '${_formatDistance(state.distanceToRejoinMeters!)} ke titik rejoin';
         return _BannerCopy(
           icon: recoveryManeuver == null
               ? Icons.u_turn_left
               : _maneuverIcon(recoveryManeuver.type),
+          lead: state.distanceToRejoinMeters == null
+              ? null
+              : _formatDistance(state.distanceToRejoinMeters!),
           title:
               recoveryManeuver?.instruction ??
               (recoveryRouteLoading
-                  ? 'Menyiapkan jalur kembali…'
+                  ? 'Menyiapkan jalan kembali…'
                   : 'Kembali ke rute utama'),
-          subtitle: 'Anda keluar dari rute · $recoveryDistance',
+          subtitle: 'Keluar rute · rute rombongan tidak berubah',
         );
       case CommRideNavigationPhase.rejoined:
         return const _BannerCopy(
           icon: Icons.check_circle_outline,
-          title: 'Kembali ke rute utama',
-          subtitle: 'RoutePlan yang sama tetap digunakan.',
+          title: 'Kembali di rute utama',
         );
       case CommRideNavigationPhase.onRoute:
         final RouteManeuver? maneuver = state.nextManeuver;
         if (maneuver == null) {
-          return const _BannerCopy(
-            icon: Icons.navigation,
-            title: 'Ikuti RoutePlan',
-            subtitle: 'Tidak ada manuver berikutnya yang tersedia.',
-          );
+          return const _BannerCopy(icon: Icons.navigation, title: 'Ikuti rute');
         }
         return _BannerCopy(
           icon: _maneuverIcon(maneuver.type),
-          title: maneuver.instruction,
-          subtitle: state.distanceToNextManeuverMeters == null
+          lead: state.distanceToNextManeuverMeters == null
               ? null
               : _formatDistance(state.distanceToNextManeuverMeters!),
+          title: maneuver.instruction,
         );
     }
   }
@@ -1179,10 +1424,12 @@ class _BannerCopy {
   const _BannerCopy({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.lead,
+    this.subtitle,
   });
 
   final IconData icon;
+  final String? lead;
   final String title;
   final String? subtitle;
 }
@@ -1196,6 +1443,14 @@ IconData _maneuverIcon(String? type) {
   }
   if (normalized.contains('roundabout')) return Icons.roundabout_left;
   return Icons.straight;
+}
+
+IconData _quickActionIcon(LiveQuickActionKind kind) {
+  return switch (kind) {
+    LiveQuickActionKind.stopping => Icons.pan_tool_outlined,
+    LiveQuickActionKind.leftBehind => Icons.person_pin_circle_outlined,
+    LiveQuickActionKind.needHelp => Icons.support_outlined,
+  };
 }
 
 String _formatDistance(double meters) {
@@ -1212,6 +1467,11 @@ String _formatTrafficAge(DateTime updatedAt) {
   return '${age.inHours}j';
 }
 
+String _formatAge(Duration age) {
+  if (age.inMinutes < 1) return 'baru saja';
+  return '${age.inMinutes} mnt lalu';
+}
+
 String _formatDuration(int seconds) {
   final int minutes = (seconds / 60).round();
   if (minutes < 60) return '$minutes mnt';
@@ -1220,148 +1480,234 @@ String _formatDuration(int seconds) {
   return remainder == 0 ? '$hours jam' : '$hours jam $remainder mnt';
 }
 
-class _GroupStatusBar extends StatelessWidget {
-  const _GroupStatusBar({
-    required this.role,
+/// Back, a tappable group summary and the Ride menu in one compact row
+/// floating over the map.
+class _RidingTopBar extends StatelessWidget {
+  const _RidingTopBar({
+    required this.title,
     required this.live,
     required this.stale,
     required this.offline,
     required this.connected,
+    required this.started,
+    required this.onOpenGroup,
+    required this.menu,
   });
 
-  final RideRole role;
+  final String title;
+  final bool started;
   final int live;
   final int stale;
   final int offline;
   final bool connected;
+  final Future<void> Function() onOpenGroup;
+  final Widget menu;
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final bool attention = stale > 0 || offline > 0 || (started && !connected);
     final int total = live + stale + offline;
-    final bool attention = stale > 0 || offline > 0 || !connected;
 
+    return Row(
+      children: <Widget>[
+        _RoundSurface(
+          child: IconButton(
+            tooltip: 'Kembali',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back),
+          ),
+        ),
+        const SizedBox(width: CommRideSpacing.xs),
+        Expanded(
+          child: Semantics(
+            button: true,
+            label: 'Buka rombongan',
+            child: Material(
+              elevation: 3,
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(CommRideRadii.lg),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(CommRideRadii.lg),
+                onTap: () => unawaited(onOpenGroup()),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: CommRideTargets.minimum - 8,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          connected || !started ? Icons.groups : Icons.link_off,
+                          size: 22,
+                          color: attention ? colors.error : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                              Text(
+                                _summary(total),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: attention ? colors.error : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: CommRideSpacing.xs),
+        _RoundSurface(child: menu),
+      ],
+    );
+  }
+
+  String _summary(int total) {
+    if (!started && !connected) return 'Lihat rombongan';
+    if (!connected) return 'Koneksi terputus';
+    final List<String> parts = <String>['$live/$total Live'];
+    if (stale > 0) parts.add('$stale lama');
+    if (offline > 0) parts.add('$offline offline');
+    return parts.join(' · ');
+  }
+}
+
+class _RoundSurface extends StatelessWidget {
+  const _RoundSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return Material(
+      elevation: 3,
+      shape: const CircleBorder(),
       color: Theme.of(context).colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          CommRideSpacing.md,
-          CommRideSpacing.xs,
-          CommRideSpacing.md,
-          CommRideSpacing.sm,
-        ),
-        child: Wrap(
-          spacing: CommRideSpacing.xs,
-          runSpacing: CommRideSpacing.xxs,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: <Widget>[
-            Icon(
-              connected ? Icons.wifi : Icons.wifi_off,
-              size: 18,
-              semanticLabel: connected ? 'Terhubung' : 'Koneksi terputus',
-            ),
-            Text(
-              role.label,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            Text('$total Rider'),
-            Text('$live Live'),
-            if (stale > 0)
-              _AttentionLabel(icon: Icons.schedule, label: '$stale Stale'),
-            if (offline > 0)
-              _AttentionLabel(
-                icon: Icons.location_off_outlined,
-                label: '$offline Offline',
-              ),
-            if (!connected)
-              const _AttentionLabel(
-                icon: Icons.link_off,
-                label: 'Realtime terputus',
-              ),
-            if (!attention && connected)
-              const _AttentionLabel(
-                icon: Icons.check_circle_outline,
-                label: 'Rombongan normal',
-                neutral: true,
-              ),
-          ],
-        ),
-      ),
+      child: child,
     );
   }
 }
 
-class _AttentionLabel extends StatelessWidget {
-  const _AttentionLabel({
+class _Attention {
+  const _Attention({
+    required this.critical,
     required this.icon,
-    required this.label,
-    this.neutral = false,
+    required this.message,
+    required this.onTap,
   });
 
+  final bool critical;
   final IconData icon;
-  final String label;
-  final bool neutral;
+  final String message;
+  final Future<void> Function() onTap;
+}
+
+class _AttentionStrip extends StatelessWidget {
+  const _AttentionStrip({required this.attention});
+
+  final _Attention attention;
 
   @override
   Widget build(BuildContext context) {
+    final Color background = attention.critical
+        ? CommRideColors.criticalRed
+        : CommRideColors.signalOrange;
+    final Color foreground = attention.critical
+        ? Colors.white
+        : CommRideColors.commBlack;
+
     return Semantics(
-      label: label,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(
-            icon,
-            size: 16,
-            color: neutral
-                ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.error,
-          ),
-          const SizedBox(width: CommRideSpacing.xxs),
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: neutral
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.error,
+      liveRegion: true,
+      button: true,
+      label: attention.message,
+      child: Material(
+        elevation: 3,
+        color: background,
+        borderRadius: BorderRadius.circular(CommRideRadii.md),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(CommRideRadii.md),
+          onTap: () => unawaited(attention.onTap()),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: CommRideTargets.minimum - 8,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: <Widget>[
+                  Icon(attention.icon, color: foreground, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      attention.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: foreground),
+                ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _CommunicationDock extends StatelessWidget {
-  const _CommunicationDock({
+/// Every in-ride action within thumb reach: three one-tap statuses and the
+/// 3-second-hold SOS. Long-press a status to add a note.
+class _RidingDock extends StatelessWidget {
+  const _RidingDock({
     required this.voiceIntercomEnabled,
     required this.sosState,
     required this.hasOwnActiveSos,
-    required this.onQuickActions,
-    required this.onOpenLiveGroup,
+    required this.sendingQuickAction,
+    required this.onQuickAction,
+    required this.onQuickActionWithReason,
     required this.onRaiseSos,
     required this.onRetrySos,
-    required this.onOpenSos,
   });
+
+  static const double height = 84;
 
   final bool voiceIntercomEnabled;
   final RideSosViewState sosState;
   final bool hasOwnActiveSos;
-  final Future<void> Function() onQuickActions;
-  final Future<void> Function() onOpenLiveGroup;
+  final bool sendingQuickAction;
+  final Future<void> Function(LiveQuickActionKind kind) onQuickAction;
+  final Future<void> Function() onQuickActionWithReason;
   final Future<void> Function() onRaiseSos;
   final Future<void> Function() onRetrySos;
-  final Future<void> Function() onOpenSos;
 
   @override
   Widget build(BuildContext context) {
     final bool failed = sosState.failedRaise != null;
-    final String sosStatus = hasOwnActiveSos
-        ? 'SOS aktif · rombongan sudah diberi tahu'
-        : sosState.working
-        ? 'Mengirim SOS…'
-        : failed
-        ? 'SOS gagal dikirim'
-        : 'SOS tahan 3 detik';
 
     return Material(
       elevation: 8,
@@ -1372,96 +1718,68 @@ class _CommunicationDock extends StatelessWidget {
           CommRideSpacing.xs,
           CommRideSpacing.xs,
           CommRideSpacing.xs,
-          CommRideSpacing.sm,
+          CommRideSpacing.xs,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            if (voiceIntercomEnabled) ...<Widget>[
-              Row(
+            if (failed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: CommRideSpacing.xs),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Icons.error_outline,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'SOS gagal dikirim',
+                        key: const ValueKey<String>('active-ride-sos-status'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: sosState.working
+                          ? null
+                          : () => unawaited(onRetrySos()),
+                      child: const Text('Coba lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(
+              height: height,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  const Icon(Icons.headset_mic_outlined, size: 18),
-                  const SizedBox(width: CommRideSpacing.xs),
+                  for (final LiveQuickActionKind kind
+                      in LiveQuickActionKind.values) ...<Widget>[
+                    Expanded(
+                      child: _QuickStatusButton(
+                        kind: kind,
+                        enabled: !sendingQuickAction,
+                        onTap: () => unawaited(onQuickAction(kind)),
+                        onLongPress: () => unawaited(onQuickActionWithReason()),
+                      ),
+                    ),
+                    const SizedBox(width: CommRideSpacing.xxs),
+                  ],
                   Expanded(
-                    child: Text(
-                      'Group Intercom · media belum terhubung',
-                      style: Theme.of(context).textTheme.labelMedium,
+                    child: SosHoldButton(
+                      active: hasOwnActiveSos,
+                      working: sosState.working,
+                      enabled: !sosState.rideEnded,
+                      compact: true,
+                      onCompleted: onRaiseSos,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: CommRideSpacing.xs),
-            ],
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                if (voiceIntercomEnabled) ...<Widget>[
-                  Expanded(
-                    child: _DockButton(
-                      icon: Icons.mic_none_outlined,
-                      label: 'Interkom',
-                      onPressed: null,
-                    ),
-                  ),
-                  const SizedBox(width: CommRideSpacing.xxs),
-                ],
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.bolt_outlined,
-                    label: 'Status',
-                    onPressed: () => unawaited(onQuickActions()),
-                  ),
-                ),
-                const SizedBox(width: CommRideSpacing.xxs),
-                Expanded(
-                  child: _DockButton(
-                    icon: Icons.groups_outlined,
-                    label: 'Rombongan',
-                    onPressed: () => unawaited(onOpenLiveGroup()),
-                  ),
-                ),
-                const SizedBox(width: CommRideSpacing.xxs),
-                Expanded(
-                  child: SosHoldButton(
-                    active: hasOwnActiveSos,
-                    working: sosState.working,
-                    enabled: !sosState.rideEnded,
-                    onCompleted: onRaiseSos,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: CommRideSpacing.xxs),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    sosStatus,
-                    key: const ValueKey<String>('active-ride-sos-status'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: hasOwnActiveSos || failed
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                if (failed)
-                  TextButton(
-                    onPressed: sosState.working
-                        ? null
-                        : () => unawaited(onRetrySos()),
-                    child: const Text('Coba lagi'),
-                  ),
-                TextButton(
-                  onPressed: () => unawaited(onOpenSos()),
-                  child: const Text('Detail'),
-                ),
-              ],
-            ),
-            const Text(
-              'CommRide tidak menghubungi ambulans, polisi, atau layanan darurat publik.',
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1470,35 +1788,183 @@ class _CommunicationDock extends StatelessWidget {
   }
 }
 
-class _DockButton extends StatelessWidget {
-  const _DockButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
+class _QuickStatusButton extends StatelessWidget {
+  const _QuickStatusButton({
+    required this.kind,
+    required this.enabled,
+    required this.onTap,
+    required this.onLongPress,
   });
 
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
+  final LiveQuickActionKind kind;
+  final bool enabled;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        minimumSize: const Size(0, CommRideTargets.activeRide),
-        padding: const EdgeInsets.symmetric(
-          horizontal: CommRideSpacing.xxs,
-          vertical: CommRideSpacing.xs,
+    final String label = switch (kind) {
+      LiveQuickActionKind.stopping => 'Berhenti',
+      LiveQuickActionKind.leftBehind => 'Tertinggal',
+      LiveQuickActionKind.needHelp => 'Bantuan',
+    };
+
+    return Semantics(
+      button: true,
+      label: '${kind.label}. Tahan untuk menambah keterangan.',
+      excludeSemantics: true,
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(CommRideRadii.md),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(CommRideRadii.md),
+          onTap: enabled ? onTap : null,
+          onLongPress: enabled ? onLongPress : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Icon(_quickActionIcon(kind), size: 30),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    );
+  }
+}
+
+/// Music controls on their own row at the very top. The play button follows
+/// whether any app is playing, checked every few seconds and after a tap.
+class _MusicBar extends StatefulWidget {
+  const _MusicBar();
+
+  @override
+  State<_MusicBar> createState() => _MusicBarState();
+}
+
+class _MusicBarState extends State<_MusicBar> {
+  Timer? _poll;
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refresh());
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final bool playing = await MediaKeys.isMusicActive();
+    if (mounted && playing != _playing) {
+      setState(() => _playing = playing);
+    }
+  }
+
+  Future<void> _press(MediaKey key) async {
+    if (key == MediaKey.playPause) {
+      // Show the expected state at once; the next check corrects it.
+      setState(() => _playing = !_playing);
+    }
+    await MediaKeys.send(key);
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 3,
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(CommRideRadii.lg),
+      child: Row(
         children: <Widget>[
-          Icon(icon, size: 28),
-          const SizedBox(height: CommRideSpacing.xxs),
-          Text(label, textAlign: TextAlign.center, maxLines: 2),
+          const SizedBox(width: 14),
+          const Icon(Icons.music_note_outlined, size: 20),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Lagu sebelumnya',
+            iconSize: 28,
+            constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+            onPressed: () => unawaited(_press(MediaKey.previous)),
+            icon: const Icon(Icons.skip_previous),
+          ),
+          IconButton(
+            tooltip: _playing ? 'Jeda musik' : 'Putar musik',
+            iconSize: 32,
+            constraints: const BoxConstraints(minWidth: 64, minHeight: 48),
+            onPressed: () => unawaited(_press(MediaKey.playPause)),
+            icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+          ),
+          IconButton(
+            tooltip: 'Lagu berikutnya',
+            iconSize: 28,
+            constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+            onPressed: () => unawaited(_press(MediaKey.next)),
+            icon: const Icon(Icons.skip_next),
+          ),
+          const Spacer(),
+          const SizedBox(width: 34),
         ],
+      ),
+    );
+  }
+}
+
+/// Interkom on its own row below the group summary. It shows its real
+/// state: until a voice provider is verified it is visibly unavailable.
+class _IntercomBar extends StatelessWidget {
+  const _IntercomBar({required this.voiceIntercomEnabled});
+
+  final bool voiceIntercomEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final Color? tone = voiceIntercomEnabled ? null : colors.outline;
+
+    return Material(
+      elevation: 3,
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(CommRideRadii.lg),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.headset_mic_outlined, color: tone),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  voiceIntercomEnabled
+                      ? 'Interkom belum terhubung'
+                      : 'Interkom segera tersedia',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w700, color: tone),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

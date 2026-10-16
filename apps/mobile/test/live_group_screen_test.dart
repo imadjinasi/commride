@@ -170,6 +170,12 @@ void main() {
     await tester.pump();
 
     expect(find.text('Live Group terhubung'), findsOneWidget);
+    // Offline and stale Riders are listed first; the live Leader follows.
+    await tester.scrollUntilVisible(
+      find.text('Leader One'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Leader One'), findsOneWidget);
     expect(find.text('Stale Rider'), findsOneWidget);
     expect(find.text('Offline Rider'), findsOneWidget);
@@ -279,7 +285,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Perlu perhatian'), findsOneWidget);
+    expect(find.text('Log rombongan'), findsOneWidget);
     expect(find.text('Saya Tertinggal'), findsOneWidget);
     expect(find.textContaining('Rider Two'), findsOneWidget);
     expect(find.text('Terpisah di lampu merah.'), findsOneWidget);
@@ -299,10 +305,7 @@ void main() {
     );
 
     await tester.pumpWidget(buildScreen(controller: controller, now: now));
-    await tester.tap(find.text('Quick Actions'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Saya Berhenti'));
+    await tester.tap(find.text('Berhenti'));
     await tester.pumpAndSettle();
 
     expect(realtime.sentKinds, <LiveQuickActionKind>[
@@ -325,7 +328,7 @@ void main() {
     );
 
     await tester.pumpWidget(buildScreen(controller: controller, now: now));
-    await tester.tap(find.text('Quick Actions'));
+    await tester.longPress(find.text('Tertinggal'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Kirim Saya Tertinggal dengan alasan'));
@@ -335,7 +338,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(realtime.sentKinds, isEmpty);
-    expect(find.text('Quick Actions'), findsWidgets);
+    expect(find.text('Status + keterangan'), findsOneWidget);
 
     await cleanup(tester, controller, realtime);
   });
@@ -351,7 +354,7 @@ void main() {
     );
 
     await tester.pumpWidget(buildScreen(controller: controller, now: now));
-    await tester.tap(find.text('Quick Actions'));
+    await tester.longPress(find.text('Bantuan'));
     await tester.pumpAndSettle();
 
     final Finder reasonButton = find.byTooltip(
@@ -386,9 +389,7 @@ void main() {
     );
 
     await tester.pumpWidget(buildScreen(controller: controller, now: now));
-    await tester.tap(find.text('Quick Actions'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Butuh Bantuan'));
+    await tester.tap(find.text('Bantuan'));
     await tester.pumpAndSettle();
 
     expect(realtime.sentKinds, isEmpty);

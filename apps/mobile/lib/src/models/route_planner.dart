@@ -57,6 +57,28 @@ class PlaceSuggestion {
   }
 }
 
+/// The visible map area for "cari di area ini".
+class PlaceSearchArea {
+  const PlaceSearchArea({
+    required this.south,
+    required this.west,
+    required this.north,
+    required this.east,
+  });
+
+  final double south;
+  final double west;
+  final double north;
+  final double east;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'south': south,
+    'west': west,
+    'north': north,
+    'east': east,
+  };
+}
+
 class ResolvedPlace {
   const ResolvedPlace({
     required this.reference,

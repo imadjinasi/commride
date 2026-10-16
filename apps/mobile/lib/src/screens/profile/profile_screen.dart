@@ -8,6 +8,7 @@ import '../../models/rider_profile.dart';
 import '../../models/vehicle_profile.dart';
 import '../../push/ride_push_controller.dart';
 import '../../push/ride_push_messaging.dart';
+import '../../widgets/privacy_policy_link.dart';
 import 'delete_account_screen.dart';
 import 'vehicle_editor_screen.dart';
 
@@ -208,6 +209,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.logout),
                 label: const Text('Keluar'),
               ),
+              const SizedBox(height: 8),
+              const Align(child: PrivacyPolicyLink()),
               if (widget.accountDeletionApi != null) ...<Widget>[
                 const SizedBox(height: 8),
                 TextButton.icon(

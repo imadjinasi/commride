@@ -27,8 +27,19 @@ class PlatformTests(unittest.TestCase):
         applicationId = "io.github.imadjinasi.commride_mobile"
         minSdk = flutter.minSdkVersion
     }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }''')
         self.write("android/app/src/main/res/values/commride_maps.xml", "<resources/>")
+        self.write(
+            "android/app/src/main/kotlin/io/github/imadjinasi/commride_mobile/MainActivity.kt",
+            "package io.github.imadjinasi.commride_mobile\n\n"
+            "import io.flutter.embedding.android.FlutterActivity\n\n"
+            "class MainActivity : FlutterActivity()\n",
+        )
         plist_path = self.root / "ios/Runner/Info.plist"
         plist_path.parent.mkdir(parents=True, exist_ok=True)
         plist_path.write_bytes(plistlib.dumps({"COMMRIDE_MAPS_API_KEY": "fixture-only"}))
@@ -75,6 +86,20 @@ func application() {
         self.assertNotIn("MAPS_API_KEY", gradle)
         self.assertNotIn("commRideMapsApiKey", gradle)
         self.assertNotIn("coreLibraryDesugaring", gradle)
+        self.assertEqual(gradle.count("commRideKeystoreProperties = "), 1)
+        self.assertIn('signingConfigs.getByName("release")', gradle)
+        self.assertIn('rootProject.file("key.properties")', gradle)
+        self.assertTrue(
+            gradle.startswith("import java.util.Properties as CommRideProperties\n")
+        )
+        self.assertNotIn("java.util.Properties()", gradle)
+        activity = next(
+            (self.root / "android/app/src/main/kotlin").rglob("MainActivity.kt")
+        ).read_text()
+        self.assertTrue(activity.startswith("package io.github.imadjinasi.commride_mobile\n"))
+        self.assertEqual(activity.count('"commride/media_keys"'), 1)
+        self.assertIn("KEYCODE_MEDIA_PLAY_PAUSE", activity)
+        self.assertIn("isMusicActive", activity)
 
     def test_wrong_orientation_policy_is_rejected(self):
         configure.main()

@@ -5,7 +5,9 @@ import '../models/club_ride.dart';
 import 'geolocator_ride_location_provider.dart';
 import 'io_active_ride_realtime_client.dart';
 import 'live_group_controller.dart';
+import 'location_provider.dart';
 import 'location_session_controller.dart';
+import 'realtime_client.dart';
 
 class ActiveRideRuntime {
   ActiveRideRuntime({
@@ -17,8 +19,8 @@ class ActiveRideRuntime {
   });
 
   final String rideId;
-  final IoActiveRideRealtimeClient realtimeClient;
-  final GeolocatorRideLocationProvider locationProvider;
+  final ActiveRideRealtimeClient realtimeClient;
+  final RideLocationProvider locationProvider;
   final RideLocationSessionController locationSession;
   final ActiveRideGroupController groupController;
 

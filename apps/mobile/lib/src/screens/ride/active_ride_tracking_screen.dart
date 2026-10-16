@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../active_ride/location_session_controller.dart';
 import '../../models/club_ride.dart';
+import '../../widgets/location_disclosure_dialog.dart';
 
 class ActiveRideTrackingScreen extends StatefulWidget {
   const ActiveRideTrackingScreen({
@@ -99,33 +100,7 @@ class _ActiveRideTrackingScreenState extends State<ActiveRideTrackingScreen> {
   }
 
   Future<void> _confirmStartTracking() async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Aktifkan lokasi untuk Ride?'),
-          content: const Text(
-            'CommRide akan membagikan posisi Anda kepada peserta yang '
-            'berhak di Ride ini. Tracking dapat berlanjut saat layar '
-            'terkunci atau Anda membuka aplikasi navigasi lain jika '
-            'platform mengizinkan. Tracking berhenti saat sesi Ride '
-            'dihentikan.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Nanti'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Lanjutkan'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true || !mounted) {
+    if (!await showLocationDisclosure(context) || !mounted) {
       return;
     }
 

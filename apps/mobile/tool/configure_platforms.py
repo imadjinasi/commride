@@ -22,6 +22,136 @@ def android_attr(name: str) -> str:
     return f"{{{ANDROID_NS}}}{name}"
 
 
+RELEASE_SIGNING_MARKER = "commRideKeystoreProperties"
+
+# Gradle's Kotlin DSL shadows the `java` package with the Java extension, so
+# the class is imported under an alias instead of written fully qualified.
+RELEASE_SIGNING_IMPORT = "import java.util.Properties as CommRideProperties\n"
+
+RELEASE_SIGNING_HEADER = """// Release signing reads android/key.properties, which stays local and
+// untracked. Without it, release builds fall back to the debug key so CI can
+// still build; such a build must never be uploaded to Google Play.
+val commRideKeystoreProperties = CommRideProperties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+"""
+
+RELEASE_SIGNING_CONFIG = """    signingConfigs {
+        create("release") {
+            if (!commRideKeystoreProperties.isEmpty()) {
+                keyAlias = commRideKeystoreProperties.getProperty("keyAlias")
+                keyPassword = commRideKeystoreProperties.getProperty("keyPassword")
+                storeFile = file(commRideKeystoreProperties.getProperty("storeFile"))
+                storePassword = commRideKeystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
+"""
+
+RELEASE_SIGNING_SELECTION = """signingConfig = if (commRideKeystoreProperties.isEmpty()) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }"""
+
+
+MEDIA_KEYS_CHANNEL = "commride/media_keys"
+
+MEDIA_KEYS_ACTIVITY = """
+import android.media.AudioManager
+import android.view.KeyEvent
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+// Media keys let Riders control whatever music app is playing without the
+// notification-access permission that reading track details would need.
+class MainActivity : FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "commride/media_keys")
+            .setMethodCallHandler { call, result ->
+                val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+                if (call.method == "isMusicActive") {
+                    // Whether any app is playing audio; needs no permission.
+                    result.success(audio.isMusicActive)
+                    return@setMethodCallHandler
+                }
+                val code = when (call.arguments as? String) {
+                    "previous" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                    "playPause" -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
+                    else -> null
+                }
+                if (call.method != "send" || code == null) {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+                result.success(null)
+            }
+    }
+}
+"""
+
+
+def configure_media_keys() -> None:
+    """Install the media-key channel in the generated Android MainActivity."""
+    activities = sorted(
+        (ROOT / "android/app/src/main/kotlin").rglob("MainActivity.kt")
+    )
+    if len(activities) != 1:
+        raise SystemExit("Expected exactly one Android MainActivity.kt.")
+    path = activities[0]
+    content = path.read_text(encoding="utf-8")
+    package = next(
+        (line for line in content.splitlines() if line.startswith("package ")),
+        None,
+    )
+    if package is not None and content == package + "\n" + MEDIA_KEYS_ACTIVITY:
+        return
+    # Regenerate either the Flutter template or an earlier CommRide version.
+    if package is None or (
+        "class MainActivity : FlutterActivity()" not in content
+        and MEDIA_KEYS_CHANNEL not in content
+    ):
+        raise SystemExit(
+            "Unexpected Android MainActivity template; refusing unsafe patch."
+        )
+    path.write_text(package + "\n" + MEDIA_KEYS_ACTIVITY, encoding="utf-8")
+
+
+def configure_release_signing(content: str) -> str:
+    """Wire the Play upload key into Kotlin Gradle release builds."""
+    if RELEASE_SIGNING_MARKER in content:
+        return content
+    if (
+        "\nandroid {" not in "\n" + content
+        or "    buildTypes {" not in content
+        or 'signingConfig = signingConfigs.getByName("debug")' not in content
+    ):
+        raise SystemExit(
+            "Unexpected Android release build template; "
+            "refusing unsafe signing patch."
+        )
+    content = RELEASE_SIGNING_IMPORT + content
+    content = content.replace("android {", RELEASE_SIGNING_HEADER + "android {", 1)
+    content = content.replace(
+        "    buildTypes {", RELEASE_SIGNING_CONFIG + "    buildTypes {", 1
+    )
+    return content.replace(
+        'signingConfig = signingConfigs.getByName("debug")',
+        RELEASE_SIGNING_SELECTION,
+        1,
+    )
+
+
 def configure_android() -> None:
     manifest_path = ROOT / "android/app/src/main/AndroidManifest.xml"
     if not manifest_path.exists():
@@ -133,11 +263,16 @@ def configure_android() -> None:
                 "refusing unsafe patch."
             )
 
+        if gradle_name == "build.gradle.kts":
+            content = configure_release_signing(content)
+
         path.write_text(content, encoding="utf-8")
         configured = True
 
     if not configured:
         raise SystemExit("Android app Gradle file missing.")
+
+    configure_media_keys()
 
 
 def configure_ios() -> None:

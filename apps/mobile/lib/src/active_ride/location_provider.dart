@@ -26,4 +26,7 @@ abstract interface class RideLocationProvider {
   Future<void> start();
 
   Future<void> stop();
+
+  /// Releases platform resources when the Ride runtime closes.
+  Future<void> dispose();
 }

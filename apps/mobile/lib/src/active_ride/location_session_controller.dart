@@ -87,7 +87,13 @@ class RideLocationSessionController extends ChangeNotifier {
 
   RideLocationSessionState get state => _state;
 
-  Future<void> startTracking(Ride ride) async {
+  /// [beforePermissionRequest] runs only when the OS permission prompt is
+  /// about to appear, so the Rider sees the location disclosure first;
+  /// returning `false` cancels without prompting.
+  Future<void> startTracking(
+    Ride ride, {
+    Future<bool> Function()? beforePermissionRequest,
+  }) async {
     if (_disposed) {
       return;
     }
@@ -120,6 +126,16 @@ class RideLocationSessionController extends ChangeNotifier {
       permission = await _locationProvider.checkPermission();
       if (permission != RideLocationPermission.granted &&
           permission != RideLocationPermission.deniedPermanently) {
+        if (beforePermissionRequest != null &&
+            !await beforePermissionRequest()) {
+          _setState(
+            _state.copyWith(
+              phase: RideLocationSessionPhase.inactive,
+              message: 'Tracking belum dimulai.',
+            ),
+          );
+          return;
+        }
         permission = await _locationProvider.requestPermission();
       }
     } catch (_) {
