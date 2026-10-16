@@ -16,6 +16,7 @@ import 'checkpoints_screen.dart';
 import 'ride_briefing_screen.dart';
 import 'ride_comms_screen.dart';
 import 'ride_recap_screen.dart';
+import 'ride_pre_start_screen.dart';
 import 'ride_sos_screen.dart';
 import 'route_planner_screen.dart';
 
@@ -251,6 +252,7 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
           membership: membership,
           runtimeManager: runtimeManager,
           routePlannerApi: widget.routePlannerApi,
+          rideCommsApi: widget.rideCommsApi,
           rideSosApi: widget.rideSosApi,
           mapsEnabled: widget.mapsEnabled,
           navigationEnabled: widget.navigationEnabled,
@@ -392,11 +394,52 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
     return _transition(widget.clubRideApi.publishRide);
   }
 
-  Future<void> _startRide() {
-    return _transition(widget.clubRideApi.startRide);
+  Future<void> _startRide() async {
+    final bool? confirmed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (BuildContext context) => RidePreStartScreen(
+          ride: _item.ride,
+          rideBriefingApi: widget.rideBriefingApi,
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    await _transition(widget.clubRideApi.startRide);
+    if (!mounted || _item.ride.status != RideStatus.active) {
+      return;
+    }
+
+    await _openActiveRide();
   }
 
   Future<void> _endRide() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('End Ride?'),
+        content: const Text(
+          'Ride akan ditandai Completed dan tracking Active Ride akan '
+          'dihentikan. Pastikan rombongan memang sudah selesai.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Kembali'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('End Ride'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
     final String rideId = _item.ride.id;
     await _run(() async {
       final Ride updated = await widget.clubRideApi.endRide(rideId);
@@ -553,6 +596,7 @@ class _RideInviteDialogState extends State<_RideInviteDialog> {
             controller: _riderIdController,
             decoration: const InputDecoration(
               labelText: 'Rider ID',
+              helperText: 'Minta Rider membuka Profile → Rider ID.',
               border: OutlineInputBorder(),
             ),
           ),

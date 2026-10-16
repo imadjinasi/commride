@@ -108,6 +108,17 @@ npx wrangler d1 migrations list commride-pilot --remote
 npx wrangler d1 migrations apply commride-pilot --remote
 ```
 
+For the 23 September 2026 Round 2 retest, verify specifically that these are
+present remotely before deploying the matching Worker source:
+
+- `0009_route_plan_maneuvers.sql` — required by current RoutePlan and Briefing reads;
+- `0010_notification_inbox.sql` — required by Account/Club notification history.
+
+If RoutePlan and Briefing both fail together while other authenticated Ride reads
+still work, stop and inspect the remote migration list before changing mobile UI
+or provider configuration. Do not hide a missing schema migration with a client
+fallback.
+
 Record exact SHA, database ID and migration output. A dry-run alone does not prove
 login, provisioning, remote migrations or deployment.
 

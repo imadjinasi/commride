@@ -13,10 +13,12 @@ class FirebaseAuthGateway implements AuthGateway, PasswordResetAuthGateway {
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) async {
-    await _firebaseAuth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
+  Future<void> signIn({required String email, required String password}) {
+    return _mapFailure(
+      () => _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      ),
     );
   }
 
@@ -24,10 +26,12 @@ class FirebaseAuthGateway implements AuthGateway, PasswordResetAuthGateway {
   Future<void> createAccount({
     required String email,
     required String password,
-  }) async {
-    await _firebaseAuth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
+  }) {
+    return _mapFailure(
+      () => _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      ),
     );
   }
 
@@ -54,6 +58,29 @@ class FirebaseAuthGateway implements AuthGateway, PasswordResetAuthGateway {
     }
 
     return token;
+  }
+
+  Future<void> _mapFailure(Future<Object?> Function() action) async {
+    try {
+      await action();
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure(_reasonFor(error.code));
+    }
+  }
+
+  static AuthFailureReason _reasonFor(String code) {
+    return switch (code) {
+      'email-already-in-use' => AuthFailureReason.emailAlreadyInUse,
+      'invalid-email' => AuthFailureReason.invalidEmail,
+      'weak-password' => AuthFailureReason.weakPassword,
+      'invalid-credential' ||
+      'wrong-password' ||
+      'user-not-found' ||
+      'INVALID_LOGIN_CREDENTIALS' => AuthFailureReason.wrongCredentials,
+      'too-many-requests' => AuthFailureReason.tooManyRequests,
+      'network-request-failed' => AuthFailureReason.network,
+      _ => AuthFailureReason.unknown,
+    };
   }
 
   AuthUser? _mapUser(User? user) {

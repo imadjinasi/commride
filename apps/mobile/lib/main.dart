@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'src/api/http_checkpoint_api.dart';
 import 'src/api/http_club_ride_api.dart';
+import 'src/api/http_notification_api.dart';
 import 'src/api/http_push_token_api.dart';
 import 'src/api/http_rider_profile_api.dart';
 import 'src/api/http_ride_briefing_api.dart';
@@ -50,6 +51,10 @@ Future<void> main() async {
       _ => null,
     };
     final HttpPushTokenApi pushTokenApi = HttpPushTokenApi(
+      apiBaseUrl: apiBaseUrl,
+      authGateway: authGateway,
+    );
+    final HttpNotificationApi notificationApi = HttpNotificationApi(
       apiBaseUrl: apiBaseUrl,
       authGateway: authGateway,
     );
@@ -106,6 +111,7 @@ Future<void> main() async {
         rideCommsApi: rideCommsApi,
         rideSosApi: rideSosApi,
         rideRecapApi: rideRecapApi,
+        notificationApi: notificationApi,
         pushTokenApi: pushPlatform == null ? null : pushTokenApi,
         pushMessaging: pushPlatform == null ? null : pushMessaging,
         pushPlatform: pushPlatform,

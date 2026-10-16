@@ -6,6 +6,7 @@ import type { RiderProfile } from '../riders/rider-profile';
 import type { RiderRepository } from '../riders/rider-repository';
 import type { RideSosRepository } from '../ride-sos/repository';
 import type { RidePushNotifier } from '../push/notifier';
+import type { NotificationRepository } from '../notifications/repository';
 import { notifyRideRecapAvailableBestEffort } from '../ride-notifications';
 import type {
   ClubMembership,
@@ -23,6 +24,7 @@ export interface ClubRideHandlerDependencies {
   readonly activeRideGateway?: ActiveRideGateway;
   readonly rideSosRepository?: RideSosRepository;
   readonly pushNotifier?: RidePushNotifier;
+  readonly notificationRepository?: NotificationRepository;
   readonly idFactory?: () => string;
   readonly now?: () => Date;
 }
@@ -249,6 +251,20 @@ async function inviteClubMember(
     inputResult.value.role,
   );
 
+  await persistNotificationBestEffort(
+    dependencies.notificationRepository,
+    () => dependencies.notificationRepository!.createForRider(target.id, {
+      eventKey: `club-invite:${clubId}:${target.id}`,
+      scope: 'account',
+      clubId,
+      kind: 'club_invite',
+      title: 'Undangan Club',
+      body: 'Anda diundang bergabung ke sebuah Club.',
+      data: { type: 'club.invite', clubId },
+      createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
+    }),
+  );
+
   return jsonResponse({ membership }, 200, requestId);
 }
 
@@ -419,6 +435,21 @@ async function inviteRideMember(
     rideId,
     target.id,
     inputResult.value.role,
+  );
+
+  await persistNotificationBestEffort(
+    dependencies.notificationRepository,
+    () => dependencies.notificationRepository!.createForRider(target.id, {
+      eventKey: `ride-invite:${rideId}:${target.id}`,
+      scope: 'account',
+      clubId: ride.clubId,
+      rideId,
+      kind: 'ride_invite',
+      title: 'Undangan Ride',
+      body: `${ride.title}: Anda diundang untuk ikut Ride ini.`,
+      data: { type: 'ride.invite', clubId: ride.clubId, rideId },
+      createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
+    }),
   );
 
   return jsonResponse({ membership }, 200, requestId);
@@ -648,6 +679,31 @@ async function transitionRide(
     );
   }
 
+  if (nextStatus === 'published') {
+    await persistNotificationBestEffort(
+      dependencies.notificationRepository,
+      () => dependencies.notificationRepository!.createForClubMembers(
+        updated.clubId,
+        {
+          eventKey: `ride-published:${updated.id}`,
+          scope: 'club',
+          clubId: updated.clubId,
+          rideId: updated.id,
+          kind: 'ride_published',
+          title: 'Ride dipublikasikan',
+          body: `${updated.title} sudah siap dilihat anggota Club.`,
+          data: {
+            type: 'ride.published',
+            clubId: updated.clubId,
+            rideId: updated.id,
+          },
+          createdAt: timestamp,
+        },
+        { excludeRiderId: rider.id },
+      ),
+    );
+  }
+
   if (nextStatus === 'completed') {
     await endActiveRideRoomBestEffort(
       rideId,
@@ -658,9 +714,44 @@ async function transitionRide(
       updated,
       dependencies.pushNotifier,
     );
+    await persistNotificationBestEffort(
+      dependencies.notificationRepository,
+      () => dependencies.notificationRepository!.createForClubMembers(
+        updated.clubId,
+        {
+          eventKey: `ride-completed:${updated.id}`,
+          scope: 'club',
+          clubId: updated.clubId,
+          rideId: updated.id,
+          kind: 'ride_completed',
+          title: 'Ride selesai',
+          body: `${updated.title} sudah selesai. Ride Recap dapat diperiksa.`,
+          data: {
+            type: 'ride.completed',
+            clubId: updated.clubId,
+            rideId: updated.id,
+          },
+          createdAt: updated.endedAt ?? timestamp,
+        },
+      ),
+    );
   }
 
   return jsonResponse({ ride: updated }, 200, requestId);
+}
+
+async function persistNotificationBestEffort(
+  repository: NotificationRepository | undefined,
+  operation: () => Promise<void>,
+): Promise<void> {
+  if (repository == null) {
+    return;
+  }
+  try {
+    await operation();
+  } catch {
+    // Notification history must not roll back authoritative Club/Ride state.
+  }
 }
 
 async function endActiveRideRoomBestEffort(

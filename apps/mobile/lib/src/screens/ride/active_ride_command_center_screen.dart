@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../active_ride/active_ride_runtime.dart';
+import '../../active_ride/ride_comms_controller.dart';
 import '../../active_ride/ride_sos_controller.dart';
+import '../../api/ride_comms_api.dart';
 import '../../api/ride_sos_api.dart';
 import '../../api/route_planner_api.dart';
 import '../../models/club_ride.dart';
 import 'active_ride_navigation_screen.dart';
 import 'active_ride_tracking_screen.dart';
 import 'live_group_screen.dart';
+import 'ride_comms_screen.dart';
+import 'ride_quick_actions_sheet.dart';
 import 'ride_sos_screen.dart';
 
 class ActiveRideCommandCenterScreen extends StatefulWidget {
@@ -16,6 +20,7 @@ class ActiveRideCommandCenterScreen extends StatefulWidget {
     required this.membership,
     required this.runtimeManager,
     required this.routePlannerApi,
+    required this.rideCommsApi,
     required this.rideSosApi,
     required this.mapsEnabled,
     required this.navigationEnabled,
@@ -27,6 +32,7 @@ class ActiveRideCommandCenterScreen extends StatefulWidget {
   final RideMembership membership;
   final ActiveRideRuntimeManager runtimeManager;
   final RoutePlannerApi routePlannerApi;
+  final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final bool mapsEnabled;
   final bool navigationEnabled;
@@ -85,6 +91,7 @@ class _ActiveRideCommandCenterScreenState
                 voiceIntercomEnabled: widget.voiceIntercomEnabled,
                 onOpenLiveGroup: () => _openLiveGroup(runtime),
                 onOpenTracking: () => _openTracking(runtime),
+                onOpenComms: () => _openComms(runtime),
                 onOpenSos: () => _openSos(runtime),
               );
             }
@@ -117,6 +124,18 @@ class _ActiveRideCommandCenterScreenState
                       label: Text(
                         widget.mapsEnabled ? 'Live Group · Map' : 'Live Group',
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => _openQuickActions(runtime),
+                      icon: const Icon(Icons.bolt_outlined),
+                      label: const Text('Quick Actions'),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => _openComms(runtime),
+                      icon: const Icon(Icons.forum_outlined),
+                      label: const Text('Comms'),
                     ),
                     const SizedBox(height: 18),
                     ListenableBuilder(
@@ -170,6 +189,31 @@ class _ActiveRideCommandCenterScreenState
           ride: widget.ride,
           controller: runtime.groupController,
           mapsEnabled: widget.mapsEnabled,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openQuickActions(ActiveRideRuntime runtime) {
+    return showRideQuickActionsSheet(
+      context,
+      onSend: runtime.groupController.raiseQuickAction,
+    );
+  }
+
+  Future<void> _openComms(ActiveRideRuntime runtime) async {
+    final RideCommsController controller = RideCommsController(
+      rideId: widget.ride.id,
+      api: widget.rideCommsApi,
+      realtimeClient: runtime.realtimeClient,
+    );
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideCommsScreen(
+          ride: widget.ride,
+          membership: widget.membership,
+          controller: controller,
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../active_ride/active_ride_runtime.dart';
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/notification_api.dart';
 import '../api/push_token_api.dart';
 import '../api/ride_briefing_api.dart';
 import '../api/ride_comms_api.dart';
@@ -20,6 +21,7 @@ import '../push/ride_push_messaging.dart';
 import '../screens/clubs/clubs_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/notifications/notification_center_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/ride/ride_screen.dart';
 import '../widgets/commride_brand.dart';
@@ -36,7 +38,9 @@ class AppShell extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.notificationApi,
     required this.authGateway,
+    this.accountEmail,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -53,7 +57,12 @@ class AppShell extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi? notificationApi;
   final AuthGateway authGateway;
+
+  /// Email of the signed-in account, shown on Profile so the Rider can see
+  /// which account they are using.
+  final String? accountEmail;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -130,6 +139,19 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  void _openNotifications() {
+    final NotificationApi? notificationApi = widget.notificationApi;
+    if (notificationApi == null) {
+      return;
+    }
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) =>
+            NotificationCenterScreen(notificationApi: notificationApi),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> destinations = <Widget>[
@@ -156,6 +178,7 @@ class _AppShellState extends State<AppShell> {
         rideCommsApi: widget.rideCommsApi,
         rideSosApi: widget.rideSosApi,
         rideRecapApi: widget.rideRecapApi,
+        notificationApi: widget.notificationApi,
         activeRideRuntimeManager: _activeRideRuntimeManager,
         mapsEnabled: widget.config.mapsEnabled,
         navigationEnabled: widget.config.navigationEnabled,
@@ -165,6 +188,7 @@ class _AppShellState extends State<AppShell> {
         riderProfile: widget.riderProfile,
         vehicleApi: widget.vehicleApi,
         authGateway: widget.authGateway,
+        accountEmail: widget.accountEmail,
         ridePushController: _ridePushController,
       ),
     ];
@@ -173,7 +197,7 @@ class _AppShellState extends State<AppShell> {
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            const _MainAppBrandHeader(),
+            _MainAppBrandHeader(onNotifications: _openNotifications),
             Expanded(
               child: IndexedStack(
                 index: _selectedIndex,
@@ -223,7 +247,9 @@ class _AppShellState extends State<AppShell> {
 }
 
 class _MainAppBrandHeader extends StatelessWidget {
-  const _MainAppBrandHeader();
+  const _MainAppBrandHeader({required this.onNotifications});
+
+  final VoidCallback onNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +257,7 @@ class _MainAppBrandHeader extends StatelessWidget {
       color: Theme.of(context).colorScheme.surface,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+        padding: const EdgeInsets.fromLTRB(18, 6, 10, 6),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -239,12 +265,24 @@ class _MainAppBrandHeader extends StatelessWidget {
             ),
           ),
         ),
-        child: const Align(
-          alignment: Alignment.centerLeft,
-          child: CommRideBrandImage(
-            variant: CommRideBrandVariant.primary,
-            size: 44,
-          ),
+        child: Row(
+          children: <Widget>[
+            const Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: CommRideBrandImage(
+                  variant: CommRideBrandVariant.primary,
+                  width: 150,
+                  height: 48,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Notifikasi',
+              onPressed: onNotifications,
+              icon: const Icon(Icons.notifications_none),
+            ),
+          ],
         ),
       ),
     );

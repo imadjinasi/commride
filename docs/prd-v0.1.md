@@ -402,7 +402,24 @@ surfaces rather than competing with the navigation map while moving.
 
 ## 11. Notifications
 
-High priority:
+CommRide has two in-app notification scopes in addition to urgent Active Ride
+alerts:
+
+- **Account notifications** are directed to one Rider account across Clubs, for
+  example Club invitations, Ride invitations and future account/security
+  notices.
+- **Club notifications** belong to a Club context, for example a Ride being
+  published, a new Briefing revision, upcoming Ride reminders and Ride recap
+  availability.
+
+The in-app notification center must remain useful even when OS push permission
+is denied. Push delivery is an optional delivery channel, not the source of
+truth for notification history. Each persisted notification has read/unread
+state and may reference a Club or Ride so the client can open the relevant
+context.
+
+High priority Active Ride alerts remain operational and must not be buried in a
+generic inbox:
 - SOS;
 - Need Help;
 - group separation;
@@ -410,6 +427,7 @@ High priority:
 - mandatory regroup release/change.
 
 Normal:
+- Club invite;
 - Ride invite;
 - briefing published;
 - upcoming Ride reminder;

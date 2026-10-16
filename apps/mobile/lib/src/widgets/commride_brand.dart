@@ -9,18 +9,26 @@ abstract final class CommRideBrandAssets {
 enum CommRideBrandVariant { appIcon, primary, monochrome }
 
 class CommRideBrandImage extends StatelessWidget {
-  const CommRideBrandImage({required this.variant, this.size = 96, super.key});
+  const CommRideBrandImage({
+    required this.variant,
+    this.size = 96,
+    this.width,
+    this.height,
+    super.key,
+  });
 
   final CommRideBrandVariant variant;
   final double size;
+  final double? width;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
     return Image.asset(
       _assetPath,
       key: ValueKey<String>('commride-brand-${variant.name}'),
-      width: size,
-      height: size,
+      width: width ?? size,
+      height: height ?? size,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
       cacheWidth: 512,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/checkpoint_api.dart';
 import '../api/club_ride_api.dart';
+import '../api/notification_api.dart';
 import '../api/push_token_api.dart';
 import '../api/rider_profile_api.dart';
 import '../api/ride_briefing_api.dart';
@@ -31,6 +32,7 @@ class AuthGate extends StatelessWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
@@ -48,6 +50,7 @@ class AuthGate extends StatelessWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi? notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -75,6 +78,7 @@ class AuthGate extends StatelessWidget {
 
         return _RiderProfileGate(
           key: ValueKey<String>(user.id),
+          accountEmail: user.email,
           config: config,
           authGateway: authGateway,
           riderProfileApi: riderProfileApi,
@@ -86,6 +90,7 @@ class AuthGate extends StatelessWidget {
           rideCommsApi: rideCommsApi,
           rideSosApi: rideSosApi,
           rideRecapApi: rideRecapApi,
+          notificationApi: notificationApi,
           pushTokenApi: pushTokenApi,
           pushMessaging: pushMessaging,
           pushPlatform: pushPlatform,
@@ -98,6 +103,7 @@ class AuthGate extends StatelessWidget {
 class _RiderProfileGate extends StatefulWidget {
   const _RiderProfileGate({
     required this.config,
+    this.accountEmail,
     required this.authGateway,
     required this.riderProfileApi,
     required this.vehicleApi,
@@ -108,12 +114,14 @@ class _RiderProfileGate extends StatefulWidget {
     required this.rideCommsApi,
     required this.rideSosApi,
     this.rideRecapApi,
+    this.notificationApi,
     this.pushTokenApi,
     this.pushMessaging,
     this.pushPlatform,
     super.key,
   });
 
+  final String? accountEmail;
   final AppConfig config;
   final AuthGateway authGateway;
   final RiderProfileApi riderProfileApi;
@@ -125,6 +133,7 @@ class _RiderProfileGate extends StatefulWidget {
   final RideCommsApi rideCommsApi;
   final RideSosApi rideSosApi;
   final RideRecapApi? rideRecapApi;
+  final NotificationApi? notificationApi;
   final PushTokenApi? pushTokenApi;
   final RidePushMessaging? pushMessaging;
   final RidePushPlatform? pushPlatform;
@@ -185,10 +194,12 @@ class _RiderProfileGateState extends State<_RiderProfileGate> {
           rideCommsApi: widget.rideCommsApi,
           rideSosApi: widget.rideSosApi,
           rideRecapApi: widget.rideRecapApi,
+          notificationApi: widget.notificationApi,
           pushTokenApi: widget.pushTokenApi,
           pushMessaging: widget.pushMessaging,
           pushPlatform: widget.pushPlatform,
           authGateway: widget.authGateway,
+          accountEmail: widget.accountEmail,
         );
       },
     );
