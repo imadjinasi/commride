@@ -287,10 +287,10 @@ class _RideOverviewContent extends StatelessWidget {
   String _sectionTitle(RideStatus status) {
     return switch (status) {
       RideStatus.active => 'Active Ride',
-      RideStatus.published => 'Upcoming',
-      RideStatus.draft => 'Drafts',
-      RideStatus.completed => 'History',
-      RideStatus.cancelled => 'Cancelled',
+      RideStatus.published => 'Akan Datang',
+      RideStatus.draft => 'Draf',
+      RideStatus.completed => 'Riwayat',
+      RideStatus.cancelled => 'Dibatalkan',
     };
   }
 }
@@ -309,7 +309,10 @@ class _CreateRideCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Plan a Ride', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Rencanakan Ride',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 6),
             Text(
               'Buat Ride lalu susun rute, Stop, dan Checkpoint dari '

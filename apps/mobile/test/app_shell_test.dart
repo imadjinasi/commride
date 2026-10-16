@@ -366,10 +366,10 @@ void main() {
     await tester.pumpWidget(buildShell());
 
     expect(
-      find.byKey(const ValueKey<String>('commride-brand-primary')),
+      find.byKey(const ValueKey<String>('commride-brand-appIcon')),
       findsOneWidget,
     );
-    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
     expect(find.text('Ride'), findsOneWidget);
     expect(find.text('Explore'), findsOneWidget);
     expect(find.text('Clubs'), findsOneWidget);
@@ -419,6 +419,11 @@ void main() {
     expect(find.text('Rider One'), findsOneWidget);
     expect(find.text('Rider ID'), findsOneWidget);
     expect(find.text('rider-1'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Black · Honda · CB150R'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Black · Honda · CB150R'), findsOneWidget);
     expect(find.textContaining('Safe range 220 km'), findsOneWidget);
   });

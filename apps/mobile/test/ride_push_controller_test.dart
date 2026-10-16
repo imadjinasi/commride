@@ -226,6 +226,13 @@ void main() {
       controller.state.latestForegroundPush?.displayText,
       'SOS · Rider Two · Butuh bantuan',
     );
+    expect(controller.state.unreadCount, 1);
+    expect(controller.state.notifications.single.rideId, 'ride-1');
+
+    final String notificationId = controller.state.notifications.single.id;
+    controller.markNotificationRead(notificationId);
+    expect(controller.state.unreadCount, 0);
+    expect(controller.state.notifications.single.read, isTrue);
 
     controller.dispose();
     await messaging.close();

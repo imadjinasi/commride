@@ -5,12 +5,45 @@ import 'package:flutter/foundation.dart';
 import '../api/push_token_api.dart';
 import 'ride_push_messaging.dart';
 
+class RideNotificationEntry {
+  const RideNotificationEntry({
+    required this.id,
+    required this.message,
+    required this.receivedAt,
+    required this.read,
+  });
+
+  final String id;
+  final RideForegroundPush message;
+  final DateTime receivedAt;
+  final bool read;
+
+  String? get rideId => _identifier(message.data['rideId']);
+  String? get clubId => _identifier(message.data['clubId']);
+  String? get type => _identifier(message.data['type']);
+
+  RideNotificationEntry copyWith({bool? read}) {
+    return RideNotificationEntry(
+      id: id,
+      message: message,
+      receivedAt: receivedAt,
+      read: read ?? this.read,
+    );
+  }
+
+  static String? _identifier(String? value) {
+    final String normalized = value?.trim() ?? '';
+    return normalized.isEmpty ? null : normalized;
+  }
+}
+
 class RidePushState {
   const RidePushState({
     required this.permission,
     required this.registered,
     required this.working,
     required this.latestForegroundPush,
+    required this.notifications,
     required this.latestError,
   });
 
@@ -19,13 +52,18 @@ class RidePushState {
       registered = false,
       working = false,
       latestForegroundPush = null,
+      notifications = const <RideNotificationEntry>[],
       latestError = null;
 
   final RidePushPermission permission;
   final bool registered;
   final bool working;
   final RideForegroundPush? latestForegroundPush;
+  final List<RideNotificationEntry> notifications;
   final String? latestError;
+
+  int get unreadCount =>
+      notifications.where((RideNotificationEntry item) => !item.read).length;
 
   RidePushState copyWith({
     RidePushPermission? permission,
@@ -33,6 +71,7 @@ class RidePushState {
     bool? working,
     RideForegroundPush? latestForegroundPush,
     bool clearForegroundPush = false,
+    List<RideNotificationEntry>? notifications,
     String? latestError,
     bool clearLatestError = false,
   }) {
@@ -43,6 +82,7 @@ class RidePushState {
       latestForegroundPush: clearForegroundPush
           ? null
           : (latestForegroundPush ?? this.latestForegroundPush),
+      notifications: notifications ?? this.notifications,
       latestError: clearLatestError ? null : (latestError ?? this.latestError),
     );
   }
@@ -67,6 +107,7 @@ class RidePushController extends ChangeNotifier {
   String? _registeredToken;
   bool _started = false;
   bool _disposed = false;
+  int _notificationSequence = 0;
 
   RidePushState get state => _state;
 
@@ -82,9 +123,7 @@ class RidePushController extends ChangeNotifier {
     _foregroundSubscription = _messaging.foregroundMessages.listen((
       RideForegroundPush message,
     ) {
-      _setState(
-        _state.copyWith(latestForegroundPush: message, clearLatestError: true),
-      );
+      _recordNotification(message);
     });
 
     try {
@@ -155,6 +194,35 @@ class RidePushController extends ChangeNotifier {
     _setState(_state.copyWith(clearForegroundPush: true));
   }
 
+  void markNotificationRead(String notificationId) {
+    bool changed = false;
+    final List<RideNotificationEntry> updated = _state.notifications
+        .map((RideNotificationEntry item) {
+          if (item.id != notificationId || item.read) {
+            return item;
+          }
+          changed = true;
+          return item.copyWith(read: true);
+        })
+        .toList(growable: false);
+    if (changed) {
+      _setState(_state.copyWith(notifications: updated));
+    }
+  }
+
+  void markAllNotificationsRead() {
+    if (_state.notifications.every((RideNotificationEntry item) => item.read)) {
+      return;
+    }
+    _setState(
+      _state.copyWith(
+        notifications: _state.notifications
+            .map((RideNotificationEntry item) => item.copyWith(read: true))
+            .toList(growable: false),
+      ),
+    );
+  }
+
   Future<void> _syncToken() async {
     final String? token = await _messaging.currentToken();
     if (token == null || token.trim().isEmpty) {
@@ -193,6 +261,30 @@ class RidePushController extends ChangeNotifier {
         ),
       );
     }
+  }
+
+  void _recordNotification(RideForegroundPush message) {
+    if (_disposed) {
+      return;
+    }
+    final DateTime now = DateTime.now().toUtc();
+    final RideNotificationEntry entry = RideNotificationEntry(
+      id: '${now.microsecondsSinceEpoch}-${_notificationSequence++}',
+      message: message,
+      receivedAt: now,
+      read: false,
+    );
+    final List<RideNotificationEntry> next = <RideNotificationEntry>[
+      entry,
+      ..._state.notifications,
+    ];
+    _setState(
+      _state.copyWith(
+        latestForegroundPush: message,
+        notifications: List<RideNotificationEntry>.unmodifiable(next.take(50)),
+        clearLatestError: true,
+      ),
+    );
   }
 
   Future<String?> _safeCurrentToken() async {

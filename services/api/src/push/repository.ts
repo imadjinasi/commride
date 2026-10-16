@@ -19,6 +19,10 @@ export interface PushRepository {
     },
   ): Promise<readonly RiderPushToken[]>;
 
+  listRiderTokens?(
+    riderId: string,
+  ): Promise<readonly RiderPushToken[]>;
+
   claimEvent(input: {
     readonly eventKey: string;
     readonly rideId: string;
@@ -139,6 +143,24 @@ export class D1PushRepository implements PushRepository {
         options.excludeRiderId ?? null,
         options.leaderOnly === true ? 1 : 0,
       )
+      .all<PushTokenRow>();
+
+    return rows.results.map(mapToken);
+  }
+
+  async listRiderTokens(
+    riderId: string,
+  ): Promise<readonly RiderPushToken[]> {
+    const rows = await this.database
+      .prepare(
+        `
+        SELECT id, rider_id, token, platform, created_at, updated_at
+        FROM rider_push_tokens
+        WHERE rider_id = ?
+        ORDER BY updated_at DESC, id
+        `,
+      )
+      .bind(riderId)
       .all<PushTokenRow>();
 
     return rows.results.map(mapToken);

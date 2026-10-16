@@ -42,6 +42,7 @@ def assert_core_tables(connection: sqlite3.Connection) -> None:
         "ride_location_samples",
         "rider_push_tokens",
         "push_notification_events",
+        "rider_notifications",
     }
     rows = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'"
@@ -854,6 +855,52 @@ def assert_push_notification_invariants(
         pass
     else:
         raise AssertionError("Duplicate push event dedupe key was accepted")
+
+
+    # The Account inbox row doubles as the direct-push dedupe claim, so one
+    # Rider must not receive two rows for the same event key.
+    insert_rider_notification = """
+        INSERT INTO rider_notifications(
+          id,
+          rider_id,
+          scope,
+          event_key,
+          kind,
+          title,
+          body,
+          created_at
+        ) VALUES (?, ?, 'account', ?, ?, ?, ?, ?)
+        """
+    connection.execute(
+        insert_rider_notification,
+        (
+            "notification-1",
+            "rider-1",
+            "club-invite:club-1:rider-1",
+            "club_invite",
+            "Undangan Club",
+            "Anda diundang bergabung ke sebuah Club.",
+            "2026-09-18T10:24:00Z",
+        ),
+    )
+
+    try:
+        connection.execute(
+            insert_rider_notification,
+            (
+                "notification-2",
+                "rider-1",
+                "club-invite:club-1:rider-1",
+                "club_invite",
+                "Undangan Club",
+                "Anda diundang bergabung ke sebuah Club.",
+                "2026-09-18T10:25:00Z",
+            ),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Duplicate Rider notification key was accepted")
 
 
 def main() -> None:

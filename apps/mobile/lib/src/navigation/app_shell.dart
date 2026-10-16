@@ -15,14 +15,18 @@ import '../api/route_planner_api.dart';
 import '../api/vehicle_api.dart';
 import '../auth/auth_gateway.dart';
 import '../config/app_config.dart';
+import '../models/club_ride.dart';
 import '../models/rider_profile.dart';
 import '../push/ride_push_controller.dart';
 import '../push/ride_push_messaging.dart';
+import '../screens/clubs/club_detail_screen.dart';
 import '../screens/clubs/clubs_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../models/rider_notification.dart';
 import '../screens/notifications/notification_center_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/ride/ride_detail_screen.dart';
 import '../screens/ride/ride_screen.dart';
 import '../widgets/commride_brand.dart';
 
@@ -75,7 +79,7 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   ActiveRideRuntimeManager? _activeRideRuntimeManager;
   RidePushController? _ridePushController;
-  RideForegroundPush? _shownForegroundPush;
+  String? _shownForegroundNotificationId;
 
   @override
   void initState() {
@@ -112,14 +116,19 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _onPushStateChanged() {
-    final RideForegroundPush? message =
-        _ridePushController?.state.latestForegroundPush;
-    if (message == null ||
-        identical(message, _shownForegroundPush) ||
-        !mounted) {
+    final RidePushController? controller = _ridePushController;
+    if (controller == null || !mounted) {
       return;
     }
-    _shownForegroundPush = message;
+    final RidePushState state = controller.state;
+    final RideNotificationEntry? notification = state.notifications.isEmpty
+        ? null
+        : state.notifications.first;
+    if (notification == null ||
+        notification.id == _shownForegroundNotificationId) {
+      return;
+    }
+    _shownForegroundNotificationId = notification.id;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -127,11 +136,11 @@ class _AppShellState extends State<AppShell> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message.displayText),
+          content: Text(notification.message.displayText),
           action: SnackBarAction(
-            label: 'Tutup',
+            label: 'Buka',
             onPressed: () {
-              _ridePushController?.clearForegroundPush();
+              unawaited(_openNotification(notification));
             },
           ),
         ),
@@ -139,15 +148,148 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  void _openNotifications() {
+  // The persistent inbox is the notification history; OS push is only a
+  // delivery channel and is not required to see past notifications.
+  Future<void> _openNotifications() async {
     final NotificationApi? notificationApi = widget.notificationApi;
     if (notificationApi == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notifikasi belum tersedia pada konfigurasi ini.'),
+        ),
+      );
       return;
     }
-    Navigator.of(context).push<void>(
+
+    await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) =>
-            NotificationCenterScreen(notificationApi: notificationApi),
+        builder: (BuildContext context) => NotificationCenterScreen(
+          notificationApi: notificationApi,
+          onOpen: _openInboxNotification,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInboxNotification(RiderNotification notification) {
+    return _openNotificationTarget(
+      rideId: notification.rideId,
+      clubId: notification.clubId,
+    );
+  }
+
+  Future<void> _openNotification(RideNotificationEntry notification) async {
+    _ridePushController?.markNotificationRead(notification.id);
+    _ridePushController?.clearForegroundPush();
+    await _openNotificationTarget(
+      rideId: notification.rideId,
+      clubId: notification.clubId,
+    );
+  }
+
+  Future<void> _openNotificationTarget({
+    required String? rideId,
+    required String? clubId,
+  }) async {
+    final NavigatorState navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    if (rideId != null) {
+      final RideListItem? ride = await _findRide(rideId);
+      if (!mounted) {
+        return;
+      }
+      if (ride != null) {
+        await _openRide(ride);
+        return;
+      }
+    }
+
+    if (clubId != null) {
+      final List<ClubListItem> clubs = await widget.clubRideApi.listClubs();
+      if (!mounted) {
+        return;
+      }
+      for (final ClubListItem club in clubs) {
+        if (club.club.id == clubId) {
+          await _openClub(club);
+          return;
+        }
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tujuan notifikasi belum dapat dibuka.')),
+      );
+    }
+  }
+
+  Future<RideListItem?> _findRide(String rideId) async {
+    final List<ClubListItem> clubs = await widget.clubRideApi.listClubs();
+    for (final ClubListItem club in clubs) {
+      if (club.membership.status != ClubMembershipStatus.active) {
+        continue;
+      }
+      try {
+        final List<RideListItem> rides = await widget.clubRideApi.listRides(
+          club.club.id,
+        );
+        for (final RideListItem item in rides) {
+          if (item.ride.id == rideId) {
+            return item;
+          }
+        }
+      } catch (_) {
+        // Continue through other accessible Clubs.
+      }
+    }
+    return null;
+  }
+
+  Future<void> _openRide(RideListItem item) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => RideDetailScreen(
+          item: item,
+          clubRideApi: widget.clubRideApi,
+          checkpointApi: widget.checkpointApi,
+          routePlannerApi: widget.routePlannerApi,
+          rideBriefingApi: widget.rideBriefingApi,
+          rideCommsApi: widget.rideCommsApi,
+          rideSosApi: widget.rideSosApi,
+          rideRecapApi: widget.rideRecapApi,
+          activeRideRuntimeManager: _activeRideRuntimeManager,
+          mapsEnabled: widget.config.mapsEnabled,
+          navigationEnabled: widget.config.navigationEnabled,
+          voiceIntercomEnabled: widget.config.voiceIntercomEnabled,
+          onChanged: () => setState(() {}),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openClub(ClubListItem item) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => ClubDetailScreen(
+          item: item,
+          clubRideApi: widget.clubRideApi,
+          checkpointApi: widget.checkpointApi,
+          routePlannerApi: widget.routePlannerApi,
+          rideBriefingApi: widget.rideBriefingApi,
+          rideCommsApi: widget.rideCommsApi,
+          rideSosApi: widget.rideSosApi,
+          rideRecapApi: widget.rideRecapApi,
+          activeRideRuntimeManager: _activeRideRuntimeManager,
+          mapsEnabled: widget.config.mapsEnabled,
+          navigationEnabled: widget.config.navigationEnabled,
+          voiceIntercomEnabled: widget.config.voiceIntercomEnabled,
+          onChanged: () => setState(() {}),
+        ),
       ),
     );
   }
@@ -155,7 +297,11 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> destinations = <Widget>[
-      const HomeScreen(),
+      HomeScreen(
+        clubRideApi: widget.clubRideApi,
+        onOpenRide: _openRide,
+        onOpenClub: _openClub,
+      ),
       RideScreen(
         clubRideApi: widget.clubRideApi,
         checkpointApi: widget.checkpointApi,
@@ -197,7 +343,7 @@ class _AppShellState extends State<AppShell> {
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            _MainAppBrandHeader(onNotifications: _openNotifications),
+            _MainAppBrandHeader(onOpenNotifications: _openNotifications),
             Expanded(
               child: IndexedStack(
                 index: _selectedIndex,
@@ -247,9 +393,9 @@ class _AppShellState extends State<AppShell> {
 }
 
 class _MainAppBrandHeader extends StatelessWidget {
-  const _MainAppBrandHeader({required this.onNotifications});
+  const _MainAppBrandHeader({required this.onOpenNotifications});
 
-  final VoidCallback onNotifications;
+  final Future<void> Function() onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +403,7 @@ class _MainAppBrandHeader extends StatelessWidget {
       color: Theme.of(context).colorScheme.surface,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 6, 10, 6),
+        padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -270,16 +416,12 @@ class _MainAppBrandHeader extends StatelessWidget {
             const Expanded(
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: CommRideBrandImage(
-                  variant: CommRideBrandVariant.primary,
-                  width: 150,
-                  height: 48,
-                ),
+                child: CommRideHeaderBrand(),
               ),
             ),
             IconButton(
               tooltip: 'Notifikasi',
-              onPressed: onNotifications,
+              onPressed: () => unawaited(onOpenNotifications()),
               icon: const Icon(Icons.notifications_none),
             ),
           ],

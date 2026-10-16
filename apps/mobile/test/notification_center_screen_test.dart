@@ -109,4 +109,31 @@ void main() {
 
     expect(api.items.first.isUnread, isFalse);
   });
+
+  testWidgets('read notification still opens its Ride or Club target', (
+    WidgetTester tester,
+  ) async {
+    final FakeNotificationApi api = FakeNotificationApi();
+    final List<RiderNotification> opened = <RiderNotification>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationCenterScreen(
+          notificationApi: api,
+          onOpen: (RiderNotification item) async => opened.add(item),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Undangan Club'));
+    await tester.pumpAndSettle();
+
+    expect(api.items.first.isUnread, isFalse);
+    expect(opened.single.clubId, 'club-1');
+
+    await tester.tap(find.text('Undangan Club'));
+    await tester.pumpAndSettle();
+
+    expect(opened, hasLength(2));
+  });
 }

@@ -92,6 +92,12 @@ class MemoryPushRepository implements PushRepository {
     return this.tokens;
   }
 
+  async listRiderTokens(
+    riderId: string,
+  ): Promise<readonly RiderPushToken[]> {
+    return this.tokens.filter((item) => item.riderId === riderId);
+  }
+
   async claimEvent(input: {
     readonly eventKey: string;
     readonly rideId: string;
@@ -236,4 +242,39 @@ describe('push notifications', () => {
 
     expect(result).toEqual({ delivered: 0, failed: 0 });
   });
+
+  it('targets direct Rider notifications to that Rider only', async () => {
+    const repository = new MemoryPushRepository();
+    await repository.registerToken({
+      id: 'push-rider-1',
+      riderId: rider.id,
+      token: 'device-token',
+      platform: 'android',
+      now: '2026-09-18T10:00:00Z',
+    });
+    await repository.registerToken({
+      id: 'push-rider-2',
+      riderId: 'rider-2',
+      token: 'other-device-token',
+      platform: 'android',
+      now: '2026-09-18T10:00:00Z',
+    });
+    const transport = new RecordingTransport();
+    const notifier = new BestEffortRidePushNotifier(repository, transport);
+
+    const result = await notifier.notifyRider({
+      eventKey: 'club-invite:club-1:rider-1',
+      riderId: rider.id,
+      kind: 'club_invite',
+      title: 'Undangan Club',
+      body: 'Anda diundang bergabung ke sebuah Club.',
+      data: { type: 'club.invite', clubId: 'club-1' },
+    });
+
+    // Only the invited Rider's device is targeted; dedupe happens upstream
+    // through the persistent notification inbox.
+    expect(result).toEqual({ delivered: 1, failed: 0 });
+    expect(transport.calls).toBe(1);
+  });
+
 });

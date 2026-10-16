@@ -5,10 +5,15 @@ import type {
 } from './models';
 
 export interface NotificationRepository {
+  /**
+   * Records an Account/Club notification for one Rider. Resolves `true` only
+   * when a new row was stored; a repeated event key resolves `false`, so
+   * callers can use it to deliver one push per event.
+   */
   createForRider(
     riderId: string,
     input: CreateNotificationInput,
-  ): Promise<void>;
+  ): Promise<boolean>;
 
   createForClubMembers(
     clubId: string,
@@ -55,8 +60,8 @@ export class D1NotificationRepository implements NotificationRepository {
   async createForRider(
     riderId: string,
     input: CreateNotificationInput,
-  ): Promise<void> {
-    await this.database
+  ): Promise<boolean> {
+    const result = await this.database
       .prepare(
         `
         INSERT INTO rider_notifications(
@@ -80,6 +85,8 @@ export class D1NotificationRepository implements NotificationRepository {
         input.createdAt,
       )
       .run();
+
+    return (result.meta.changes ?? 0) > 0;
   }
 
   async createForClubMembers(

@@ -200,11 +200,11 @@ enum RideStatus {
 
   String get label {
     return switch (this) {
-      RideStatus.draft => 'Draft',
-      RideStatus.published => 'Published',
-      RideStatus.active => 'Active',
-      RideStatus.completed => 'Completed',
-      RideStatus.cancelled => 'Cancelled',
+      RideStatus.draft => 'Draf',
+      RideStatus.published => 'Siap',
+      RideStatus.active => 'Aktif',
+      RideStatus.completed => 'Selesai',
+      RideStatus.cancelled => 'Dibatalkan',
     };
   }
 
