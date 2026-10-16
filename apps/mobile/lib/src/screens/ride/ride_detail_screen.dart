@@ -121,7 +121,10 @@ class _RideDetailScreenState extends State<RideDetailScreen> {
             const SizedBox(height: 28),
             Text('Aksi utama', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 10),
-            if (membership?.status == RideMembershipStatus.invited)
+            if (membership == null ||
+                membership.status == RideMembershipStatus.left)
+              const _NotParticipantNotice()
+            else if (membership.status == RideMembershipStatus.invited)
               FilledButton.icon(
                 onPressed: _working ? null : _joinRide,
                 icon: const Icon(Icons.group_add_outlined),
@@ -749,4 +752,41 @@ String _formatDateTime(DateTime value) {
   String two(int number) => number.toString().padLeft(2, '0');
   return '${two(value.day)}/${two(value.month)}/${value.year} · '
       '${two(value.hour)}:${two(value.minute)}';
+}
+
+/// Club members can see a Club's Rides, but only participants can open them.
+/// Say so instead of offering actions that cannot work.
+class _NotParticipantNotice extends StatelessWidget {
+  const _NotParticipantNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(Icons.info_outline),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Anda belum terdaftar di Ride ini',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Minta Leader mengundang Anda ke Ride ini. Bagikan Rider ID '
+              'Anda dari Profile → Rider ID.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

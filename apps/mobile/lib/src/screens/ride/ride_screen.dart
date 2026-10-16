@@ -216,6 +216,10 @@ class _RideOverviewContent extends StatelessWidget {
         if (manageableClubs.isNotEmpty)
           _CreateRideCard(clubs: manageableClubs, onCreateRide: onCreateRide),
         if (manageableClubs.isNotEmpty) const SizedBox(height: 20),
+        if (manageableClubs.isEmpty) ...<Widget>[
+          const _CreateRideHint(),
+          const SizedBox(height: 20),
+        ],
         if (all.isEmpty)
           const _EmptyRides(
             message:
@@ -449,4 +453,32 @@ class _RideWithClub {
 
   final ClubListItem clubItem;
   final RideListItem rideItem;
+}
+
+/// Explains why there is no Buat Ride option for Club members.
+class _CreateRideHint extends StatelessWidget {
+  const _CreateRideHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Icon(Icons.info_outline),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Hanya Owner atau Admin Club yang dapat membuat Ride. Untuk '
+                'membuat Ride sendiri, buat Club di tab Clubs.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
