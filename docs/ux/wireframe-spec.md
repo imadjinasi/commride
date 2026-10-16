@@ -224,9 +224,8 @@ second tracking dashboard.
 │          ⚠ roadworks             │
 │                                  │
 ├──────────────────────────────────┤
-│ Group Intercom · media status    │
-│ [Interkom][Status][Rombongan][SOS]│
-│                    tahan 3 detik  │
+│ [Berhenti][Tertinggal][Bantuan][SOS]│
+│                       tahan 3 dtk │
 └──────────────────────────────────┘
 ```
 
@@ -255,9 +254,8 @@ Leaving the accepted route does not silently replace it.
 │       ▲ Saya                     │
 │                                  │
 ├──────────────────────────────────┤
-│ Group Intercom · media status    │
-│ [Interkom][Status][Rombongan][SOS]│
-│                    tahan 3 detik  │
+│ [Berhenti][Tertinggal][Bantuan][SOS]│
+│                       tahan 3 dtk │
 └──────────────────────────────────┘
 ```
 
@@ -348,9 +346,9 @@ If ordering confidence is low, replace this with grouped/list state rather than 
 └──────────────────────────────────┘
 ```
 
-The main condition sends on tap; adding a reason is a secondary action. Opening
-Status cepat plus selecting a condition must remain at most two interactions
-from the navigation surface.
+On the navigation surface each condition is its own dock button and sends with
+one tap. This sheet remains for adding a note (long-press a dock status or use
+the Ride menu) and for screens without the riding dock.
 
 SOS does not live inside this sheet. It remains permanently visible in the
 navigation dock, uses critical red, and sends only after a continuous 3-second

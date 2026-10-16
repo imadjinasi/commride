@@ -11,6 +11,7 @@ class SosHoldButton extends StatefulWidget {
     this.active = false,
     this.working = false,
     this.duration = CommRideDurations.sosHold,
+    this.compact = false,
     super.key,
   });
 
@@ -19,6 +20,9 @@ class SosHoldButton extends StatefulWidget {
   final bool active;
   final bool working;
   final Duration duration;
+
+  /// Shorter label for narrow slots such as the riding dock.
+  final bool compact;
 
   @override
   State<SosHoldButton> createState() => _SosHoldButtonState();
@@ -124,6 +128,8 @@ class _SosHoldButtonState extends State<SosHoldButton>
         ? 'Mengirim SOS…'
         : _holding
         ? 'Tetap tahan…'
+        : widget.compact
+        ? 'Tahan 3 dtk'
         : 'SOS · tahan 3 dtk';
 
     return Semantics(
@@ -182,28 +188,34 @@ class _SosHoldButtonState extends State<SosHoldButton>
                       ),
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: CommRideSpacing.xs,
-                        vertical: CommRideSpacing.xs,
+                        horizontal: CommRideSpacing.xxs,
+                        vertical: CommRideSpacing.xxs,
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(Icons.sos, color: foreground, size: 28),
-                          const SizedBox(height: CommRideSpacing.xxs),
-                          Text(
-                            _holding && !_triggered
-                                ? 'SOS · $secondsLeft dtk'
-                                : label,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: foreground,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                        ],
+                      // Scale down rather than overflow in narrow slots.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(Icons.sos, color: foreground, size: 28),
+                            const SizedBox(height: CommRideSpacing.xxs),
+                            Text(
+                              _holding && !_triggered
+                                  ? (widget.compact
+                                        ? '$secondsLeft dtk'
+                                        : 'SOS · $secondsLeft dtk')
+                                  : label,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: foreground,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

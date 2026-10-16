@@ -59,6 +59,7 @@ class GeolocatorRideLocationProvider implements RideLocationProvider {
     _positionSubscription = null;
   }
 
+  @override
   Future<void> dispose() async {
     await stop();
     await _samples.close();

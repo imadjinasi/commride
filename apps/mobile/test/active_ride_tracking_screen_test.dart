@@ -61,6 +61,9 @@ class FakeLocationProvider implements RideLocationProvider {
   }
 
   @override
+  Future<void> dispose() async {}
+
+  @override
   Future<void> stop() async {
     stopCalls += 1;
   }

@@ -22,6 +22,13 @@ around the group rather than inventing a novel navigation interaction.
 Show the next maneuver, distance, road/segment context, and compact group state.
 Role/attention information must stay glanceable.
 
+Implemented as overlays on the map (no app bar): a compact row with back, a
+tappable group summary that opens Rombongan, and the Ride menu; one attention
+strip for the most urgent thing about other Riders (another Rider's SOS, a
+recent Status cepat, confirmed convoy separation, lost realtime connection);
+and a high-contrast maneuver card with large distance, instruction, and
+remaining distance/time. The card turns Signal Orange while off route.
+
 ### Center — primary navigation map
 Rider guidance owns the map camera while guidance is active. Overlay authorized
 Ride participants with callsign/name, operational role and freshness. A stale or
@@ -31,11 +38,16 @@ Routine use must not require switching to a separate map solely to see the
 convoy.
 
 ### Bottom — riding dock
-The dock contains only actions that are appropriate while moving:
-- **Interkom** control when a verified media provider is available;
-- **Status cepat** for Saya Berhenti, Saya Tertinggal and Butuh Bantuan;
-- **Rombongan** / participant state;
-- deliberate **SOS**.
+The dock contains only actions that are appropriate while moving, each one
+tap away:
+- **Berhenti**, **Tertinggal** and **Bantuan** send Status cepat with a single
+  tap; long-press (or the Ride menu) adds a note;
+- deliberate **SOS**;
+- an Interkom status line when a verified media provider is available.
+
+Rombongan is reached from the group summary at the top. The SOS disclaimer
+lives on the SOS screen rather than permanently in the dock. The screen stays
+on while navigation is shown.
 
 SOS is always visible and uses the critical-red treatment. Activation is a
 continuous **press-and-hold for 3 seconds**. The control shows hold progress;
