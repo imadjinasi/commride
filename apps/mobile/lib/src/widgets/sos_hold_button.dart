@@ -36,8 +36,13 @@ class _SosHoldButtonState extends State<SosHoldButton>
   @override
   void initState() {
     super.initState();
-    _progress = AnimationController(vsync: this, duration: widget.duration)
-      ..addStatusListener(_onProgressStatus);
+    // The hold duration is a safety contract, not decoration: preserve it
+    // even when the platform asks to reduce or disable animations.
+    _progress = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      animationBehavior: AnimationBehavior.preserve,
+    )..addStatusListener(_onProgressStatus);
   }
 
   @override
@@ -131,9 +136,12 @@ class _SosHoldButtonState extends State<SosHoldButton>
           : 'Tekan dan tahan selama tiga detik untuk mengirim SOS.',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: _canHold ? _beginHold : null,
-        onTapUp: _canHold ? (_) => _endHold() : null,
-        onTapCancel: _canHold ? _endHold : null,
+        // Keep handlers attached while a hold completes: detaching them on
+        // trigger disposes the recognizer mid-build and cancels the gesture.
+        // _beginHold and _endHold guard their own state.
+        onTapDown: _beginHold,
+        onTapUp: (_) => _endHold(),
+        onTapCancel: _endHold,
         child: AnimatedBuilder(
           animation: _progress,
           builder: (BuildContext context, Widget? child) {
@@ -154,16 +162,21 @@ class _SosHoldButtonState extends State<SosHoldButton>
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
+                // Size from the label content so the button also lays out in
+                // unbounded-height parents such as the SOS screen ListView.
                 child: Stack(
-                  fit: StackFit.expand,
+                  alignment: Alignment.center,
                   children: <Widget>[
                     if (_holding && !_triggered)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: _progress.value,
-                          child: ColoredBox(
-                            color: foreground.withValues(alpha: 0.18),
+                      Positioned.fill(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: _progress.value,
+                            heightFactor: 1,
+                            child: ColoredBox(
+                              color: foreground.withValues(alpha: 0.18),
+                            ),
                           ),
                         ),
                       ),

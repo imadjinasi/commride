@@ -36,6 +36,8 @@ void main() {
     final TestGesture gesture = await tester.startGesture(
       tester.getCenter(button),
     );
+    // First frame starts the hold ticker; elapsed time counts from here.
+    await tester.pump();
     await tester.pump(const Duration(seconds: 2, milliseconds: 900));
     expect(sends, 0);
 
@@ -57,12 +59,36 @@ void main() {
     final TestGesture gesture = await tester.startGesture(
       tester.getCenter(button),
     );
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await gesture.up();
     await tester.pump(const Duration(seconds: 3));
 
     expect(sends, 0);
     expect(find.text('SOS · tahan 3 dtk'), findsOneWidget);
+  });
+
+  testWidgets('SOS hold stays three seconds when animations are disabled', (
+    WidgetTester tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    int sends = 0;
+    await tester.pumpWidget(_build(onCompleted: () async => sends += 1));
+
+    final TestGesture gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SosHoldButton)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(sends, 0);
+
+    await tester.pump(const Duration(seconds: 2, milliseconds: 50));
+    expect(sends, 1);
+
+    await gesture.up();
   });
 
   testWidgets('SOS uses critical red treatment', (WidgetTester tester) async {

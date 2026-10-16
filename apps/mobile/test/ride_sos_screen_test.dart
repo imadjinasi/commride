@@ -5,6 +5,7 @@ import 'package:commride_mobile/src/models/ride_sos.dart';
 import 'package:commride_mobile/src/screens/ride/ride_sos_screen.dart';
 import 'package:commride_mobile/src/theme/commride_theme.dart';
 import 'package:commride_mobile/src/widgets/sos_hold_button.dart';
+import 'package:flutter/gestures.dart' show kPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -182,6 +183,9 @@ void main() {
     final TestGesture gesture = await tester.startGesture(
       tester.getCenter(hold),
     );
+    // Inside the ListView the press registers after kPressTimeout; the
+    // following frame starts the hold ticker.
+    await tester.pump(kPressTimeout);
     await tester.pump(const Duration(seconds: 3, milliseconds: 100));
     await gesture.up();
     await tester.pumpAndSettle();
@@ -207,6 +211,9 @@ void main() {
     final TestGesture gesture = await tester.startGesture(
       tester.getCenter(hold),
     );
+    // Inside the ListView the press registers after kPressTimeout; the
+    // following frame starts the hold ticker.
+    await tester.pump(kPressTimeout);
     await tester.pump(const Duration(seconds: 3, milliseconds: 100));
     await gesture.up();
     await tester.pumpAndSettle();
