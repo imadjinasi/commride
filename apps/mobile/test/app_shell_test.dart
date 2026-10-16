@@ -419,6 +419,11 @@ void main() {
     expect(find.text('Rider One'), findsOneWidget);
     expect(find.text('Rider ID'), findsOneWidget);
     expect(find.text('rider-1'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Black · Honda · CB150R'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Black · Honda · CB150R'), findsOneWidget);
     expect(find.textContaining('Safe range 220 km'), findsOneWidget);
   });

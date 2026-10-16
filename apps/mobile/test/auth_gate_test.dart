@@ -393,9 +393,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Ride'), findsOneWidget);
-    expect(find.text('Clubs'), findsOneWidget);
+    final Finder navigation = find.byType(NavigationBar);
+    expect(navigation, findsOneWidget);
+    for (final String label in <String>['Home', 'Ride', 'Clubs']) {
+      expect(
+        find.descendant(of: navigation, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
 
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();

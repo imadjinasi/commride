@@ -67,7 +67,9 @@ void main() {
         },
       ),
     );
-    await Future<void>.delayed(Duration.zero);
+    // Deliver the foreground push inside the fake clock; a real
+    // Future.delayed never fires in testWidgets and hangs the test.
+    await tester.pump();
 
     RideNotificationEntry? opened;
     await tester.pumpWidget(
